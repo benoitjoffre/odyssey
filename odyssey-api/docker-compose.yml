@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: odyssey-postgres
+    environment:
+      POSTGRES_DB: odyssey
+      POSTGRES_USER: odyssey
+      POSTGRES_PASSWORD: odyssey
+    ports:
+      - "5432:5432"
+    volumes:
+      - odyssey_postgres_data:/var/lib/postgresql/data
+
+volumes:
+  odyssey_postgres_data:
