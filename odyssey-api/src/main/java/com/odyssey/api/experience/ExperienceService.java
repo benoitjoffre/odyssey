@@ -1,24 +1,30 @@
 package com.odyssey.api.experience;
 
 import java.util.List;
-import java.time.Instant;
 import org.springframework.stereotype.Service;
 
 import com.odyssey.api.exception.ResourceNotFoundException;
 
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
+
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
+
+import org.springframework.data.redis.core.StringRedisTemplate;
+
+import java.time.Duration;
 @Service
 public class ExperienceService {
 
   private final ExperienceRepository experienceRepository;
-  private final Map<Long, CacheEntry> cache = new ConcurrentHashMap<>();
+  private final StringRedisTemplate redisTemplate;
+  private final ObjectMapper objectMapper;
+  private static final long CACHE_TTL_SECONDS = 30;
 
-  private static final long CACHE_TTL_SECONDS = 10;
-
-  public ExperienceService(ExperienceRepository experienceRepository) {
+  public ExperienceService(ExperienceRepository experienceRepository, StringRedisTemplate redisTemplate, ObjectMapper objectMapper) {
     this.experienceRepository = experienceRepository;
+    this.redisTemplate = redisTemplate;
+    this.objectMapper = objectMapper;
   }
 
   private ExperienceResponse toResponse(Experience experience) {
@@ -53,19 +59,20 @@ public ExperienceResponse createExperience(CreateExperienceRequest request) {
 
   public ExperienceResponse getExperience(Long id) {
 
-    CacheEntry cachedEntry = cache.get(id);
+    String key = "experience:" + id;
 
-    if (cachedEntry != null) {
-      if (Instant.now().isBefore(cachedEntry.expiresAt())) {
-        System.out.println("CACHE HIT - Experience " + id);
-        return cachedEntry.value();
+    String cachedValue = redisTemplate.opsForValue().get(key);
+
+    if (cachedValue != null) {
+      System.out.println("REDIS CACHE HIT - Experience " + id);
+      try {
+        return objectMapper.readValue(cachedValue, ExperienceResponse.class);
+      } catch (JacksonException e) {
+        throw new RuntimeException("Failed to deserialize cached value", e);
       }
-
-      System.out.println("CACHE EXPIRED - Experience " + id);
-      cache.remove(id);
     }
 
-    System.out.println("Cache miss for experience with ID: " + id);
+    System.out.println("REDIS CACHE MISS - Experience " + id);
 
     Experience experience = experienceRepository
         .findById(id)
@@ -74,7 +81,13 @@ public ExperienceResponse createExperience(CreateExperienceRequest request) {
         );
 
     ExperienceResponse response = toResponse(experience);
-    cache.put(id, new CacheEntry(response, java.time.Instant.now().plusSeconds(CACHE_TTL_SECONDS)));
+    try {
+      String json = objectMapper.writeValueAsString(response);
+      
+      redisTemplate.opsForValue().set(key, json, Duration.ofSeconds(CACHE_TTL_SECONDS));
+    } catch (JacksonException e) {
+      throw new RuntimeException("Failed to serialize response for caching", e);
+    }
     return response;
   }
 
@@ -96,7 +109,7 @@ public ExperienceResponse createExperience(CreateExperienceRequest request) {
 
     Experience savedExperience = experienceRepository.save(experience);
 
-    cache.remove(id);
+    redisTemplate.delete("experience:" + id);
 
     return toResponse(savedExperience);
 }
