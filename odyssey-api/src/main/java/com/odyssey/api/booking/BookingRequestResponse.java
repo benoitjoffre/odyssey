@@ -4,6 +4,6 @@ public record BookingRequestResponse(
     Long id,
     BookingRequestStatus status,
     String notes,
-    Long needId
-) {
-}
+    Long needId,
+    Long assignedAgentId
+) {}

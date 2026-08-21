@@ -2,6 +2,7 @@ package com.odyssey.api.booking;
 
 import com.odyssey.api.need.Need;
 import jakarta.persistence.*;
+import com.odyssey.api.agent.Agent;
 
 @Entity
 @Table(name = "booking_requests")
@@ -20,6 +21,10 @@ public class BookingRequest {
     @OneToOne
     @JoinColumn(name = "need_id", nullable = false, unique = true)
     private Need need;
+
+    @ManyToOne
+    @JoinColumn(name = "assigned_agent_id")
+    private Agent assignedAgent;
 
     public BookingRequest() {
     }
@@ -50,5 +55,13 @@ public class BookingRequest {
 
     public void setNeed(Need need) {
         this.need = need;
+    }
+
+    public Agent getAssignedAgent() {
+        return assignedAgent;
+    }
+
+    public void setAssignedAgent(Agent assignedAgent) {
+        this.assignedAgent = assignedAgent;
     }
 }

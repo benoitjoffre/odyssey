@@ -1,0 +1,56 @@
+package com.odyssey.api.event;
+
+import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.stereotype.Service;
+
+import com.odyssey.api.agent.Agent;
+import com.odyssey.api.agent.AgentRepository;
+import com.odyssey.api.agent.AgentStatus;
+
+import tools.jackson.databind.ObjectMapper;
+
+@Service
+public class AgentEmailConsumer {
+
+    private final ObjectMapper objectMapper;
+    private final AgentRepository agentRepository;
+
+    public AgentEmailConsumer(
+        ObjectMapper objectMapper,
+        AgentRepository agentRepository
+    ) {
+        this.objectMapper = objectMapper;
+        this.agentRepository = agentRepository;
+    }
+
+    @KafkaListener(
+        topics = "booking-events",
+        groupId = "agent-emails"
+    )
+    public void consume(String message) {
+
+        BookingRequestedEvent event =
+            objectMapper.readValue(
+                message,
+                BookingRequestedEvent.class
+            );
+
+        Agent agent = agentRepository
+            .findByStatus(AgentStatus.AVAILABLE)
+            .stream()
+            .findFirst()
+            .orElseThrow(() ->
+                new RuntimeException("No available agent")
+            );
+
+        System.out.println(
+            "EMAIL AGENT → " +
+            agent.getEmail() +
+            " : Bonjour " +
+            agent.getFirstName() +
+            ", une nouvelle demande de réservation #" +
+            event.bookingRequestId() +
+            " est disponible."
+        );
+    }
+}

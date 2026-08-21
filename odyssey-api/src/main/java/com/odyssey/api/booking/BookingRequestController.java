@@ -37,4 +37,15 @@ public class BookingRequestController {
     ) {
         return bookingRequestService.getBookingRequest(id);
     }
+
+    @PostMapping("/{bookingRequestId}/claim")
+    public BookingRequestResponse claimBookingRequest(
+        @PathVariable Long bookingRequestId,
+        @RequestParam Long agentId
+    ) {
+        return bookingRequestService.claimBookingRequest(
+            bookingRequestId,
+            agentId
+        );
+    }
 }
