@@ -11,6 +11,7 @@ public class OutboxPublisher {
 
     private final OutboxEventRepository outboxEventRepository;
     private final KafkaTemplate<String, Object> kafkaTemplate;
+    
 
     public OutboxPublisher(
         OutboxEventRepository outboxEventRepository,
