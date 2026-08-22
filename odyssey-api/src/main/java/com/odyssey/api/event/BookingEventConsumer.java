@@ -42,11 +42,18 @@ public class BookingEventConsumer {
     )
     public void consume(String message) {
 
-        BookingRequestedEvent event =
-            objectMapper.readValue(
-                message,
-                BookingRequestedEvent.class
-            );
+        KafkaEvent kafkaEvent =
+        objectMapper.readValue(message,KafkaEvent.class);
+
+        if (!"BOOKING_REQUESTED".equals(kafkaEvent.type())) {
+            return;
+        }
+
+    BookingRequestedEvent event =
+        objectMapper.readValue(
+            kafkaEvent.payload(),
+            BookingRequestedEvent.class
+        );
 
         BookingRequest bookingRequest =
             bookingRequestRepository

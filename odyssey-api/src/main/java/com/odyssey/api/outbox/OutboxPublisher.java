@@ -5,20 +5,24 @@ import java.util.List;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import com.odyssey.api.event.KafkaEvent;
+import tools.jackson.databind.ObjectMapper;
 
 @Service
 public class OutboxPublisher {
 
     private final OutboxEventRepository outboxEventRepository;
     private final KafkaTemplate<String, Object> kafkaTemplate;
-    
+    private final ObjectMapper objectMapper;
 
     public OutboxPublisher(
         OutboxEventRepository outboxEventRepository,
-        KafkaTemplate<String, Object> kafkaTemplate
+        KafkaTemplate<String, Object> kafkaTemplate,
+        ObjectMapper objectMapper
     ) {
         this.outboxEventRepository = outboxEventRepository;
         this.kafkaTemplate = kafkaTemplate;
+        this.objectMapper = objectMapper;
     }
 
     @Scheduled(fixedDelay = 5000)
@@ -30,11 +34,18 @@ public class OutboxPublisher {
         for (OutboxEvent event : events) {
 
             try {
-                kafkaTemplate.send(
-                    "booking-events",
-                    event.getId().toString(),
-                    event.getPayload()
-                ).get();
+              KafkaEvent kafkaEvent = new KafkaEvent(
+                event.getEventType(),
+                event.getPayload()
+          );
+
+              String message = objectMapper.writeValueAsString(kafkaEvent);
+
+              kafkaTemplate.send(
+                  "booking-events",
+                  event.getId().toString(),
+                  message
+              ).get();
 
                 event.setStatus(OutboxStatus.PUBLISHED);
                 outboxEventRepository.save(event);

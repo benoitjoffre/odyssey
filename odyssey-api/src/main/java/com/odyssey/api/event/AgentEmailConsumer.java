@@ -28,12 +28,21 @@ public class AgentEmailConsumer {
         groupId = "agent-emails"
     )
     public void consume(String message) {
+        KafkaEvent kafkaEvent =
+        objectMapper.readValue(
+            message,
+            KafkaEvent.class
+        );
+
+        if (!"BOOKING_REQUESTED".equals(kafkaEvent.type())) {
+            return;
+        }
 
         BookingRequestedEvent event =
             objectMapper.readValue(
-                message,
-                BookingRequestedEvent.class
-            );
+            kafkaEvent.payload(),
+            BookingRequestedEvent.class
+        );
 
         Agent agent = agentRepository
             .findByStatus(AgentStatus.AVAILABLE)
