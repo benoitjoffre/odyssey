@@ -5,6 +5,7 @@ import {
   BedDouble,
   CalendarDays,
   Check,
+  ClipboardCheck,
   CircleUserRound,
   FileCheck2,
   Hotel,
@@ -17,11 +18,15 @@ import {
   Users,
 } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
+import { confirmBooking, createBooking } from "../api/bookings";
 import { claimBookingRequest, getBookingRequest, searchBookingRequestOffers } from "../api/bookingRequests";
 import { createQuote, sendQuote } from "../api/quotes";
+import { getTravelerQuotes } from "../api/travelerQuotes";
+import type { Booking } from "../types/booking";
 import type { BookingRequest, BookingRequestStatus, NeedType } from "../types/bookingRequest";
 import { isAccommodationOffer, type ProviderOffer } from "../types/providerOffer";
 import type { QuoteResponse } from "../types/quote";
+import type { TravelerQuote } from "../types/travelerQuote";
 
 const CURRENT_AGENT_ID = 1;
 
@@ -87,6 +92,11 @@ export function BookingRequestPage() {
   const [createdQuote, setCreatedQuote] = useState<QuoteResponse | null>(null);
   const [sendingQuote, setSendingQuote] = useState(false);
   const [sendQuoteError, setSendQuoteError] = useState<string | null>(null);
+  const [acceptedQuote, setAcceptedQuote] = useState<TravelerQuote | null>(null);
+  const [booking, setBooking] = useState<Booking | null>(null);
+  const [creatingBooking, setCreatingBooking] = useState(false);
+  const [confirmingBooking, setConfirmingBooking] = useState(false);
+  const [bookingError, setBookingError] = useState<string | null>(null);
 
   useEffect(() => {
     if (hasInvalidId) return;
@@ -98,7 +108,15 @@ export function BookingRequestPage() {
       setError(null);
 
       try {
-        setBookingRequest(await getBookingRequest(bookingRequestId, controller.signal));
+        const request = await getBookingRequest(bookingRequestId, controller.signal);
+        setBookingRequest(request);
+
+        const travelerQuotes = await getTravelerQuotes(request.traveler.id, controller.signal);
+        const matchingAcceptedQuote =
+          travelerQuotes
+            .filter((quote) => quote.bookingRequestId === request.id && quote.status === "ACCEPTED")
+            .sort((first, second) => second.id - first.id)[0] ?? null;
+        setAcceptedQuote(matchingAcceptedQuote);
       } catch (requestError: unknown) {
         if (requestError instanceof DOMException && requestError.name === "AbortError") return;
         setError("Impossible de charger cette demande pour le moment.");
@@ -199,6 +217,39 @@ export function BookingRequestPage() {
       setSendQuoteError("L’envoi de la proposition a échoué. Veuillez réessayer.");
     } finally {
       setSendingQuote(false);
+    }
+  }
+
+  async function handleCreateBooking() {
+    const quote = acceptedQuote ?? (createdQuote?.status === "ACCEPTED" ? createdQuote : null);
+    if (!quote || creatingBooking) return;
+
+    setCreatingBooking(true);
+    setBookingError(null);
+
+    try {
+      setBooking(await createBooking(quote.id, CURRENT_AGENT_ID));
+    } catch {
+      setBookingError("La réservation n’a pas pu être créée. Veuillez réessayer.");
+    } finally {
+      setCreatingBooking(false);
+    }
+  }
+
+  async function handleConfirmBooking() {
+    if (!booking || confirmingBooking) return;
+
+    setConfirmingBooking(true);
+    setBookingError(null);
+
+    try {
+      const confirmedBooking = await confirmBooking(booking.id, CURRENT_AGENT_ID);
+      setBooking(confirmedBooking);
+      setReloadVersion((version) => version + 1);
+    } catch {
+      setBookingError("La réservation n’a pas pu être confirmée. Veuillez réessayer.");
+    } finally {
+      setConfirmingBooking(false);
     }
   }
 
@@ -542,6 +593,52 @@ export function BookingRequestPage() {
             <p className="quote-sent-confirmation">
               <Check size={18} /> Proposition envoyée au client
             </p>
+          )}
+        </section>
+      )}
+
+      {(acceptedQuote || createdQuote?.status === "ACCEPTED") && (
+        <section className={`booking-workflow-card${booking?.status === "CONFIRMED" ? " confirmed" : ""}`} aria-labelledby="booking-workflow-title">
+          <div className="booking-workflow-heading">
+            <span className="booking-workflow-icon">
+              <ClipboardCheck size={21} />
+            </span>
+            <div>
+              <span className="eyebrow">Réservation fournisseur</span>
+              <h2 id="booking-workflow-title">
+                {!booking && "Proposition acceptée par le client"}
+                {booking?.status === "PENDING" && "Réservation en attente de confirmation"}
+                {booking?.status === "CONFIRMED" && "Réservation confirmée"}
+              </h2>
+            </div>
+            {booking && <span className={`booking-status status-${booking.status.toLowerCase()}`}>{booking.status}</span>}
+          </div>
+
+          {booking?.status === "CONFIRMED" && (
+            <div className="provider-confirmation">
+              <span>Référence fournisseur</span>
+              <strong>{booking.providerConfirmationId}</strong>
+            </div>
+          )}
+
+          {bookingError && (
+            <p className="booking-error" role="alert">
+              {bookingError}
+            </p>
+          )}
+
+          {!booking && (
+            <button type="button" className="primary-button" onClick={handleCreateBooking} disabled={creatingBooking}>
+              {creatingBooking ? <LoaderCircle className="rotating" size={18} /> : <ClipboardCheck size={18} />}
+              {creatingBooking ? "Création de la réservation…" : "Créer la réservation"}
+            </button>
+          )}
+
+          {booking?.status === "PENDING" && (
+            <button type="button" className="primary-button" onClick={handleConfirmBooking} disabled={confirmingBooking}>
+              {confirmingBooking ? <LoaderCircle className="rotating" size={18} /> : <Check size={18} />}
+              {confirmingBooking ? "Confirmation…" : "Confirmer auprès du fournisseur"}
+            </button>
           )}
         </section>
       )}
