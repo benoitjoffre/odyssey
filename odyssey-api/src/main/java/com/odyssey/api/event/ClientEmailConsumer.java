@@ -6,6 +6,8 @@ import org.springframework.stereotype.Service;
 import com.odyssey.api.agent.Agent;
 import com.odyssey.api.agent.AgentRepository;
 import com.odyssey.api.exception.ResourceNotFoundException;
+import com.odyssey.api.quote.Quote;
+import com.odyssey.api.quote.QuoteRepository;
 import com.odyssey.api.traveler.Traveler;
 import com.odyssey.api.traveler.TravelerRepository;
 
@@ -17,22 +19,25 @@ public class ClientEmailConsumer {
     private final ObjectMapper objectMapper;
     private final TravelerRepository travelerRepository;
     private final AgentRepository agentRepository;
+    private final QuoteRepository quoteRepository;
 
     public ClientEmailConsumer(
         ObjectMapper objectMapper,
         TravelerRepository travelerRepository,
-        AgentRepository agentRepository
+        AgentRepository agentRepository,
+        QuoteRepository quoteRepository
     ) {
         this.objectMapper = objectMapper;
         this.travelerRepository = travelerRepository;
         this.agentRepository = agentRepository;
+        this.quoteRepository = quoteRepository;
     }
 
     @KafkaListener(
     topics = "booking-events",
     groupId = "client-emails"
     )
-    public void consume(String message) {
+    public void consume(String message) throws Exception {
 
         KafkaEvent kafkaEvent =
             objectMapper.readValue(
@@ -49,6 +54,9 @@ public class ClientEmailConsumer {
             case "BOOKING_ASSIGNED" -> {
                 handleBookingAssigned(kafkaEvent.payload());
             }
+
+            case "QUOTE_SENT" ->
+                handleQuoteSent(kafkaEvent.payload());
 
             default -> {
                 System.out.println(
@@ -110,6 +118,34 @@ public class ClientEmailConsumer {
             " est maintenant prise en charge par " +
             agent.getFirstName() +
             "."
+        );
+    }
+
+    private void handleQuoteSent(String payload) throws Exception {
+
+        QuoteSentEvent event = objectMapper.readValue(
+                payload,
+                QuoteSentEvent.class
+        );
+
+        Traveler traveler = travelerRepository
+                .findById(event.travelerId())
+                .orElseThrow();
+
+        Quote quote = quoteRepository
+                .findById(event.quoteId())
+                .orElseThrow();
+
+        System.out.println(
+                "EMAIL CLIENT → " + traveler.getEmail()
+                + " : Bonjour " + traveler.getFirstName()
+                + ", une nouvelle proposition est disponible pour votre demande #"
+                + event.bookingRequestId()
+                + ". Prix : "
+                + quote.getSellingPrice()
+                + " "
+                + quote.getCurrency()
+                + ". " + quote.getDescription()
         );
     }
 }
