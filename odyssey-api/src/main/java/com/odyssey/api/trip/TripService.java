@@ -194,7 +194,10 @@ public class TripService {
             trip.getEndDate(),
             trip.getStatus(),
             trip.getTraveler().getId(),
-            needs
+            needs,
+            trip.getTravelEvent() != null
+                ? trip.getTravelEvent().getId()
+                : null
         );
     }
 }
