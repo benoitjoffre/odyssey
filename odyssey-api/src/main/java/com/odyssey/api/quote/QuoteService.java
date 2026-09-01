@@ -8,7 +8,7 @@ import com.odyssey.api.exception.ResourceNotFoundException;
 import com.odyssey.api.outbox.OutboxEvent;
 import com.odyssey.api.outbox.OutboxEventRepository;
 import com.odyssey.api.outbox.OutboxStatus;
-
+import com.odyssey.api.event.QuoteAcceptedEvent;
 import tools.jackson.databind.ObjectMapper;
 
 import org.springframework.stereotype.Service;
@@ -193,21 +193,20 @@ public class QuoteService {
                         new ResourceNotFoundException("Quote not found")
                 );
 
-        Long quoteTravelerId = quote
-                .getBookingRequest()
+        BookingRequest bookingRequest = quote.getBookingRequest();
+
+        Long quoteTravelerId = bookingRequest
                 .getNeed()
                 .getTrip()
                 .getTraveler()
                 .getId();
 
-        // Sécurité : la proposition doit appartenir au Traveler
         if (!quoteTravelerId.equals(travelerId)) {
             throw new IllegalArgumentException(
                     "This quote does not belong to this traveler"
             );
         }
 
-        // Seule une proposition envoyée peut être acceptée
         if (quote.getStatus() != QuoteStatus.SENT) {
             throw new IllegalArgumentException(
                     "Only a SENT quote can be accepted"
@@ -217,6 +216,28 @@ public class QuoteService {
         quote.setStatus(QuoteStatus.ACCEPTED);
 
         Quote savedQuote = quoteRepository.save(quote);
+
+        Long agentId = bookingRequest
+                .getAssignedAgent()
+                .getId();
+
+        QuoteAcceptedEvent event = new QuoteAcceptedEvent(
+                savedQuote.getId(),
+                bookingRequest.getId(),
+                travelerId,
+                agentId
+        );
+
+        String payload = objectMapper.writeValueAsString(event);
+
+        OutboxEvent outboxEvent = new OutboxEvent();
+
+        outboxEvent.setEventType("QUOTE_ACCEPTED");
+        outboxEvent.setPayload(payload);
+        outboxEvent.setStatus(OutboxStatus.PENDING);
+        outboxEvent.setCreatedAt(Instant.now());
+
+        outboxEventRepository.save(outboxEvent);
 
         return toTravelerResponse(savedQuote);
     }

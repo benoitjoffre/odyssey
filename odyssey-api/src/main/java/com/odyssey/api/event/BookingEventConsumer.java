@@ -43,17 +43,34 @@ public class BookingEventConsumer {
     public void consume(String message) {
 
         KafkaEvent kafkaEvent =
-        objectMapper.readValue(message,KafkaEvent.class);
+            objectMapper.readValue(
+                message,
+                KafkaEvent.class
+            );
 
-        if (!"BOOKING_REQUESTED".equals(kafkaEvent.type())) {
-            return;
+        switch (kafkaEvent.type()) {
+
+            case "BOOKING_REQUESTED" ->
+                handleBookingRequested(kafkaEvent.payload());
+
+            case "QUOTE_ACCEPTED" ->
+                handleQuoteAccepted(kafkaEvent.payload());
+
+            default ->
+                System.out.println(
+                    "Agent notifications ignored event: "
+                        + kafkaEvent.type()
+                );
         }
+    }
 
-    BookingRequestedEvent event =
-        objectMapper.readValue(
-            kafkaEvent.payload(),
-            BookingRequestedEvent.class
-        );
+    private void handleBookingRequested(String payload) {
+
+        BookingRequestedEvent event =
+            objectMapper.readValue(
+                payload,
+                BookingRequestedEvent.class
+            );
 
         BookingRequest bookingRequest =
             bookingRequestRepository
@@ -69,27 +86,92 @@ public class BookingEventConsumer {
             .stream()
             .findFirst()
             .orElseThrow(() ->
-                new RuntimeException("No available agent")
+                new RuntimeException(
+                    "No available agent"
+                )
             );
 
         AgentNotification notification =
             new AgentNotification();
 
         notification.setAgent(agent);
-        notification.setBookingRequest(bookingRequest);
+        notification.setBookingRequest(
+            bookingRequest
+        );
+
         notification.setMessage(
             "Nouvelle demande de réservation à prendre en charge"
         );
+
         notification.setRead(false);
         notification.setCreatedAt(Instant.now());
 
         notificationRepository.save(notification);
 
         System.out.println(
-            "NOTIFICATION → Agent " +
-            agent.getId() +
-            " / BookingRequest " +
-            bookingRequest.getId()
+            "NOTIFICATION → Agent "
+                + agent.getId()
+                + " / BookingRequest "
+                + bookingRequest.getId()
+        );
+    }
+
+    private void handleQuoteAccepted(String payload) {
+
+        QuoteAcceptedEvent event =
+            objectMapper.readValue(
+                payload,
+                QuoteAcceptedEvent.class
+            );
+
+        BookingRequest bookingRequest =
+            bookingRequestRepository
+                .findById(event.bookingRequestId())
+                .orElseThrow(() ->
+                    new ResourceNotFoundException(
+                        "Booking request not found"
+                    )
+                );
+
+        Agent agent = agentRepository
+            .findById(event.agentId())
+            .orElseThrow(() ->
+                new ResourceNotFoundException(
+                    "Agent not found"
+                )
+            );
+
+        String travelerFirstName =
+            bookingRequest
+                .getNeed()
+                .getTrip()
+                .getTraveler()
+                .getFirstName();
+
+        AgentNotification notification =
+            new AgentNotification();
+
+        notification.setAgent(agent);
+        notification.setBookingRequest(
+            bookingRequest
+        );
+
+        notification.setMessage(
+            travelerFirstName
+                + " a accepté votre proposition pour la demande #"
+                + bookingRequest.getId()
+        );
+
+        notification.setRead(false);
+        notification.setCreatedAt(Instant.now());
+
+        notificationRepository.save(notification);
+
+        System.out.println(
+            "NOTIFICATION → Agent "
+                + agent.getId()
+                + " : "
+                + notification.getMessage()
         );
     }
 }
