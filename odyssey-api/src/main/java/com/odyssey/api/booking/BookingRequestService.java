@@ -45,6 +45,7 @@ public class BookingRequestService {
         
     }
 
+    @Transactional
     public BookingRequestResponse createBookingRequest(
         CreateBookingRequest request
     ) {
