@@ -1162,9 +1162,15 @@ h2 {
   font-weight: 700;
 }
 
-.traveler-quote-outcome.accepted { color: #28643e; }
-.traveler-quote-outcome.rejected { color: #8b3d35; }
-.traveler-quote-outcome.expired { color: #5c6362; }
+.traveler-quote-outcome.accepted {
+  color: #28643e;
+}
+.traveler-quote-outcome.rejected {
+  color: #8b3d35;
+}
+.traveler-quote-outcome.expired {
+  color: #5c6362;
+}
 
 @keyframes spin {
   to {

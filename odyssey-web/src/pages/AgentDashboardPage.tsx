@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ArrowRight, Bell, CalendarDays, Inbox, RefreshCw } from "lucide-react";
 import { Link } from "react-router-dom";
+import { openAgentNotificationStream } from "../api/agentNotificationStream";
 import { getAgentNotifications } from "../api/agents";
 import type { AgentNotification } from "../types/agent";
 
@@ -21,6 +22,8 @@ export function AgentDashboardPage() {
 
   useEffect(() => {
     const controller = new AbortController();
+    let eventSource: EventSource | null = null;
+    let disposed = false;
 
     async function loadNotifications() {
       setLoading(true);
@@ -39,10 +42,26 @@ export function AgentDashboardPage() {
           setLoading(false);
         }
       }
+
+      if (!disposed) {
+        eventSource = openAgentNotificationStream(CURRENT_AGENT_ID, (notification) => {
+          setNotifications((current) => {
+            if (current.some((item) => item.id === notification.id)) {
+              return current;
+            }
+
+            return [notification, ...current];
+          });
+        });
+      }
     }
 
     void loadNotifications();
-    return () => controller.abort();
+    return () => {
+      disposed = true;
+      controller.abort();
+      eventSource?.close();
+    };
   }, [requestVersion]);
 
   const unreadCount = notifications.filter((notification) => !notification.read).length;

@@ -70,10 +70,7 @@ export function TravelerQuotesPage() {
     });
 
     try {
-      const updatedQuote =
-        action === "accept"
-          ? await acceptTravelerQuote(TRAVELER_ID, quote.id)
-          : await rejectTravelerQuote(TRAVELER_ID, quote.id);
+      const updatedQuote = action === "accept" ? await acceptTravelerQuote(TRAVELER_ID, quote.id) : await rejectTravelerQuote(TRAVELER_ID, quote.id);
       setQuotes((current) => current.map((item) => (item.id === updatedQuote.id ? updatedQuote : item)));
     } catch {
       setActionErrors((current) => ({
@@ -130,66 +127,71 @@ export function TravelerQuotesPage() {
             const isPending = Boolean(pendingAction);
 
             return (
-            <article className="traveler-quote-card" key={quote.id}>
-              <div className="traveler-quote-topline">
-                <span className={`traveler-status status-${quote.status.toLowerCase()}`}>{statusLabels[quote.status]}</span>
-                <span className="traveler-request-number">
-                  <FileText size={14} /> Demande #{quote.bookingRequestId}
-                </span>
-              </div>
-              <div className="traveler-quote-main">
-                <h2>{quote.description}</h2>
-                <strong className="traveler-quote-price">{formatPrice(quote.price, quote.currency)}</strong>
-              </div>
-              <div className="traveler-quote-dates">
-                <span>
-                  <CalendarDays size={16} />
-                  <span>
-                    Reçue le <strong>{formatDate(quote.createdAt)}</strong>
+              <article className="traveler-quote-card" key={quote.id}>
+                <div className="traveler-quote-topline">
+                  <span className={`traveler-status status-${quote.status.toLowerCase()}`}>{statusLabels[quote.status]}</span>
+                  <span className="traveler-request-number">
+                    <FileText size={14} /> Demande #{quote.bookingRequestId}
                   </span>
-                </span>
-                {quote.expiresAt && (
+                </div>
+                <div className="traveler-quote-main">
+                  <h2>{quote.description}</h2>
+                  <strong className="traveler-quote-price">{formatPrice(quote.price, quote.currency)}</strong>
+                </div>
+                <div className="traveler-quote-dates">
                   <span>
-                    <Clock3 size={16} />
+                    <CalendarDays size={16} />
                     <span>
-                      Expire le <strong>{formatDate(quote.expiresAt)}</strong>
+                      Reçue le <strong>{formatDate(quote.createdAt)}</strong>
                     </span>
                   </span>
-                )}
-              </div>
-              {quote.status === "SENT" && (
-                <div className="traveler-quote-actions">
-                  {actionErrors[quote.id] && <p className="traveler-action-error" role="alert">{actionErrors[quote.id]}</p>}
-                  <button
-                    type="button"
-                    className="primary-button"
-                    disabled={isPending}
-                    onClick={() => void handleQuoteAction(quote, "accept")}
-                  >
-                    {pendingAction === "accept" ? <LoaderCircle className="rotating" size={18} /> : <Check size={18} />}
-                    {pendingAction === "accept" ? "Acceptation..." : "Accepter la proposition"}
-                  </button>
-                  <button
-                    type="button"
-                    className="traveler-reject-button"
-                    disabled={isPending}
-                    onClick={() => void handleQuoteAction(quote, "reject")}
-                  >
-                    {pendingAction === "reject" ? <LoaderCircle className="rotating" size={18} /> : <X size={18} />}
-                    {pendingAction === "reject" ? "Refus..." : "Refuser"}
-                  </button>
+                  {quote.expiresAt && (
+                    <span>
+                      <Clock3 size={16} />
+                      <span>
+                        Expire le <strong>{formatDate(quote.expiresAt)}</strong>
+                      </span>
+                    </span>
+                  )}
                 </div>
-              )}
-              {quote.status === "ACCEPTED" && (
-                <p className="traveler-quote-outcome accepted"><Check size={18} /> Proposition acceptée</p>
-              )}
-              {quote.status === "REJECTED" && (
-                <p className="traveler-quote-outcome rejected"><X size={18} /> Proposition refusée</p>
-              )}
-              {quote.status === "EXPIRED" && (
-                <p className="traveler-quote-outcome expired"><Clock3 size={18} /> Proposition expirée</p>
-              )}
-            </article>
+                {quote.status === "SENT" && (
+                  <div className="traveler-quote-actions">
+                    {actionErrors[quote.id] && (
+                      <p className="traveler-action-error" role="alert">
+                        {actionErrors[quote.id]}
+                      </p>
+                    )}
+                    <button type="button" className="primary-button" disabled={isPending} onClick={() => void handleQuoteAction(quote, "accept")}>
+                      {pendingAction === "accept" ? <LoaderCircle className="rotating" size={18} /> : <Check size={18} />}
+                      {pendingAction === "accept" ? "Acceptation..." : "Accepter la proposition"}
+                    </button>
+                    <button
+                      type="button"
+                      className="traveler-reject-button"
+                      disabled={isPending}
+                      onClick={() => void handleQuoteAction(quote, "reject")}
+                    >
+                      {pendingAction === "reject" ? <LoaderCircle className="rotating" size={18} /> : <X size={18} />}
+                      {pendingAction === "reject" ? "Refus..." : "Refuser"}
+                    </button>
+                  </div>
+                )}
+                {quote.status === "ACCEPTED" && (
+                  <p className="traveler-quote-outcome accepted">
+                    <Check size={18} /> Proposition acceptée
+                  </p>
+                )}
+                {quote.status === "REJECTED" && (
+                  <p className="traveler-quote-outcome rejected">
+                    <X size={18} /> Proposition refusée
+                  </p>
+                )}
+                {quote.status === "EXPIRED" && (
+                  <p className="traveler-quote-outcome expired">
+                    <Clock3 size={18} /> Proposition expirée
+                  </p>
+                )}
+              </article>
             );
           })}
         </section>
