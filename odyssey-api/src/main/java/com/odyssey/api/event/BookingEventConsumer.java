@@ -8,6 +8,8 @@ import org.springframework.stereotype.Service;
 import com.odyssey.api.agent.Agent;
 import com.odyssey.api.agent.AgentNotification;
 import com.odyssey.api.agent.AgentNotificationRepository;
+import com.odyssey.api.agent.AgentNotificationResponse;
+import com.odyssey.api.agent.AgentNotificationSseService;
 import com.odyssey.api.agent.AgentRepository;
 import com.odyssey.api.agent.AgentStatus;
 import com.odyssey.api.booking.BookingRequest;
@@ -23,17 +25,20 @@ public class BookingEventConsumer {
     private final AgentRepository agentRepository;
     private final AgentNotificationRepository notificationRepository;
     private final BookingRequestRepository bookingRequestRepository;
+    private final AgentNotificationSseService sseService;
 
     public BookingEventConsumer(
         ObjectMapper objectMapper,
         AgentRepository agentRepository,
         AgentNotificationRepository notificationRepository,
-        BookingRequestRepository bookingRequestRepository
+        BookingRequestRepository bookingRequestRepository,
+        AgentNotificationSseService sseService
     ) {
         this.objectMapper = objectMapper;
         this.agentRepository = agentRepository;
         this.notificationRepository = notificationRepository;
         this.bookingRequestRepository = bookingRequestRepository;
+        this.sseService = sseService;
     }
 
     @KafkaListener(
@@ -165,7 +170,22 @@ public class BookingEventConsumer {
         notification.setRead(false);
         notification.setCreatedAt(Instant.now());
 
-        notificationRepository.save(notification);
+        AgentNotification savedNotification =
+            notificationRepository.save(notification);
+
+        AgentNotificationResponse response =
+            new AgentNotificationResponse(
+                savedNotification.getId(),
+                savedNotification.getMessage(),
+                savedNotification.isRead(),
+                savedNotification.getCreatedAt(),
+                bookingRequest.getId()
+            );
+
+        sseService.send(
+            agent.getId(),
+            response
+        );
 
         System.out.println(
             "NOTIFICATION → Agent "
