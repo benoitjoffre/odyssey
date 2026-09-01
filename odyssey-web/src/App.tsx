@@ -4,7 +4,11 @@ import { TravelerLayout } from "./components/TravelerLayout";
 import { AgentDashboardPage } from "./pages/AgentDashboardPage";
 import { BookingRequestPage } from "./pages/BookingRequestPage";
 import { ComingSoonPage } from "./pages/ComingSoonPage";
+import { TravelerDiscoverPage } from "./pages/traveler/TravelerDiscoverPage";
+import { TravelerEventDetailPage } from "./pages/traveler/TravelerEventDetailPage";
 import { TravelerQuotesPage } from "./pages/traveler/TravelerQuotesPage";
+import { TravelerTripDetailPage } from "./pages/traveler/TravelerTripDetailPage";
+import { TravelerTripsPage } from "./pages/traveler/TravelerTripsPage";
 
 function App() {
   return (
@@ -16,7 +20,11 @@ function App() {
         <Route path="quotes" element={<ComingSoonPage title="Propositions" />} />
       </Route>
       <Route path="/traveler" element={<TravelerLayout />}>
-        <Route index element={<Navigate to="quotes" replace />} />
+        <Route index element={<Navigate to="discover" replace />} />
+        <Route path="discover" element={<TravelerDiscoverPage />} />
+        <Route path="events/:eventId" element={<TravelerEventDetailPage />} />
+        <Route path="trips" element={<TravelerTripsPage />} />
+        <Route path="trips/:tripId" element={<TravelerTripDetailPage />} />
         <Route path="quotes" element={<TravelerQuotesPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/agent" replace />} />

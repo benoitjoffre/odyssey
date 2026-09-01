@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { FileText, Home, Luggage, Plane, UserRound } from "lucide-react";
+import { Compass, FileText, Luggage, Plane, UserRound } from "lucide-react";
 import { NavLink, Outlet } from "react-router-dom";
 
 export function TravelerLayout() {
@@ -22,15 +22,19 @@ export function TravelerLayout() {
           </div>
 
           <nav className="traveler-nav" aria-label="Navigation voyageur">
-            <span className="traveler-nav-item disabled" aria-disabled="true">
-              <Home size={18} />
-              <span>Accueil</span>
-            </span>
-            <span className="traveler-nav-item disabled" aria-disabled="true">
+            <NavLink aria-label="Découvrir" className={({ isActive }) => `traveler-nav-item${isActive ? " active" : ""}`} to="/traveler/discover">
+              <Compass size={18} />
+              <span>Découvrir</span>
+            </NavLink>
+            <NavLink aria-label="Mes voyages" className={({ isActive }) => `traveler-nav-item${isActive ? " active" : ""}`} to="/traveler/trips">
               <Luggage size={18} />
               <span>Mes voyages</span>
-            </span>
-            <NavLink className={({ isActive }) => `traveler-nav-item${isActive ? " active" : ""}`} to="/traveler/quotes">
+            </NavLink>
+            <NavLink
+              aria-label="Mes propositions"
+              className={({ isActive }) => `traveler-nav-item${isActive ? " active" : ""}`}
+              to="/traveler/quotes"
+            >
               <FileText size={18} />
               <span>Mes propositions</span>
             </NavLink>
