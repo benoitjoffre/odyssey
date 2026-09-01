@@ -4,10 +4,15 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;
 
+
+
 public interface BookingRepository
         extends JpaRepository<Booking, Long> {
 
-    Optional<Booking> findByQuoteId(Long quoteId);
+          
+  Optional<Booking> findByQuoteId(Long quoteId);
 
-    boolean existsByQuoteId(Long quoteId);
+  Optional<Booking> findByQuoteBookingRequestId(Long bookingRequestId);
+
+  boolean existsByQuoteId(Long quoteId);
 }

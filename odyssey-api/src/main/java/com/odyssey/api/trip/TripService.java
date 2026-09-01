@@ -2,7 +2,11 @@ package com.odyssey.api.trip;
 
 import com.odyssey.api.traveler.Traveler;
 import com.odyssey.api.traveler.TravelerRepository;
+import com.odyssey.api.booking.BookingRequestRepository;
+import com.odyssey.api.booking.confirmation.BookingRepository;
 import com.odyssey.api.exception.ResourceNotFoundException;
+import com.odyssey.api.need.NeedRepository;
+
 import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 
@@ -13,6 +17,10 @@ public class TripService {
 
     private final TripRepository tripRepository;
     private final TravelerRepository travelerRepository;
+    private final NeedRepository needRepository;
+    private final BookingRequestRepository bookingRequestRepository;
+    private final BookingRepository bookingRepository;
+
     private TripResponse toResponse(Trip trip) {
     return new TripResponse(
         trip.getId(),
@@ -26,10 +34,16 @@ public class TripService {
 
     public TripService(
         TripRepository tripRepository,
-        TravelerRepository travelerRepository
+        TravelerRepository travelerRepository,
+        NeedRepository needRepository,
+        BookingRequestRepository bookingRequestRepository,
+        BookingRepository bookingRepository
     ) {
         this.tripRepository = tripRepository;
         this.travelerRepository = travelerRepository;
+        this.needRepository = needRepository;
+        this.bookingRequestRepository = bookingRequestRepository;
+        this.bookingRepository = bookingRepository;
     }
 
     public TripResponse createTrip(CreateTripRequest request) {
@@ -71,5 +85,81 @@ public class TripService {
             .orElseThrow(() -> new ResourceNotFoundException("Trip not found"));
 
         return toResponse(trip);
+    }
+
+    public List<TripResponse> getTripsByTraveler(Long travelerId) {
+
+        if (!travelerRepository.existsById(travelerId)) {
+            throw new ResourceNotFoundException(
+                "Traveler not found"
+            );
+        }
+
+        return tripRepository
+            .findByTravelerIdOrderByStartDateDesc(travelerId)
+            .stream()
+            .map(this::toResponse)
+            .toList();
+    }
+
+    public TripDetailResponse getTripDetail(Long id) {
+
+        Trip trip = tripRepository
+            .findById(id)
+            .orElseThrow(() ->
+                new ResourceNotFoundException("Trip not found")
+            );
+
+            
+
+        List<TripNeedResponse> needs =
+            needRepository.findByTripId(id)
+                .stream()
+                .map(need -> {
+
+                    var bookingRequest =
+                        bookingRequestRepository
+                            .findByNeedId(need.getId())
+                            .orElse(null);
+
+                    var booking =
+                        bookingRequest == null
+                            ? null
+                            : bookingRepository
+                                .findByQuoteBookingRequestId(
+                                    bookingRequest.getId()
+                                )
+                                .orElse(null);
+
+                    return new TripNeedResponse(
+                        need.getId(),
+                        need.getType(),
+                        need.getStatus(),
+                        need.getNotes(),
+
+                        bookingRequest != null
+                            ? bookingRequest.getStatus()
+                            : null,
+
+                        booking != null
+                            ? booking.getStatus()
+                            : null,
+
+                        booking != null
+                            ? booking.getProviderConfirmationId()
+                            : null
+                    );
+                })
+                .toList();
+
+        return new TripDetailResponse(
+            trip.getId(),
+            trip.getTitle(),
+            trip.getStartDate(),
+            trip.getEndDate(),
+            trip.getStatus(),
+            trip.getTraveler().getId(),
+            needs
+        );
     }
 }

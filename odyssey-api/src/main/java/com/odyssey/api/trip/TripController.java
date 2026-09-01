@@ -30,4 +30,11 @@ public class TripController {
     public TripResponse getTrip(@PathVariable Long id) {
         return tripService.getTrip(id);
     }
+
+    @GetMapping("/{id}/detail")
+    public TripDetailResponse getTripDetail(
+        @PathVariable Long id
+    ) {
+        return tripService.getTripDetail(id);
+    }
 }
