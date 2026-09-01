@@ -155,22 +155,13 @@ public class QuoteService {
     public List<TravelerQuoteResponse> getQuotesByTraveler(Long travelerId) {
 
         return quoteRepository
-            .findByBookingRequestNeedTripTravelerIdAndStatusNot(
-                travelerId,
-                QuoteStatus.DRAFT
-            )
-            .stream()
-            .map(quote -> new TravelerQuoteResponse(
-                quote.getId(),
-                quote.getBookingRequest().getId(),
-                quote.getSellingPrice(),
-                quote.getCurrency(),
-                quote.getDescription(),
-                quote.getStatus(),
-                quote.getCreatedAt(),
-                quote.getExpiresAt()
-            ))
-            .toList();
+                .findByBookingRequestNeedTripTravelerIdAndStatusNot(
+                        travelerId,
+                        QuoteStatus.DRAFT
+                )
+                .stream()
+                .map(this::toTravelerResponse)
+                .toList();
     }
 
     private QuoteResponse toResponse(Quote quote) {
@@ -190,5 +181,97 @@ public class QuoteService {
         );
     }
 
+    @Transactional
+    public TravelerQuoteResponse acceptQuote(
+            Long quoteId,
+            Long travelerId
+    ) {
 
+        Quote quote = quoteRepository
+                .findById(quoteId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Quote not found")
+                );
+
+        Long quoteTravelerId = quote
+                .getBookingRequest()
+                .getNeed()
+                .getTrip()
+                .getTraveler()
+                .getId();
+
+        // Sécurité : la proposition doit appartenir au Traveler
+        if (!quoteTravelerId.equals(travelerId)) {
+            throw new IllegalArgumentException(
+                    "This quote does not belong to this traveler"
+            );
+        }
+
+        // Seule une proposition envoyée peut être acceptée
+        if (quote.getStatus() != QuoteStatus.SENT) {
+            throw new IllegalArgumentException(
+                    "Only a SENT quote can be accepted"
+            );
+        }
+
+        quote.setStatus(QuoteStatus.ACCEPTED);
+
+        Quote savedQuote = quoteRepository.save(quote);
+
+        return toTravelerResponse(savedQuote);
+    }
+
+    @Transactional
+    public TravelerQuoteResponse rejectQuote(
+            Long quoteId,
+            Long travelerId
+    ) {
+
+        Quote quote = quoteRepository
+                .findById(quoteId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Quote not found")
+                );
+
+        Long quoteTravelerId = quote
+                .getBookingRequest()
+                .getNeed()
+                .getTrip()
+                .getTraveler()
+                .getId();
+
+        // Sécurité : la proposition doit appartenir au Traveler
+        if (!quoteTravelerId.equals(travelerId)) {
+            throw new IllegalArgumentException(
+                    "This quote does not belong to this traveler"
+            );
+        }
+
+        // Seule une proposition envoyée peut être refusée
+        if (quote.getStatus() != QuoteStatus.SENT) {
+            throw new IllegalArgumentException(
+                    "Only a SENT quote can be rejected"
+            );
+        }
+
+        quote.setStatus(QuoteStatus.REJECTED);
+
+        Quote savedQuote = quoteRepository.save(quote);
+
+        return toTravelerResponse(savedQuote);
+    }
+
+    private TravelerQuoteResponse toTravelerResponse(Quote quote) {
+
+        return new TravelerQuoteResponse(
+                quote.getId(),
+                quote.getBookingRequest().getId(),
+                quote.getSellingPrice(),
+                quote.getCurrency(),
+                quote.getDescription(),
+                quote.getStatus(),
+                quote.getCreatedAt(),
+                quote.getExpiresAt()
+        );
+    }
 }

@@ -20,4 +20,26 @@ public class TravelerQuoteController {
     ) {
         return quoteService.getQuotesByTraveler(travelerId);
     }
+
+    @PostMapping("/{travelerId}/quotes/{quoteId}/accept")
+    public TravelerQuoteResponse acceptQuote(
+            @PathVariable Long travelerId,
+            @PathVariable Long quoteId
+    ) {
+        return quoteService.acceptQuote(
+                quoteId,
+                travelerId
+        );
+    }
+
+    @PostMapping("/{travelerId}/quotes/{quoteId}/reject")
+    public TravelerQuoteResponse rejectQuote(
+            @PathVariable Long travelerId,
+            @PathVariable Long quoteId
+    ) {
+        return quoteService.rejectQuote(
+                quoteId,
+                travelerId
+        );
+    }
 }
