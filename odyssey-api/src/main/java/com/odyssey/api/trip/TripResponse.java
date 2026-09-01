@@ -7,6 +7,7 @@ public record TripResponse(
     LocalDate startDate,
     LocalDate endDate,
     TripStatus status,
-    Long travelerId
+    Long travelerId,
+    Long travelEventId
 ) {
 }

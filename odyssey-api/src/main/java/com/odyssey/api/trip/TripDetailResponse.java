@@ -10,5 +10,6 @@ public record TripDetailResponse(
     LocalDate endDate,
     TripStatus status,
     Long travelerId,
-    List<TripNeedResponse> needs
+    List<TripNeedResponse> needs,
+    Long travelEventId
 ) {}

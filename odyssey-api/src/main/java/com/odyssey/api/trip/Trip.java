@@ -1,5 +1,5 @@
 package com.odyssey.api.trip;
-
+import com.odyssey.api.travelevent.TravelEvent;
 import com.odyssey.api.traveler.Traveler;
 import jakarta.persistence.*;
 
@@ -25,6 +25,10 @@ public class Trip {
     @ManyToOne
     @JoinColumn(name = "traveler_id", nullable = false)
     private Traveler traveler;
+
+    @ManyToOne
+    @JoinColumn(name = "travel_event_id")
+    private TravelEvent travelEvent;
 
     public Trip() {
     }
@@ -71,5 +75,13 @@ public class Trip {
 
     public void setTraveler(Traveler traveler) {
         this.traveler = traveler;
+    }
+
+    public TravelEvent getTravelEvent() {
+        return travelEvent;
+    }
+
+    public void setTravelEvent(TravelEvent travelEvent) {
+        this.travelEvent = travelEvent;
     }
 }
