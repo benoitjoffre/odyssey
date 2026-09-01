@@ -1,9 +1,21 @@
 package com.odyssey.api.booking;
 
 public record BookingRequestResponse(
+
     Long id,
+
     BookingRequestStatus status,
+
     String notes,
+
     Long needId,
-    Long assignedAgentId
+
+    Long assignedAgentId,
+
+    NeedSummaryResponse need,
+
+    TripSummaryResponse trip,
+
+    TravelerSummaryResponse traveler
+
 ) {}

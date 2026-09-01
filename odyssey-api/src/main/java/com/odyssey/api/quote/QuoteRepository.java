@@ -7,4 +7,9 @@ import java.util.List;
 public interface QuoteRepository extends JpaRepository<Quote, Long> {
 
     List<Quote> findByBookingRequestId(Long bookingRequestId);
+
+    List<Quote> findByBookingRequestNeedTripTravelerIdAndStatusNot(
+        Long travelerId,
+        QuoteStatus status
+    );
 }

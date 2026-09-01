@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.List;
 
 @Service
 public class QuoteService {
@@ -151,6 +152,27 @@ public class QuoteService {
               return toResponse(savedQuote);
           }
 
+    public List<TravelerQuoteResponse> getQuotesByTraveler(Long travelerId) {
+
+        return quoteRepository
+            .findByBookingRequestNeedTripTravelerIdAndStatusNot(
+                travelerId,
+                QuoteStatus.DRAFT
+            )
+            .stream()
+            .map(quote -> new TravelerQuoteResponse(
+                quote.getId(),
+                quote.getBookingRequest().getId(),
+                quote.getSellingPrice(),
+                quote.getCurrency(),
+                quote.getDescription(),
+                quote.getStatus(),
+                quote.getCreatedAt(),
+                quote.getExpiresAt()
+            ))
+            .toList();
+    }
+
     private QuoteResponse toResponse(Quote quote) {
 
         return new QuoteResponse(
@@ -167,4 +189,6 @@ public class QuoteService {
                 quote.getExpiresAt()
         );
     }
+
+
 }

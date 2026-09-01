@@ -13,6 +13,9 @@ import com.odyssey.api.exception.ResourceNotFoundException;
 import com.odyssey.api.need.Need;
 import com.odyssey.api.need.NeedRepository;
 import com.odyssey.api.need.NeedStatus;
+import com.odyssey.api.need.NeedType;
+import com.odyssey.api.need.accommodation.AccommodationCriteriaRepository;
+import com.odyssey.api.need.flight.FlightCriteriaRepository;
 import com.odyssey.api.outbox.OutboxEvent;
 import com.odyssey.api.outbox.OutboxEventRepository;
 import com.odyssey.api.outbox.OutboxStatus;
@@ -29,20 +32,25 @@ public class BookingRequestService {
     private final OutboxEventRepository outboxEventRepository;
     private final ObjectMapper objectMapper;
     private final AgentRepository agentRepository;
+    private final FlightCriteriaRepository flightCriteriaRepository;
+    private final AccommodationCriteriaRepository accommodationCriteriaRepository;
 
     public BookingRequestService(
         BookingRequestRepository bookingRequestRepository,
         NeedRepository needRepository,
         OutboxEventRepository outboxEventRepository,
         ObjectMapper objectMapper,
-        AgentRepository agentRepository
+        AgentRepository agentRepository,
+        FlightCriteriaRepository flightCriteriaRepository,
+        AccommodationCriteriaRepository accommodationCriteriaRepository
     ) {
         this.bookingRequestRepository = bookingRequestRepository;
         this.needRepository = needRepository;
         this.outboxEventRepository = outboxEventRepository;
         this.objectMapper = objectMapper;
         this.agentRepository = agentRepository;
-        
+        this.flightCriteriaRepository = flightCriteriaRepository;
+        this.accommodationCriteriaRepository = accommodationCriteriaRepository;
     }
 
     @Transactional
@@ -118,19 +126,90 @@ public class BookingRequestService {
             .toList();
     }
 
-    private BookingRequestResponse toResponse(BookingRequest bookingRequest) {
-      Long assignedAgentId =
-          bookingRequest.getAssignedAgent() != null
-              ? bookingRequest.getAssignedAgent().getId()
-              : null;
+    private BookingRequestResponse toResponse(
+        BookingRequest bookingRequest
+    ) {
 
-      return new BookingRequestResponse(
-          bookingRequest.getId(),
-          bookingRequest.getStatus(),
-          bookingRequest.getNotes(),
-          bookingRequest.getNeed().getId(),
-          assignedAgentId
-      );
+        Long assignedAgentId =
+            bookingRequest.getAssignedAgent() != null
+                ? bookingRequest.getAssignedAgent().getId()
+                : null;
+
+        var need = bookingRequest.getNeed();
+        var trip = need.getTrip();
+        var traveler = trip.getTraveler();
+
+        // Critères spécifiques au type de Need
+        FlightCriteriaResponse flightCriteriaResponse = null;
+        AccommodationCriteriaResponse accommodationCriteriaResponse = null;
+
+        if (need.getType() == NeedType.FLIGHT) {
+
+            flightCriteriaResponse = flightCriteriaRepository
+                .findByNeedId(need.getId())
+                .map(criteria ->
+                    new FlightCriteriaResponse(
+                        criteria.getOrigin(),
+                        criteria.getDestination(),
+                        criteria.getTravelers()
+                    )
+                )
+                .orElse(null);
+        }
+
+        if (need.getType() == NeedType.ACCOMMODATION) {
+
+            accommodationCriteriaResponse = accommodationCriteriaRepository
+                .findByNeedId(need.getId())
+                .map(criteria ->
+                    new AccommodationCriteriaResponse(
+                        criteria.getCity(),
+                        criteria.getTravelers(),
+                        criteria.getRooms()
+                    )
+                )
+                .orElse(null);
+        }
+
+        // Need
+        NeedSummaryResponse needResponse =
+            new NeedSummaryResponse(
+                need.getId(),
+                need.getType(),
+                need.getStatus(),
+                need.getNotes(),
+                flightCriteriaResponse,
+                accommodationCriteriaResponse
+            );
+
+        // Trip
+        TripSummaryResponse tripResponse =
+            new TripSummaryResponse(
+                trip.getId(),
+                trip.getTitle(),
+                trip.getStartDate().toString(),
+                trip.getEndDate().toString()
+            );
+
+        // Traveler
+        TravelerSummaryResponse travelerResponse =
+            new TravelerSummaryResponse(
+                traveler.getId(),
+                traveler.getFirstName(),
+                traveler.getEmail()
+            );
+
+        // BookingRequest
+        return new BookingRequestResponse(
+            bookingRequest.getId(),
+            bookingRequest.getStatus(),
+            bookingRequest.getNotes(),
+            need.getId(),
+            assignedAgentId,
+            needResponse,
+            tripResponse,
+            travelerResponse
+        );
     }
 
     @Transactional
