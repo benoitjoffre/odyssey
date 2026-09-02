@@ -1,9 +1,12 @@
 package com.odyssey.api.trip;
+import com.odyssey.api.need.Need;
 import com.odyssey.api.travelevent.TravelEvent;
 import com.odyssey.api.traveler.Traveler;
 import jakarta.persistence.*;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "trips")
@@ -29,6 +32,9 @@ public class Trip {
     @ManyToOne
     @JoinColumn(name = "travel_event_id")
     private TravelEvent travelEvent;
+
+    @OneToMany(mappedBy = "trip", cascade = CascadeType.REMOVE)
+    private List<Need> needs = new ArrayList<>();
 
     public Trip() {
     }

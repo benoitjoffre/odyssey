@@ -7,5 +7,6 @@ public enum ExperienceCategory {
     ADVENTURE,
     FOOD,
     BEACH,
-    ROAD_TRIP
+    ROAD_TRIP,
+    SURF
 }

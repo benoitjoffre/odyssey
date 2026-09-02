@@ -4,7 +4,7 @@ import java.util.List;
 
 import org.springframework.web.bind.annotation.*;
 
-import com.odyssey.api.experience.ExperienceResponse;
+import com.odyssey.api.intent.recommendation.ScoredExperienceResponse;
 
 import jakarta.validation.Valid;
 
@@ -35,7 +35,9 @@ public class IntentController {
     }
 
     @GetMapping("/{id}/recommendations")
-    public List<ExperienceResponse> getRecommendations(@PathVariable Long id) {
+    public List<ScoredExperienceResponse> getRecommendations(
+        @PathVariable Long id
+    ) {
         return intentService.getRecommendations(id);
     }
 }

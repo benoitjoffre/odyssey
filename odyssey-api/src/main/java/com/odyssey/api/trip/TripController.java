@@ -1,6 +1,7 @@
 package com.odyssey.api.trip;
 
 import org.springframework.web.bind.annotation.*;
+import org.springframework.http.HttpStatus;
 
 import jakarta.validation.Valid;
 
@@ -29,6 +30,12 @@ public class TripController {
     @GetMapping("/{id}")
     public TripResponse getTrip(@PathVariable Long id) {
         return tripService.getTrip(id);
+    }
+
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteTrip(@PathVariable Long id) {
+        tripService.deleteTrip(id);
     }
 
     @GetMapping("/{id}/detail")

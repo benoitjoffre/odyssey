@@ -10,6 +10,7 @@ import com.odyssey.api.exception.ResourceNotFoundException;
 import com.odyssey.api.need.NeedRepository;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 
 import java.util.List;
@@ -68,7 +69,6 @@ public class TripService {
             .findById(request.travelerId())
             .orElseThrow(() -> new ResourceNotFoundException("Traveler not found"));
 
-
         TravelEvent travelEvent = null;
 
         if (request.travelEventId() != null) {
@@ -120,6 +120,15 @@ public class TripService {
             .orElseThrow(() -> new ResourceNotFoundException("Trip not found"));
 
         return toResponse(trip);
+    }
+
+    @Transactional
+    public void deleteTrip(Long id) {
+        Trip trip = tripRepository
+            .findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("Trip not found"));
+
+        tripRepository.delete(trip);
     }
 
     public List<TripResponse> getTripsByTraveler(Long travelerId) {

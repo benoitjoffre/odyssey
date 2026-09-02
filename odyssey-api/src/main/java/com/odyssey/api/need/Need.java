@@ -1,5 +1,8 @@
 package com.odyssey.api.need;
 
+import com.odyssey.api.booking.BookingRequest;
+import com.odyssey.api.need.accommodation.AccommodationCriteria;
+import com.odyssey.api.need.flight.FlightCriteria;
 import com.odyssey.api.trip.Trip;
 import jakarta.persistence.*;
 
@@ -23,6 +26,15 @@ public class Need {
     @ManyToOne
     @JoinColumn(name = "trip_id", nullable = false)
     private Trip trip;
+
+    @OneToOne(mappedBy = "need", cascade = CascadeType.REMOVE)
+    private BookingRequest bookingRequest;
+
+    @OneToOne(mappedBy = "need", cascade = CascadeType.REMOVE)
+    private AccommodationCriteria accommodationCriteria;
+
+    @OneToOne(mappedBy = "need", cascade = CascadeType.REMOVE)
+    private FlightCriteria flightCriteria;
 
     public Need() {
     }

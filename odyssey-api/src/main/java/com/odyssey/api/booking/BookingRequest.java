@@ -1,8 +1,13 @@
 package com.odyssey.api.booking;
 
-import com.odyssey.api.need.Need;
-import jakarta.persistence.*;
 import com.odyssey.api.agent.Agent;
+import com.odyssey.api.agent.AgentNotification;
+import com.odyssey.api.need.Need;
+import com.odyssey.api.quote.Quote;
+import jakarta.persistence.*;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "booking_requests")
@@ -25,6 +30,12 @@ public class BookingRequest {
     @ManyToOne
     @JoinColumn(name = "assigned_agent_id")
     private Agent assignedAgent;
+
+    @OneToMany(mappedBy = "bookingRequest", cascade = CascadeType.REMOVE)
+    private List<Quote> quotes = new ArrayList<>();
+
+    @OneToMany(mappedBy = "bookingRequest", cascade = CascadeType.REMOVE)
+    private List<AgentNotification> notifications = new ArrayList<>();
 
     public BookingRequest() {
     }

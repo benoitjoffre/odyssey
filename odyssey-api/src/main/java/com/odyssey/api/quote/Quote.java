@@ -1,6 +1,7 @@
 package com.odyssey.api.quote;
 
 import com.odyssey.api.booking.BookingRequest;
+import com.odyssey.api.booking.confirmation.Booking;
 import jakarta.persistence.*;
 
 import java.math.BigDecimal;
@@ -17,6 +18,9 @@ public class Quote {
     @ManyToOne(optional = false)
     @JoinColumn(name = "booking_request_id")
     private BookingRequest bookingRequest;
+
+    @OneToOne(mappedBy = "quote", cascade = CascadeType.REMOVE)
+    private Booking booking;
 
     @Column(nullable = false)
     private String provider;

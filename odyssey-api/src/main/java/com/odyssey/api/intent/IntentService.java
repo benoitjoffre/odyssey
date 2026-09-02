@@ -5,8 +5,12 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 
 import com.odyssey.api.exception.ResourceNotFoundException;
+import com.odyssey.api.experience.ExperienceCategory;
 import com.odyssey.api.experience.ExperienceRepository;
-import com.odyssey.api.experience.ExperienceResponse;
+import com.odyssey.api.intent.recommendation.AnalyzedIntent;
+import com.odyssey.api.intent.recommendation.IntentAnalyzer;
+import com.odyssey.api.intent.recommendation.RecommendationScorer;
+import com.odyssey.api.intent.recommendation.ScoredExperienceResponse;
 import com.odyssey.api.traveler.Traveler;
 import com.odyssey.api.traveler.TravelerRepository;
 
@@ -16,15 +20,21 @@ public class IntentService {
     private final IntentRepository intentRepository;
     private final TravelerRepository travelerRepository;
     private final ExperienceRepository experienceRepository;
+    private final IntentAnalyzer intentAnalyzer;
+    private final RecommendationScorer recommendationScorer;
 
     public IntentService(
         IntentRepository intentRepository,
         TravelerRepository travelerRepository,
-        ExperienceRepository experienceRepository
+        ExperienceRepository experienceRepository,
+        IntentAnalyzer intentAnalyzer,
+        RecommendationScorer recommendationScorer
     ) {
         this.intentRepository = intentRepository;
         this.travelerRepository = travelerRepository;
         this.experienceRepository = experienceRepository;
+        this.intentAnalyzer = intentAnalyzer;
+        this.recommendationScorer = recommendationScorer;
     }
 
     public IntentResponse createIntent(CreateIntentRequest request) {
@@ -35,11 +45,18 @@ public class IntentService {
                 new ResourceNotFoundException("Traveler not found")
             );
 
+        ExperienceCategory category = request.category();
+
+        if (category == null) {
+            category = intentAnalyzer.detectCategory(request.description());
+        }
+
+
         Intent intent = new Intent();
         intent.setTitle(request.title());
         intent.setDescription(request.description());
         intent.setStatus(IntentStatus.DRAFT);
-        intent.setCategory(request.category());
+        intent.setCategory(category);
         intent.setTraveler(traveler);
 
         Intent savedIntent = intentRepository.save(intent);
@@ -64,7 +81,7 @@ public class IntentService {
             .toList();
     }
 
-    public List<ExperienceResponse> getRecommendations(Long intentId) {
+    public List<ScoredExperienceResponse> getRecommendations(Long intentId) {
 
         Intent intent = intentRepository
             .findById(intentId)
@@ -72,16 +89,34 @@ public class IntentService {
                 new ResourceNotFoundException("Intent not found")
             );
 
+        AnalyzedIntent analyzed = intentAnalyzer.analyze(intent.getDescription());
+        AnalyzedIntent effectiveIntent = new AnalyzedIntent(
+            analyzed.category() != null
+                ? analyzed.category()
+                : intent.getCategory(),
+            analyzed.activity(),
+            analyzed.destination()
+        );
+
         return experienceRepository
-            .findByCategory(intent.getCategory())
+            .findAll()
             .stream()
-            .map(experience -> new ExperienceResponse(
-                experience.getId(),
-                experience.getTitle(),
-                experience.getDescription(),
-                experience.getCategory(),
-                experience.getDestination(),
-                experience.getDurationDays()
+            .map(experience -> {
+                int score = recommendationScorer.score(effectiveIntent, experience);
+                return new ScoredExperienceResponse(
+                    experience.getId(),
+                    experience.getTitle(),
+                    experience.getDescription(),
+                    experience.getCategory(),
+                    experience.getDestination(),
+                    experience.getDurationDays(),
+                    score
+                );
+            })
+            .filter(experience -> experience.score() > 0)
+            .sorted((first, second) -> Integer.compare(
+                second.score(),
+                first.score()
             ))
             .toList();
     }

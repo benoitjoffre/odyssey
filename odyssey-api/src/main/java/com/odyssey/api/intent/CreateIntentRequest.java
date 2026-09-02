@@ -7,13 +7,12 @@ import jakarta.validation.constraints.NotNull;
 
 public record CreateIntentRequest(
 
-    @NotBlank
     String title,
 
     @NotBlank
     String description,
 
-    @NotNull
+    
     ExperienceCategory category,
     
     @NotNull
