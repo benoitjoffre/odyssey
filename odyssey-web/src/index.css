@@ -789,7 +789,8 @@ h2 {
 }
 
 .form-field input,
-.form-field textarea {
+.form-field textarea,
+.form-field select {
   width: 100%;
   min-height: 44px;
   padding: 0 12px;
@@ -806,8 +807,13 @@ h2 {
   resize: vertical;
 }
 
+.form-field select {
+  appearance: auto;
+}
+
 .form-field input:focus,
-.form-field textarea:focus {
+.form-field textarea:focus,
+.form-field select:focus {
   border-color: var(--primary);
   box-shadow: 0 0 0 3px rgba(8, 127, 114, 0.11);
 }
@@ -1657,6 +1663,169 @@ button.traveler-organization-choice:hover,
   color: #a34034 !important;
 }
 
+.agent-admin-heading {
+  align-items: center;
+}
+
+.agent-catalog-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.agent-catalog-card,
+.agent-event-row,
+.agent-admin-form-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(29, 69, 65, 0.05);
+}
+
+.agent-catalog-card {
+  display: flex;
+  min-height: 310px;
+  flex-direction: column;
+  padding: 24px;
+}
+
+.agent-catalog-topline,
+.agent-catalog-meta,
+.agent-event-copy > span,
+.agent-event-location {
+  display: flex;
+  align-items: center;
+}
+
+.agent-catalog-topline {
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--primary-dark);
+  font-size: 11px;
+}
+
+.agent-catalog-topline > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 9px;
+  font-weight: 700;
+  background: #e7f3f0;
+  border-radius: 999px;
+}
+
+.agent-catalog-topline > strong {
+  color: var(--muted);
+}
+
+.agent-catalog-card h2 {
+  margin: 22px 0 8px;
+  font-size: 20px;
+}
+
+.agent-catalog-card > p,
+.agent-event-copy > p {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.agent-catalog-meta {
+  flex-wrap: wrap;
+  gap: 10px 20px;
+  margin-top: auto;
+  padding-top: 20px;
+  color: var(--primary-dark);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.agent-catalog-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.agent-catalog-card .card-link {
+  margin-top: 20px;
+}
+
+.agent-event-list {
+  display: grid;
+  gap: 14px;
+}
+
+.agent-event-row {
+  display: grid;
+  grid-template-columns: 180px 1fr auto;
+  align-items: center;
+  gap: 24px;
+  padding: 22px;
+}
+
+.agent-event-date {
+  display: grid;
+  gap: 5px;
+  color: var(--primary);
+}
+
+.agent-event-date svg {
+  margin-bottom: 6px;
+}
+
+.agent-event-date span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.agent-event-copy > span {
+  gap: 6px;
+  color: var(--primary-dark);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.agent-event-copy h2 {
+  margin: 8px 0 5px;
+  font-size: 18px;
+}
+
+.agent-event-copy > p {
+  margin: 0;
+}
+
+.agent-event-location {
+  gap: 7px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.agent-admin-form-card {
+  padding: 24px;
+}
+
+.agent-admin-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.agent-admin-form-error,
+.agent-admin-submit {
+  grid-column: 1 / -1;
+}
+
+.agent-admin-form-error {
+  margin: 0;
+  color: #a34034;
+  font-size: 13px;
+}
+
+.agent-admin-submit {
+  width: fit-content;
+}
+
 .traveler-events-grid {
   display: grid;
   gap: 18px;
@@ -2094,6 +2263,14 @@ button.traveler-event-link {
   .traveler-profile {
     display: none;
   }
+
+  .agent-event-row {
+    grid-template-columns: 150px 1fr;
+  }
+
+  .agent-event-location {
+    grid-column: 2;
+  }
 }
 
 @media (max-width: 640px) {
@@ -2132,6 +2309,28 @@ button.traveler-event-link {
   .traveler-trip-card {
     grid-template-columns: auto 1fr;
     align-items: start;
+  }
+
+  .agent-admin-heading {
+    align-items: flex-start;
+  }
+
+  .agent-catalog-grid,
+  .agent-admin-form,
+  .agent-event-row {
+    grid-template-columns: 1fr;
+  }
+
+  .agent-event-location,
+  .agent-admin-form .form-field-wide,
+  .agent-admin-form-error,
+  .agent-admin-submit {
+    grid-column: auto;
+  }
+
+  .agent-admin-submit,
+  .agent-admin-heading .primary-button {
+    width: 100%;
   }
 
   .traveler-trip-link {

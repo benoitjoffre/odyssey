@@ -1,10 +1,12 @@
-import { Bell, FileText, LayoutDashboard, MapPin, Plane } from "lucide-react";
+import { Bell, CalendarRange, FileText, LayoutDashboard, MapPin, Plane, Sparkles } from "lucide-react";
 import { NavLink, Outlet } from "react-router-dom";
 
 const navigation = [
   { label: "Dashboard", to: "/agent", icon: LayoutDashboard, end: true },
   { label: "Demandes", to: "/agent/booking-requests", icon: Bell },
   { label: "Propositions", to: "/agent/quotes", icon: FileText },
+  { label: "Expériences", to: "/agent/experiences", icon: Sparkles },
+  { label: "Événements", to: "/agent/events", icon: CalendarRange },
 ];
 
 export function AgentLayout() {
