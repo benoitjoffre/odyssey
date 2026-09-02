@@ -1,7 +1,25 @@
-import { useEffect, useState, type ReactNode } from "react";
-import { ArrowLeft, BedDouble, Bus, CalendarDays, Car, Check, Clock3, Hotel, Plane, RefreshCw, Route } from "lucide-react";
-import { Link, useParams } from "react-router-dom";
-import { getTripDetail } from "../../api/trips";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  ArrowLeft,
+  BedDouble,
+  Bus,
+  CalendarDays,
+  Car,
+  Check,
+  Clock3,
+  Hotel,
+  LoaderCircle,
+  Plane,
+  RefreshCw,
+  Route,
+  Send,
+  Trash2,
+} from "lucide-react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { createBookingRequest } from "../../api/bookingRequests";
+import { deleteTrip, getTripDetail } from "../../api/trips";
+import { TravelerNeedForm } from "../../components/TravelerNeedForm";
+import type { OrganizableNeedType } from "../../types/need";
 import type { TripDetail, TripNeed, TripNeedType } from "../../types/trip";
 
 const needLabels: Record<TripNeedType, string> = {
@@ -19,6 +37,14 @@ const needIcons: Record<TripNeedType, ReactNode> = {
   CAR: <Car size={21} />,
   BUS: <Bus size={21} />,
 };
+
+const organizationChoices: Array<{ type: TripNeedType; label: string; available: boolean }> = [
+  { type: "FLIGHT", label: "Vol", available: true },
+  { type: "ACCOMMODATION", label: "Hébergement", available: true },
+  { type: "TRANSFER", label: "Transfert", available: false },
+  { type: "CAR", label: "Voiture", available: false },
+  { type: "BUS", label: "Bus", available: false },
+];
 
 interface TravelerNeedState {
   label: string;
@@ -43,12 +69,59 @@ function formatDate(value: string) {
 
 export function TravelerTripDetailPage() {
   const { tripId } = useParams<{ tripId: string }>();
+  const navigate = useNavigate();
   const parsedTripId = Number(tripId);
   const hasInvalidTripId = !Number.isInteger(parsedTripId) || parsedTripId <= 0;
   const [trip, setTrip] = useState<TripDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [requestVersion, setRequestVersion] = useState(0);
+  const [selectedNeedType, setSelectedNeedType] = useState<OrganizableNeedType | null>(null);
+  const [sendingNeedId, setSendingNeedId] = useState<number | null>(null);
+  const [requestErrors, setRequestErrors] = useState<Record<number, string>>({});
+  const [confirmingDeletion, setConfirmingDeletion] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const sendingRequestRef = useRef(false);
+  const deletingRef = useRef(false);
+
+  async function handleDeleteTrip() {
+    if (deletingRef.current || !trip) return;
+    deletingRef.current = true;
+    setDeleting(true);
+    setDeleteError(null);
+
+    try {
+      await deleteTrip(trip.id);
+      navigate("/traveler/trips", { replace: true });
+    } catch {
+      setDeleteError("Ce voyage n’a pas pu être supprimé. Réessayez dans un instant.");
+    } finally {
+      deletingRef.current = false;
+      setDeleting(false);
+    }
+  }
+
+  async function handleSendRequest(need: TripNeed) {
+    if (sendingRequestRef.current || need.bookingRequestStatus) return;
+    sendingRequestRef.current = true;
+    setSendingNeedId(need.id);
+    setRequestErrors((current) => {
+      const next = { ...current };
+      delete next[need.id];
+      return next;
+    });
+
+    try {
+      await createBookingRequest(need.id, need.notes);
+      setRequestVersion((version) => version + 1);
+    } catch {
+      setRequestErrors((current) => ({ ...current, [need.id]: "La demande n’a pas pu être envoyée. Réessayez dans un instant." }));
+    } finally {
+      sendingRequestRef.current = false;
+      setSendingNeedId(null);
+    }
+  }
 
   useEffect(() => {
     if (hasInvalidTripId) return;
@@ -157,6 +230,15 @@ export function TravelerTripDetailPage() {
                     <strong>{state.label}</strong>
                   </div>
                   {need.notes && <p className="traveler-need-notes">{need.notes}</p>}
+                  {need.status === "DRAFT" && !need.bookingRequestStatus && (
+                    <div className="traveler-need-request-action">
+                      {requestErrors[need.id] && <p role="alert">{requestErrors[need.id]}</p>}
+                      <button type="button" className="primary-button" disabled={sendingNeedId !== null} onClick={() => void handleSendRequest(need)}>
+                        {sendingNeedId === need.id ? <LoaderCircle className="rotating" size={17} /> : <Send size={17} />}
+                        {sendingNeedId === need.id ? "Envoi en cours…" : "Envoyer ma demande"}
+                      </button>
+                    </div>
+                  )}
                   {need.bookingStatus === "CONFIRMED" && need.providerConfirmationId && (
                     <div className="traveler-booking-reference">
                       <span>Référence de réservation</span>
@@ -166,6 +248,98 @@ export function TravelerTripDetailPage() {
                 </article>
               );
             })}
+          </div>
+        )}
+      </section>
+
+      <section aria-labelledby="organize-trip-title">
+        <div className="section-heading traveler-needs-heading">
+          <div>
+            <h2 id="organize-trip-title">Organiser mon voyage</h2>
+            <p>Ajoutez les éléments pour lesquels vous souhaitez être accompagné par Odyssey.</p>
+          </div>
+        </div>
+
+        <div className="traveler-organization-grid">
+          {organizationChoices.map((choice) =>
+            choice.available ? (
+              <button
+                type="button"
+                className={`traveler-organization-choice${selectedNeedType === choice.type ? " selected" : ""}`}
+                key={choice.type}
+                onClick={() => setSelectedNeedType(choice.type as OrganizableNeedType)}
+              >
+                <span>{needIcons[choice.type]}</span>
+                <strong>{choice.label}</strong>
+              </button>
+            ) : (
+              <div className="traveler-organization-choice unavailable" key={choice.type} aria-disabled="true">
+                <span>{needIcons[choice.type]}</span>
+                <strong>{choice.label}</strong>
+                <small>À venir</small>
+              </div>
+            ),
+          )}
+        </div>
+
+        {selectedNeedType && (
+          <TravelerNeedForm
+            key={selectedNeedType}
+            tripId={trip.id}
+            type={selectedNeedType}
+            onCancel={() => setSelectedNeedType(null)}
+            onCreated={() => {
+              setSelectedNeedType(null);
+              setRequestVersion((version) => version + 1);
+            }}
+          />
+        )}
+      </section>
+
+      <section className="traveler-trip-danger-zone" aria-labelledby="delete-trip-title">
+        <div>
+          <h2 id="delete-trip-title">Supprimer ce voyage</h2>
+          <p>Le voyage et son organisation seront définitivement supprimés.</p>
+        </div>
+
+        {!confirmingDeletion ? (
+          <button
+            type="button"
+            className="traveler-delete-button"
+            onClick={() => {
+              setConfirmingDeletion(true);
+              setDeleteError(null);
+            }}
+          >
+            <Trash2 size={17} /> Supprimer le voyage
+          </button>
+        ) : (
+          <div className="traveler-delete-confirmation">
+            <p>
+              <strong>Confirmer la suppression de « {trip.title || `Voyage #${trip.id}`} » ?</strong> Cette action est irréversible.
+            </p>
+            {deleteError && (
+              <p className="traveler-delete-error" role="alert">
+                {deleteError}
+              </p>
+            )}
+            <div>
+              <button type="button" className="traveler-delete-button confirmed" disabled={deleting} onClick={() => void handleDeleteTrip()}>
+                {deleting ? <LoaderCircle className="rotating" size={17} /> : <Trash2 size={17} />}
+                {deleting ? "Suppression…" : "Oui, supprimer"}
+              </button>
+              <button
+                type="button"
+                className="traveler-cancel-button"
+                disabled={deleting}
+                onClick={() => {
+                  setConfirmingDeletion(false);
+                  setDeleteError(null);
+                }}
+              >
+                Annuler
+              </button>
+            </div>
           </div>
         )}
       </section>

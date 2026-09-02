@@ -16,3 +16,7 @@ export function createTrip(request: CreateTripRequest): Promise<Trip> {
     body: JSON.stringify(request),
   });
 }
+
+export function deleteTrip(tripId: number): Promise<void> {
+  return apiFetch<void>(`/api/trips/${tripId}`, { method: "DELETE" });
+}

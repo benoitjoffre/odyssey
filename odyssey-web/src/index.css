@@ -788,7 +788,8 @@ h2 {
   grid-column: 1 / -1;
 }
 
-.form-field input {
+.form-field input,
+.form-field textarea {
   width: 100%;
   min-height: 44px;
   padding: 0 12px;
@@ -799,7 +800,14 @@ h2 {
   outline: none;
 }
 
-.form-field input:focus {
+.form-field textarea {
+  min-height: 92px;
+  padding-block: 11px;
+  resize: vertical;
+}
+
+.form-field input:focus,
+.form-field textarea:focus {
   border-color: var(--primary);
   box-shadow: 0 0 0 3px rgba(8, 127, 114, 0.11);
 }
@@ -1442,9 +1450,443 @@ h2 {
   min-height: 220px;
 }
 
+.traveler-need-request-action {
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+
+.traveler-need-request-action p,
+.traveler-need-form-error {
+  margin: 0;
+  color: #a34034;
+  font-size: 13px;
+}
+
+.traveler-organization-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.traveler-organization-choice {
+  position: relative;
+  display: grid;
+  min-height: 126px;
+  place-items: center;
+  align-content: center;
+  gap: 10px;
+  padding: 16px 10px;
+  color: var(--ink);
+  text-align: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+button.traveler-organization-choice {
+  cursor: pointer;
+}
+
+button.traveler-organization-choice:hover,
+.traveler-organization-choice.selected {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(8, 127, 114, 0.1);
+}
+
+.traveler-organization-choice > span {
+  color: var(--primary);
+}
+
+.traveler-organization-choice.unavailable {
+  color: var(--muted);
+  background: #f4f6f5;
+  border-style: dashed;
+}
+
+.traveler-organization-choice.unavailable > span {
+  color: #8d9b99;
+}
+
+.traveler-organization-choice small {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.traveler-need-form-card {
+  margin-top: 18px;
+  padding: 24px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(29, 69, 65, 0.06);
+}
+
+.traveler-need-form-heading {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 22px;
+}
+
+.traveler-need-form-heading > span {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  color: var(--primary);
+  background: #e7f3f0;
+  border-radius: 8px;
+}
+
+.traveler-need-form-heading h3 {
+  margin: 4px 0 0;
+  font-size: 18px;
+}
+
+.traveler-form-close {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  color: var(--muted);
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.traveler-need-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.traveler-need-form-error,
+.traveler-need-form-actions {
+  grid-column: 1 / -1;
+}
+
+.traveler-need-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.traveler-cancel-button {
+  min-height: 42px;
+  padding: 0 17px;
+  color: var(--muted);
+  cursor: pointer;
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.traveler-trip-danger-zone {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding-top: 28px;
+  border-top: 1px solid var(--border);
+}
+
+.traveler-trip-danger-zone h2 {
+  margin: 0 0 6px;
+  font-size: 17px;
+}
+
+.traveler-trip-danger-zone p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.traveler-delete-button {
+  display: inline-flex;
+  min-height: 42px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 16px;
+  color: #8b3d35;
+  cursor: pointer;
+  background: #ffffff;
+  border: 1px solid #d8b4ae;
+  border-radius: 6px;
+}
+
+.traveler-delete-button:hover:not(:disabled),
+.traveler-delete-button.confirmed {
+  color: #ffffff;
+  background: #a34034;
+  border-color: #a34034;
+}
+
+.traveler-delete-button:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.traveler-delete-confirmation {
+  display: grid;
+  max-width: 520px;
+  gap: 12px;
+  padding: 18px;
+  background: #fbefed;
+  border: 1px solid #e8c5bf;
+  border-radius: 8px;
+}
+
+.traveler-delete-confirmation > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.traveler-delete-error {
+  color: #a34034 !important;
+}
+
 .traveler-events-grid {
   display: grid;
   gap: 18px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.traveler-inspiration-panel {
+  padding: 30px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(29, 69, 65, 0.06);
+}
+
+.traveler-inspiration-heading {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.traveler-inspiration-heading > span {
+  display: grid;
+  width: 46px;
+  height: 46px;
+  flex: 0 0 auto;
+  place-items: center;
+  color: var(--primary);
+  background: #e7f3f0;
+  border-radius: 8px;
+}
+
+.traveler-inspiration-heading h2,
+.traveler-category-discovery h3 {
+  margin: 0;
+  color: var(--ink);
+}
+
+.traveler-inspiration-heading h2 {
+  font-size: 22px;
+}
+
+.traveler-inspiration-heading p {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.traveler-inspiration-form {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.traveler-inspiration-form textarea {
+  width: 100%;
+  min-height: 104px;
+  padding: 15px;
+  color: var(--ink);
+  font: inherit;
+  line-height: 1.5;
+  resize: vertical;
+  background: #ffffff;
+  border: 1px solid #b9cec9;
+  border-radius: 6px;
+  outline: none;
+}
+
+.traveler-inspiration-form textarea:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(8, 127, 114, 0.11);
+}
+
+.traveler-inspiration-form .primary-button {
+  min-width: 150px;
+}
+
+.traveler-inspiration-error {
+  margin: 12px 0 0;
+  color: #a34034;
+  font-size: 13px;
+}
+
+.traveler-category-discovery {
+  margin-top: 26px;
+  padding-top: 22px;
+  border-top: 1px solid var(--border);
+}
+
+.traveler-category-discovery h3 {
+  font-size: 15px;
+}
+
+.traveler-category-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 9px;
+  margin-top: 13px;
+}
+
+.traveler-category-grid button {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  color: var(--muted);
+  cursor: pointer;
+  background: #f7f9f8;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.traveler-category-grid button:hover:not(:disabled),
+.traveler-category-grid button.selected {
+  color: var(--primary-dark);
+  background: #edf7f4;
+  border-color: #9ac8c0;
+}
+
+.traveler-category-grid button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.traveler-recommendations,
+.traveler-events-section {
+  scroll-margin-top: 100px;
+}
+
+.traveler-recommendation-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.traveler-recommendation-card {
+  display: flex;
+  min-height: 330px;
+  flex-direction: column;
+  padding: 24px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(29, 69, 65, 0.06);
+}
+
+.traveler-recommendation-topline,
+.traveler-recommendation-footer,
+.traveler-recommendation-destination {
+  display: flex;
+  align-items: center;
+}
+
+.traveler-recommendation-topline {
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--primary-dark);
+  font-size: 11px;
+}
+
+.traveler-recommendation-topline > span {
+  padding: 6px 9px;
+  font-weight: 700;
+  background: #e7f3f0;
+  border-radius: 999px;
+}
+
+.traveler-recommendation-card h3 {
+  margin: 22px 0 8px;
+  font-size: 20px;
+}
+
+.traveler-recommendation-card > p {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.traveler-recommendation-destination {
+  gap: 6px;
+  margin: 0 0 8px !important;
+  color: var(--primary-dark) !important;
+  font-weight: 600;
+}
+
+.traveler-recommendation-footer {
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: auto;
+  padding-top: 20px;
+}
+
+.traveler-recommendation-footer > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+button.traveler-event-link {
+  cursor: pointer;
+  background: #ffffff;
+}
+
+.traveler-recommendation-state {
+  min-height: 180px;
+}
+
+.traveler-clear-filter {
+  color: var(--primary-dark);
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .traveler-event-card {
@@ -1723,6 +2165,62 @@ h2 {
   }
 
   .traveler-create-trip {
+    width: 100%;
+  }
+
+  .traveler-inspiration-panel {
+    padding: 22px;
+  }
+
+  .traveler-inspiration-form,
+  .traveler-recommendation-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .traveler-inspiration-form .primary-button {
+    width: 100%;
+  }
+
+  .traveler-category-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .traveler-recommendation-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .traveler-recommendation-footer .traveler-event-link {
+    justify-content: center;
+  }
+
+  .traveler-organization-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .traveler-need-form {
+    grid-template-columns: 1fr;
+  }
+
+  .traveler-need-form .form-field-wide,
+  .traveler-need-form-error,
+  .traveler-need-form-actions {
+    grid-column: auto;
+  }
+
+  .traveler-need-form-actions .primary-button,
+  .traveler-cancel-button {
+    width: 100%;
+  }
+
+  .traveler-trip-danger-zone {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .traveler-trip-danger-zone > .traveler-delete-button,
+  .traveler-delete-confirmation .traveler-delete-button,
+  .traveler-delete-confirmation .traveler-cancel-button {
     width: 100%;
   }
 

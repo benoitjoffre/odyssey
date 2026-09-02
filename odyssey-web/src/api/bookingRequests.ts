@@ -6,6 +6,14 @@ export function getBookingRequest(id: number, signal?: AbortSignal): Promise<Boo
   return apiFetch<BookingRequest>(`/api/booking-requests/${id}`, { signal });
 }
 
+export function createBookingRequest(needId: number, notes: string | null): Promise<BookingRequest> {
+  return apiFetch<BookingRequest>("/api/booking-requests", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ needId, notes }),
+  });
+}
+
 export function claimBookingRequest(id: number, agentId: number): Promise<BookingRequest> {
   return apiFetch<BookingRequest>(`/api/booking-requests/${id}/claim?agentId=${agentId}`, {
     method: "POST",
