@@ -6,8 +6,9 @@ import org.springframework.stereotype.Service;
 import java.util.Locale;
 
 @Service
-public class IntentAnalyzer {
+public class IntentAnalyzer implements IntentAnalysisService {
 
+    @Override
     public AnalyzedIntent analyze(String text) {
         if (text == null || text.isBlank()) {
             return new AnalyzedIntent(null, null, null);

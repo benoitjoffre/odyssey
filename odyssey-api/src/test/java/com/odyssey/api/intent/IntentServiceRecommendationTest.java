@@ -4,6 +4,7 @@ import com.odyssey.api.experience.Experience;
 import com.odyssey.api.experience.ExperienceCategory;
 import com.odyssey.api.experience.ExperienceRepository;
 import com.odyssey.api.intent.recommendation.AnalyzedIntent;
+import com.odyssey.api.intent.recommendation.IntentAnalysisService;
 import com.odyssey.api.intent.recommendation.IntentAnalyzer;
 import com.odyssey.api.intent.recommendation.RecommendationScorer;
 import com.odyssey.api.intent.recommendation.ScoredExperienceResponse;
@@ -25,12 +26,15 @@ class IntentServiceRecommendationTest {
         TravelerRepository travelerRepository = mock(TravelerRepository.class);
         ExperienceRepository experienceRepository = mock(ExperienceRepository.class);
         IntentAnalyzer intentAnalyzer = mock(IntentAnalyzer.class);
+        IntentAnalysisService intentAnalysisService = mock(
+            IntentAnalysisService.class
+        );
 
         Intent intent = mock(Intent.class);
         when(intent.getDescription()).thenReturn("Salsa à Cuba");
         when(intent.getCategory()).thenReturn(ExperienceCategory.DANCE);
         when(intentRepository.findById(1L)).thenReturn(Optional.of(intent));
-        when(intentAnalyzer.analyze("Salsa à Cuba"))
+        when(intentAnalysisService.analyze("Salsa à Cuba"))
             .thenReturn(new AnalyzedIntent(null, "salsa", "Cuba"));
 
         Experience fullMatch = experience(
@@ -59,6 +63,7 @@ class IntentServiceRecommendationTest {
             travelerRepository,
             experienceRepository,
             intentAnalyzer,
+            intentAnalysisService,
             new RecommendationScorer()
         );
 

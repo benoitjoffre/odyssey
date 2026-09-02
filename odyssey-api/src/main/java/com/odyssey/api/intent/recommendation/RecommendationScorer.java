@@ -3,10 +3,10 @@ package com.odyssey.api.intent.recommendation;
 import com.odyssey.api.experience.Experience;
 import org.springframework.stereotype.Service;
 
-import java.util.Locale;
-
 @Service
 public class RecommendationScorer {
+
+    private final TextMatcher textMatcher = new TextMatcher();
 
     public int score(AnalyzedIntent intent, Experience experience) {
         if (intent == null || experience == null) {
@@ -24,27 +24,31 @@ public class RecommendationScorer {
 
         if (
             intent.activity() != null &&
-            (contains(experience.getTitle(), intent.activity()) ||
-                contains(experience.getDescription(), intent.activity()))
+            (textMatcher.containsTerm(experience.getTitle(), intent.activity()) ||
+                textMatcher.containsTerm(
+                    experience.getDescription(),
+                    intent.activity()
+                ))
         ) {
             score += 30;
         }
 
         if (
             intent.destination() != null &&
-            (contains(experience.getDestination(), intent.destination()) ||
-                contains(experience.getTitle(), intent.destination()) ||
-                contains(experience.getDescription(), intent.destination()))
+            (textMatcher.containsTerm(
+                experience.getDestination(),
+                intent.destination()
+            ) || textMatcher.containsTerm(
+                experience.getTitle(),
+                intent.destination()
+            ) || textMatcher.containsTerm(
+                experience.getDescription(),
+                intent.destination()
+            ))
         ) {
             score += 20;
         }
 
         return score;
-    }
-
-    private boolean contains(String value, String expected) {
-        return value != null && value
-            .toLowerCase(Locale.ROOT)
-            .contains(expected.toLowerCase(Locale.ROOT));
     }
 }

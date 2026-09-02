@@ -8,6 +8,7 @@ import com.odyssey.api.exception.ResourceNotFoundException;
 import com.odyssey.api.experience.ExperienceCategory;
 import com.odyssey.api.experience.ExperienceRepository;
 import com.odyssey.api.intent.recommendation.AnalyzedIntent;
+import com.odyssey.api.intent.recommendation.IntentAnalysisService;
 import com.odyssey.api.intent.recommendation.IntentAnalyzer;
 import com.odyssey.api.intent.recommendation.RecommendationScorer;
 import com.odyssey.api.intent.recommendation.ScoredExperienceResponse;
@@ -21,6 +22,7 @@ public class IntentService {
     private final TravelerRepository travelerRepository;
     private final ExperienceRepository experienceRepository;
     private final IntentAnalyzer intentAnalyzer;
+    private final IntentAnalysisService intentAnalysisService;
     private final RecommendationScorer recommendationScorer;
 
     public IntentService(
@@ -28,12 +30,14 @@ public class IntentService {
         TravelerRepository travelerRepository,
         ExperienceRepository experienceRepository,
         IntentAnalyzer intentAnalyzer,
+        IntentAnalysisService intentAnalysisService,
         RecommendationScorer recommendationScorer
     ) {
         this.intentRepository = intentRepository;
         this.travelerRepository = travelerRepository;
         this.experienceRepository = experienceRepository;
         this.intentAnalyzer = intentAnalyzer;
+        this.intentAnalysisService = intentAnalysisService;
         this.recommendationScorer = recommendationScorer;
     }
 
@@ -89,7 +93,9 @@ public class IntentService {
                 new ResourceNotFoundException("Intent not found")
             );
 
-        AnalyzedIntent analyzed = intentAnalyzer.analyze(intent.getDescription());
+        AnalyzedIntent analyzed = intentAnalysisService.analyze(
+            intent.getDescription()
+        );
         AnalyzedIntent effectiveIntent = new AnalyzedIntent(
             analyzed.category() != null
                 ? analyzed.category()
