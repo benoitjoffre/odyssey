@@ -9,6 +9,7 @@ import {
   Clock3,
   Hotel,
   LoaderCircle,
+  Luggage,
   Plane,
   RefreshCw,
   Route,
@@ -198,6 +199,7 @@ export function TravelerTripDetailPage() {
         <p>
           <CalendarDays size={17} /> {formatDate(trip.startDate)} <span>au</span> {formatDate(trip.endDate)}
         </p>
+        {trip.travelEventId === null && <span className="traveler-direct-trip-label"><Luggage size={15} /> Voyage organisé directement</span>}
       </section>
 
       <section aria-labelledby="trip-needs-title">

@@ -8,15 +8,18 @@ import { AgentExperienceCreatePage } from "./pages/agent/AgentExperienceCreatePa
 import { AgentExperiencesPage } from "./pages/agent/AgentExperiencesPage";
 import { BookingRequestPage } from "./pages/BookingRequestPage";
 import { ComingSoonPage } from "./pages/ComingSoonPage";
+import { HomePage } from "./pages/HomePage";
 import { TravelerDiscoverPage } from "./pages/traveler/TravelerDiscoverPage";
 import { TravelerEventDetailPage } from "./pages/traveler/TravelerEventDetailPage";
 import { TravelerQuotesPage } from "./pages/traveler/TravelerQuotesPage";
 import { TravelerTripDetailPage } from "./pages/traveler/TravelerTripDetailPage";
+import { TravelerTripCreatePage } from "./pages/traveler/TravelerTripCreatePage";
 import { TravelerTripsPage } from "./pages/traveler/TravelerTripsPage";
 
 function App() {
   return (
     <Routes>
+      <Route path="/" element={<HomePage />} />
       <Route path="/agent" element={<AgentLayout />}>
         <Route index element={<AgentDashboardPage />} />
         <Route path="booking-requests" element={<ComingSoonPage title="Demandes" />} />
@@ -32,6 +35,7 @@ function App() {
         <Route path="discover" element={<TravelerDiscoverPage />} />
         <Route path="events/:eventId" element={<TravelerEventDetailPage />} />
         <Route path="trips" element={<TravelerTripsPage />} />
+        <Route path="trips/new" element={<TravelerTripCreatePage />} />
         <Route path="trips/:tripId" element={<TravelerTripDetailPage />} />
         <Route path="quotes" element={<TravelerQuotesPage />} />
       </Route>

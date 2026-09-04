@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowRight, CalendarDays, Inbox, Luggage, RefreshCw } from "lucide-react";
+import { ArrowRight, CalendarDays, Inbox, Luggage, Plus, RefreshCw } from "lucide-react";
 import { Link } from "react-router-dom";
 import { getTravelerTrips } from "../../api/trips";
 import type { Trip, TripStatus } from "../../types/trip";
@@ -49,10 +49,13 @@ export function TravelerTripsPage() {
 
   return (
     <div className="traveler-page">
-      <section className="traveler-page-heading">
-        <span className="eyebrow">Votre carnet de voyage</span>
-        <h1>Mes voyages</h1>
-        <p>Suivez la préparation et les réservations de chacun de vos voyages.</p>
+      <section className="traveler-page-heading traveler-trips-heading">
+        <div>
+          <span className="eyebrow">Votre carnet de voyage</span>
+          <h1>Mes voyages</h1>
+          <p>Suivez la préparation et les réservations de chacun de vos voyages.</p>
+        </div>
+        <Link className="primary-button" to="/traveler/trips/new"><Plus size={18} /> Nouveau voyage</Link>
       </section>
 
       {loading && (
@@ -78,6 +81,7 @@ export function TravelerTripsPage() {
           <Inbox size={28} aria-hidden="true" />
           <strong>Aucun voyage pour le moment</strong>
           <p>Vos prochains voyages apparaîtront ici.</p>
+          <Link className="primary-button" to="/traveler/trips/new"><Plus size={17} /> Organiser mon voyage</Link>
         </div>
       )}
 
