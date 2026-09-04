@@ -103,22 +103,30 @@ export function TravelerDiscoverPage() {
 
       <section className="traveler-entry-grid" aria-label="Choisir comment commencer">
         <article className="traveler-entry-card inspiration">
-          <span className="traveler-entry-icon"><Sparkles size={23} /></span>
+          <span className="traveler-entry-icon">
+            <Sparkles size={23} />
+          </span>
           <div>
             <span className="eyebrow">J’ai envie d’être inspiré</span>
             <h2>Trouver une expérience</h2>
             <p>Découvrez des expériences et événements selon vos envies.</p>
           </div>
-          <a className="traveler-entry-action" href="#inspiration-title">Découvrir <ArrowRight size={17} /></a>
+          <a className="traveler-entry-action" href="#inspiration-title">
+            Découvrir <ArrowRight size={17} />
+          </a>
         </article>
         <article className="traveler-entry-card organization">
-          <span className="traveler-entry-icon"><Luggage size={23} /></span>
+          <span className="traveler-entry-icon">
+            <Luggage size={23} />
+          </span>
           <div>
             <span className="eyebrow">Je connais déjà mon voyage</span>
             <h2>Organiser un voyage</h2>
             <p>Vous savez déjà où vous allez ? Créez votre voyage et ajoutez les services dont vous avez besoin.</p>
           </div>
-          <Link className="traveler-entry-action" to="/traveler/trips/new">Organiser mon voyage <ArrowRight size={17} /></Link>
+          <Link className="traveler-entry-action" to="/traveler/trips/new">
+            Organiser mon voyage <ArrowRight size={17} />
+          </Link>
         </article>
       </section>
 

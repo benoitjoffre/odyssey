@@ -55,7 +55,9 @@ export function TravelerTripsPage() {
           <h1>Mes voyages</h1>
           <p>Suivez la préparation et les réservations de chacun de vos voyages.</p>
         </div>
-        <Link className="primary-button" to="/traveler/trips/new"><Plus size={18} /> Nouveau voyage</Link>
+        <Link className="primary-button" to="/traveler/trips/new">
+          <Plus size={18} /> Nouveau voyage
+        </Link>
       </section>
 
       {loading && (
@@ -81,7 +83,9 @@ export function TravelerTripsPage() {
           <Inbox size={28} aria-hidden="true" />
           <strong>Aucun voyage pour le moment</strong>
           <p>Vos prochains voyages apparaîtront ici.</p>
-          <Link className="primary-button" to="/traveler/trips/new"><Plus size={17} /> Organiser mon voyage</Link>
+          <Link className="primary-button" to="/traveler/trips/new">
+            <Plus size={17} /> Organiser mon voyage
+          </Link>
         </div>
       )}
 

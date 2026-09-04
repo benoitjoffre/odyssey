@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowRight, Bell, CalendarDays, Inbox, RefreshCw } from "lucide-react";
+import { ArrowRight, Bell, BellRing, Check, Inbox, RefreshCw } from "lucide-react";
 import { Link } from "react-router-dom";
 import { openAgentNotificationStream } from "../api/agentNotificationStream";
 import { getAgentNotifications } from "../api/agents";
@@ -7,9 +7,61 @@ import type { AgentNotification } from "../types/agent";
 
 const CURRENT_AGENT_ID = 1;
 
-function formatDate(value: string) {
+interface NotificationPresentation {
+  label: string;
+  tone: "request" | "accepted" | "neutral";
+  travelerName: string | null;
+}
+
+function getNotificationPresentation(message: string): NotificationPresentation {
+  if (message === "Nouvelle demande de réservation à prendre en charge") {
+    return { label: "Nouvelle demande", tone: "request", travelerName: null };
+  }
+
+  const acceptedMatch = message.match(/^(.+?) a accepté votre proposition/);
+  if (acceptedMatch) {
+    return { label: "Proposition acceptée", tone: "accepted", travelerName: acceptedMatch[1] };
+  }
+
+  return { label: "Notification", tone: "neutral", travelerName: null };
+}
+
+function getVisibleNotifications(notifications: AgentNotification[]) {
+  const acceptedRequestIds = new Set(
+    notifications
+      .filter((notification) => getNotificationPresentation(notification.message).tone === "accepted")
+      .map((notification) => notification.bookingRequestId),
+  );
+
+  return notifications.filter((notification) => {
+    const isSupersededRequest =
+      getNotificationPresentation(notification.message).tone === "request" && acceptedRequestIds.has(notification.bookingRequestId);
+    return !isSupersededRequest;
+  });
+}
+
+function formatRelativeDate(value: string) {
+  const date = new Date(value);
+  const elapsedMilliseconds = Date.now() - date.getTime();
+
+  if (!Number.isFinite(elapsedMilliseconds) || elapsedMilliseconds < 0) {
+    return new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "short" }).format(date);
+  }
+
+  const elapsedMinutes = Math.floor(elapsedMilliseconds / 60_000);
+  if (elapsedMinutes < 1) return "À l’instant";
+  if (elapsedMinutes < 60) return `Il y a ${elapsedMinutes} min`;
+
+  const elapsedHours = Math.floor(elapsedMinutes / 60);
+  if (elapsedHours < 24) return `Il y a ${elapsedHours} h`;
+  if (elapsedHours < 48) return "Hier";
+
+  return new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "short" }).format(date);
+}
+
+function formatExactDate(value: string) {
   return new Intl.DateTimeFormat("fr-FR", {
-    dateStyle: "medium",
+    dateStyle: "long",
     timeStyle: "short",
   }).format(new Date(value));
 }
@@ -64,7 +116,8 @@ export function AgentDashboardPage() {
     };
   }, [requestVersion]);
 
-  const unreadCount = notifications.filter((notification) => !notification.read).length;
+  const visibleNotifications = getVisibleNotifications(notifications);
+  const unreadCount = visibleNotifications.filter((notification) => !notification.read).length;
 
   return (
     <div className="page-stack">
@@ -75,34 +128,48 @@ export function AgentDashboardPage() {
           <p>Retrouvez les nouvelles demandes de voyage qui nécessitent votre attention.</p>
         </div>
         {!loading && !error && (
-          <div className="summary-stat" aria-label={`${unreadCount} nouvelles demandes`}>
+          <div className="summary-stat" role="status" aria-label={`${unreadCount} notifications non lues`}>
             <span>{unreadCount}</span>
-            <p>Nouvelles demandes</p>
+            <p>Notifications non lues</p>
           </div>
         )}
       </section>
 
-      <section aria-labelledby="notifications-title">
-        <div className="section-heading">
+      <section className="notification-section" aria-labelledby="notifications-title">
+        <div className="section-heading notification-heading">
           <div>
-            <h2 id="notifications-title">Demandes récentes</h2>
-            <p>Notifications assignées à votre compte</p>
+            <h2 id="notifications-title">Notifications</h2>
+            <p>Suivez les dernières activités sur vos demandes.</p>
           </div>
-          <Bell size={20} aria-hidden="true" />
+          <div className="notification-heading-status">
+            {!loading && !error && unreadCount > 0 && (
+              <span>
+                {unreadCount} non {unreadCount === 1 ? "lue" : "lues"}
+              </span>
+            )}
+            <Bell size={20} aria-hidden="true" />
+          </div>
         </div>
 
         {loading && (
-          <div className="state-panel" role="status">
-            <span className="spinner" aria-hidden="true" />
-            <strong>Chargement des demandes…</strong>
-            <p>Nous récupérons vos dernières notifications.</p>
+          <div className="notification-skeleton-list" role="status" aria-label="Chargement des notifications">
+            {[0, 1, 2].map((item) => (
+              <div className="notification-skeleton-row" key={item} aria-hidden="true">
+                <span className="notification-skeleton-icon" />
+                <span className="notification-skeleton-copy">
+                  <span />
+                  <span />
+                  <span />
+                </span>
+              </div>
+            ))}
           </div>
         )}
 
         {!loading && error && (
           <div className="state-panel error-panel" role="alert">
             <RefreshCw size={24} aria-hidden="true" />
-            <strong>{error}</strong>
+            <strong>Impossible de charger les notifications.</strong>
             <p>Vérifiez que l’API Odyssey est accessible puis réessayez.</p>
             <button type="button" className="secondary-button" onClick={() => setRequestVersion((value) => value + 1)}>
               <RefreshCw size={16} />
@@ -111,36 +178,53 @@ export function AgentDashboardPage() {
           </div>
         )}
 
-        {!loading && !error && notifications.length === 0 && (
-          <div className="state-panel">
+        {!loading && !error && visibleNotifications.length === 0 && (
+          <div className="state-panel notification-empty-state">
             <Inbox size={28} aria-hidden="true" />
-            <strong>Aucune demande en attente</strong>
-            <p>Les nouvelles demandes qui vous sont assignées apparaîtront ici.</p>
+            <strong>Vous n’avez aucune nouvelle notification.</strong>
+            <p>Les activités sur vos demandes apparaîtront ici.</p>
           </div>
         )}
 
-        {!loading && !error && notifications.length > 0 && (
-          <div className="notification-grid">
-            {notifications.map((notification) => (
-              <article className={`notification-card${notification.read ? "" : " unread"}`} key={notification.id}>
-                <div className="notification-card-top">
-                  <span className={`status-badge ${notification.read ? "read" : "new"}`}>{notification.read ? "Consultée" : "Nouvelle"}</span>
-                  <span className="notification-date">
-                    <CalendarDays size={15} />
-                    {formatDate(notification.createdAt)}
-                  </span>
-                </div>
-                <div className="notification-body">
-                  <span className="request-label">Demande #{notification.bookingRequestId}</span>
-                  <h3>{notification.message}</h3>
-                </div>
-                <Link className="card-link" to={`/agent/booking-requests/${notification.bookingRequestId}`}>
-                  Voir la demande
-                  <ArrowRight size={17} />
-                </Link>
-              </article>
-            ))}
-          </div>
+        {!loading && !error && visibleNotifications.length > 0 && (
+          <ul className="notification-feed">
+            {visibleNotifications.map((notification) => {
+              const presentation = getNotificationPresentation(notification.message);
+              return (
+                <li key={notification.id}>
+                  <Link
+                    className={`notification-feed-item ${presentation.tone}${notification.read ? "" : " unread"}`}
+                    to={`/agent/booking-requests/${notification.bookingRequestId}`}
+                    aria-label={`${presentation.label}, demande ${notification.bookingRequestId}. ${notification.message}`}
+                  >
+                    <span className="notification-feed-icon" aria-hidden="true">
+                      {presentation.tone === "accepted" ? (
+                        <Check size={18} />
+                      ) : presentation.tone === "request" ? (
+                        <BellRing size={18} />
+                      ) : (
+                        <Bell size={18} />
+                      )}
+                    </span>
+                    <span className="notification-feed-content">
+                      <span className="notification-feed-topline">
+                        <span className={`notification-type-badge ${presentation.tone}`}>{presentation.label}</span>
+                        <time dateTime={notification.createdAt} title={formatExactDate(notification.createdAt)}>
+                          {formatRelativeDate(notification.createdAt)}
+                        </time>
+                      </span>
+                      <span className="notification-feed-reference">
+                        Demande #{notification.bookingRequestId}
+                        {presentation.travelerName && <> · {presentation.travelerName}</>}
+                      </span>
+                      <span className="notification-feed-message">{notification.message}</span>
+                    </span>
+                    <ArrowRight className="notification-feed-arrow" size={18} aria-hidden="true" />
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
         )}
       </section>
     </div>

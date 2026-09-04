@@ -55,7 +55,9 @@ export function TravelerTripCreatePage() {
       </Link>
 
       <section className="traveler-direct-trip-intro">
-        <span className="traveler-direct-trip-icon"><Luggage size={24} /></span>
+        <span className="traveler-direct-trip-icon">
+          <Luggage size={24} />
+        </span>
         <div>
           <span className="eyebrow">Vous savez déjà où partir</span>
           <h1>Organiser un voyage</h1>
@@ -113,7 +115,11 @@ export function TravelerTripCreatePage() {
               required
             />
           </label>
-          {error && <p className="traveler-form-error" role="alert">{error}</p>}
+          {error && (
+            <p className="traveler-form-error" role="alert">
+              {error}
+            </p>
+          )}
           <button type="submit" className="primary-button traveler-create-trip" disabled={submitting}>
             {submitting ? <LoaderCircle className="rotating" size={18} /> : <Sparkles size={18} />}
             {submitting ? "Création du voyage…" : "Créer mon voyage"}
