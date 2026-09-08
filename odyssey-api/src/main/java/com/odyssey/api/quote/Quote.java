@@ -31,8 +31,30 @@ public class Quote {
     @Column(nullable = false)
     private BigDecimal providerPrice;
 
-    @Column(nullable = false)
-    private BigDecimal sellingPrice;
+    /**
+     * Odyssey's assistance fee for helping the traveler with this
+     * reservation. Odyssey does not resell the travel service: the
+     * provider amount belongs to the provider, this fee is Odyssey's own
+     * remuneration. Supplied by the agent, never trusted from the
+     * traveler-facing frontend.
+     *
+     * <p>Not marked {@code nullable = false} at the JPA level so that this
+     * column can be added to an existing table via
+     * {@code ddl-auto=update} without failing on pre-existing rows;
+     * non-nullity for newly created quotes is enforced in
+     * {@link QuoteService}.</p>
+     */
+    private BigDecimal assistanceFee;
+
+    /**
+     * Total amount paid by the traveler. ALWAYS computed server-side as
+     * {@code providerPrice + assistanceFee}, never supplied by the
+     * frontend. Mapped to the pre-existing {@code selling_price} column
+     * (renamed at the Java level only, to avoid an orphaned NOT NULL
+     * column on this incrementally-migrated schema).
+     */
+    @Column(name = "selling_price", nullable = false)
+    private BigDecimal totalAmount;
 
     @Column(nullable = false)
     private String currency;
@@ -88,12 +110,20 @@ public class Quote {
         this.providerPrice = providerPrice;
     }
 
-    public BigDecimal getSellingPrice() {
-        return sellingPrice;
+    public BigDecimal getAssistanceFee() {
+        return assistanceFee;
     }
 
-    public void setSellingPrice(BigDecimal sellingPrice) {
-        this.sellingPrice = sellingPrice;
+    public void setAssistanceFee(BigDecimal assistanceFee) {
+        this.assistanceFee = assistanceFee;
+    }
+
+    public BigDecimal getTotalAmount() {
+        return totalAmount;
+    }
+
+    public void setTotalAmount(BigDecimal totalAmount) {
+        this.totalAmount = totalAmount;
     }
 
     public String getCurrency() {

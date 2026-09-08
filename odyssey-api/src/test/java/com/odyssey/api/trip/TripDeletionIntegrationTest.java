@@ -120,7 +120,8 @@ class TripDeletionIntegrationTest {
         quote.setProvider("test-provider");
         quote.setExternalOfferId("test-offer");
         quote.setProviderPrice(BigDecimal.TEN);
-        quote.setSellingPrice(BigDecimal.TEN);
+        quote.setAssistanceFee(BigDecimal.ZERO);
+        quote.setTotalAmount(BigDecimal.TEN);
         quote.setCurrency("EUR");
         quote.setStatus(QuoteStatus.ACCEPTED);
         quote.setCreatedAt(Instant.now());

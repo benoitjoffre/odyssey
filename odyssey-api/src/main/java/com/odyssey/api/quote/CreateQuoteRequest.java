@@ -7,7 +7,7 @@ public record CreateQuoteRequest(
         String provider,
         String externalOfferId,
         BigDecimal providerPrice,
-        BigDecimal sellingPrice,
+        BigDecimal assistanceFee,
         String currency,
         String description,
         Instant expiresAt

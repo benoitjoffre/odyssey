@@ -68,15 +68,7 @@ public class AgentService {
       return notificationRepository
           .findByAgentIdOrderByCreatedAtDesc(agentId)
           .stream()
-          .map(notification ->
-              new AgentNotificationResponse(
-                  notification.getId(),
-                  notification.getMessage(),
-                  notification.isRead(),
-                  notification.getCreatedAt(),
-                  notification.getBookingRequest().getId()
-              )
-          )
+          .map(AgentNotificationResponse::from)
           .toList();
     }
 }

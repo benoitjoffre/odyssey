@@ -5,12 +5,13 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class AgentNotificationSseService {
 
-    private final Map<Long, SseEmitter> emitters =
+    private final Map<Long, Set<SseEmitter>> emitters =
         new ConcurrentHashMap<>();
 
     public SseEmitter subscribe(Long agentId) {
@@ -18,18 +19,20 @@ public class AgentNotificationSseService {
         SseEmitter emitter =
             new SseEmitter(0L);
 
-        emitters.put(agentId, emitter);
+        emitters
+            .computeIfAbsent(agentId, ignored -> ConcurrentHashMap.newKeySet())
+            .add(emitter);
 
         emitter.onCompletion(() ->
-            emitters.remove(agentId, emitter)
+            removeEmitter(agentId, emitter)
         );
 
         emitter.onTimeout(() ->
-            emitters.remove(agentId, emitter)
+            removeEmitter(agentId, emitter)
         );
 
         emitter.onError(error ->
-            emitters.remove(agentId, emitter)
+            removeEmitter(agentId, emitter)
         );
 
         return emitter;
@@ -40,24 +43,30 @@ public class AgentNotificationSseService {
         AgentNotificationResponse notification
     ) {
 
-        SseEmitter emitter = emitters.get(agentId);
+        Set<SseEmitter> agentEmitters = emitters.get(agentId);
 
-        if (emitter == null) {
+        if (agentEmitters == null) {
             return;
         }
 
-        try {
-
-            emitter.send(
-                SseEmitter
-                    .event()
-                    .name("notification")
-                    .data(notification)
-            );
-
-        } catch (IOException e) {
-
-            emitters.remove(agentId, emitter);
+        for (SseEmitter emitter : agentEmitters) {
+            try {
+                emitter.send(
+                    SseEmitter
+                        .event()
+                        .name("notification")
+                        .data(notification)
+                );
+            } catch (IOException | IllegalStateException exception) {
+                removeEmitter(agentId, emitter);
+            }
         }
+    }
+
+    private void removeEmitter(Long agentId, SseEmitter emitter) {
+        emitters.computeIfPresent(agentId, (ignored, agentEmitters) -> {
+            agentEmitters.remove(emitter);
+            return agentEmitters.isEmpty() ? null : agentEmitters;
+        });
     }
 }

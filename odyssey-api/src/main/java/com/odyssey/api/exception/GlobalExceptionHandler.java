@@ -31,4 +31,15 @@ public class GlobalExceptionHandler {
                 "message", exception.getMessage()
             ));
     }
+
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<Map<String, String>> handleIllegalState(
+        IllegalStateException exception
+    ) {
+        return ResponseEntity
+            .status(HttpStatus.SERVICE_UNAVAILABLE)
+            .body(Map.of(
+                "message", exception.getMessage()
+            ));
+    }
 }

@@ -2,6 +2,8 @@ package com.odyssey.api.booking.confirmation;
 
 import com.odyssey.api.booking.BookingRequestStatus;
 import com.odyssey.api.exception.ResourceNotFoundException;
+import com.odyssey.api.payment.PaymentRepository;
+import com.odyssey.api.payment.PaymentStatus;
 import com.odyssey.api.quote.Quote;
 import com.odyssey.api.quote.QuoteRepository;
 import com.odyssey.api.quote.QuoteStatus;
@@ -16,15 +18,18 @@ public class BookingService {
 
     private final BookingRepository bookingRepository;
     private final QuoteRepository quoteRepository;
+    private final PaymentRepository paymentRepository;
     private final FakeBookingProvider bookingProvider;
 
     public BookingService(
         BookingRepository bookingRepository,
         QuoteRepository quoteRepository,
+        PaymentRepository paymentRepository,
         FakeBookingProvider bookingProvider
     ) {
         this.bookingRepository = bookingRepository;
         this.quoteRepository = quoteRepository;
+        this.paymentRepository = paymentRepository;
         this.bookingProvider = bookingProvider;
     }
 
@@ -45,6 +50,15 @@ public class BookingService {
         if (quote.getStatus() != QuoteStatus.ACCEPTED) {
             throw new IllegalArgumentException(
                 "Only an ACCEPTED quote can be booked"
+            );
+        }
+
+        // Accepting a quote does not mean it has been paid: the supplier
+        // Booking must never be created before the Traveler's payment has
+        // been confirmed by a verified Stripe webhook.
+        if (!paymentRepository.existsByQuoteIdAndStatus(quoteId, PaymentStatus.PAID)) {
+            throw new IllegalArgumentException(
+                "This quote must be paid before a booking can be created"
             );
         }
 

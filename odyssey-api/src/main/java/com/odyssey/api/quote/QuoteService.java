@@ -9,6 +9,9 @@ import com.odyssey.api.outbox.OutboxEvent;
 import com.odyssey.api.outbox.OutboxEventRepository;
 import com.odyssey.api.outbox.OutboxStatus;
 import com.odyssey.api.event.QuoteAcceptedEvent;
+import com.odyssey.api.payment.Payment;
+import com.odyssey.api.payment.PaymentRepository;
+import com.odyssey.api.payment.PaymentStatus;
 import tools.jackson.databind.ObjectMapper;
 
 import org.springframework.stereotype.Service;
@@ -23,17 +26,20 @@ public class QuoteService {
     private final QuoteRepository quoteRepository;
     private final BookingRequestRepository bookingRequestRepository;
     private final OutboxEventRepository outboxEventRepository;
+    private final PaymentRepository paymentRepository;
     private final ObjectMapper objectMapper;
 
     public QuoteService(
             QuoteRepository quoteRepository,
             BookingRequestRepository bookingRequestRepository,
             OutboxEventRepository outboxEventRepository,
+            PaymentRepository paymentRepository,
             ObjectMapper objectMapper
     ) {
         this.quoteRepository = quoteRepository;
         this.bookingRequestRepository = bookingRequestRepository;
         this.outboxEventRepository = outboxEventRepository;
+        this.paymentRepository = paymentRepository;
         this.objectMapper = objectMapper;
     }
 
@@ -73,13 +79,29 @@ public class QuoteService {
             );
         }
 
+        if (request.providerPrice() == null || request.providerPrice().signum() < 0) {
+            throw new IllegalArgumentException(
+                    "providerPrice must be zero or positive"
+            );
+        }
+
+        if (request.assistanceFee() == null || request.assistanceFee().signum() < 0) {
+            throw new IllegalArgumentException(
+                    "assistanceFee must be zero or positive"
+            );
+        }
+
         Quote quote = new Quote();
 
         quote.setBookingRequest(bookingRequest);
         quote.setProvider(request.provider());
         quote.setExternalOfferId(request.externalOfferId());
         quote.setProviderPrice(request.providerPrice());
-        quote.setSellingPrice(request.sellingPrice());
+        quote.setAssistanceFee(request.assistanceFee());
+        // totalAmount is ALWAYS computed server-side, never trusted from
+        // the caller (Odyssey does not resell the travel service: the
+        // traveler pays providerPrice + Odyssey's assistanceFee).
+        quote.setTotalAmount(request.providerPrice().add(request.assistanceFee()));
         quote.setCurrency(request.currency());
         quote.setDescription(request.description());
         quote.setExpiresAt(request.expiresAt());
@@ -172,7 +194,8 @@ public class QuoteService {
                 quote.getProvider(),
                 quote.getExternalOfferId(),
                 quote.getProviderPrice(),
-                quote.getSellingPrice(),
+                quote.getAssistanceFee(),
+                quote.getTotalAmount(),
                 quote.getCurrency(),
                 quote.getDescription(),
                 quote.getStatus(),
@@ -284,15 +307,21 @@ public class QuoteService {
 
     private TravelerQuoteResponse toTravelerResponse(Quote quote) {
 
+        PaymentStatus paymentStatus = paymentRepository
+                .findFirstByQuoteIdOrderByCreatedAtDesc(quote.getId())
+                .map(Payment::getStatus)
+                .orElse(null);
+
         return new TravelerQuoteResponse(
                 quote.getId(),
                 quote.getBookingRequest().getId(),
-                quote.getSellingPrice(),
+                quote.getTotalAmount(),
                 quote.getCurrency(),
                 quote.getDescription(),
                 quote.getStatus(),
                 quote.getCreatedAt(),
-                quote.getExpiresAt()
+                quote.getExpiresAt(),
+                paymentStatus
         );
     }
 }
