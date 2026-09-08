@@ -1,29 +1,36 @@
 import { useEffect, useState } from "react";
-import { ArrowRight, Bell, BellRing, Check, Inbox, RefreshCw } from "lucide-react";
+import { ArrowRight, BedDouble, Bell, Bus, Car, Plane, Route, RefreshCw, Inbox } from "lucide-react";
 import { Link } from "react-router-dom";
 import { openAgentNotificationStream } from "../api/agentNotificationStream";
 import { getAgentNotifications } from "../api/agents";
 import type { AgentNotification } from "../types/agent";
+import type { NeedType } from "../types/bookingRequest";
 
 const CURRENT_AGENT_ID = 1;
+
+const needPresentation: Record<NeedType, { label: string; icon: typeof Plane }> = {
+  FLIGHT: { label: "Vol", icon: Plane },
+  ACCOMMODATION: { label: "Hébergement", icon: BedDouble },
+  TRANSFER: { label: "Transfert", icon: Route },
+  CAR: { label: "Voiture", icon: Car },
+  BUS: { label: "Bus", icon: Bus },
+};
 
 interface NotificationPresentation {
   label: string;
   tone: "request" | "accepted" | "neutral";
-  travelerName: string | null;
 }
 
 function getNotificationPresentation(message: string): NotificationPresentation {
-  if (message === "Nouvelle demande de réservation à prendre en charge") {
-    return { label: "Nouvelle demande", tone: "request", travelerName: null };
+  if (message.startsWith("Nouvelle demande")) {
+    return { label: "Nouvelle demande", tone: "request" };
   }
 
-  const acceptedMatch = message.match(/^(.+?) a accepté votre proposition/);
-  if (acceptedMatch) {
-    return { label: "Proposition acceptée", tone: "accepted", travelerName: acceptedMatch[1] };
+  if (/^(.+?) a accepté votre proposition/.test(message)) {
+    return { label: "Proposition acceptée", tone: "accepted" };
   }
 
-  return { label: "Notification", tone: "neutral", travelerName: null };
+  return { label: "Notification", tone: "neutral" };
 }
 
 function getVisibleNotifications(notifications: AgentNotification[]) {
@@ -38,6 +45,57 @@ function getVisibleNotifications(notifications: AgentNotification[]) {
       getNotificationPresentation(notification.message).tone === "request" && acceptedRequestIds.has(notification.bookingRequestId);
     return !isSupersededRequest;
   });
+}
+
+// Notifications are never merged in the data model: each keeps its own id,
+// bookingRequestId and timestamp. Grouping by tripId is a presentation-only
+// concern, applied here on top of the flat, deduplicated notification list.
+interface NotificationTripGroup {
+  key: string;
+  tripId: number | null;
+  title: string | null;
+  travelerName: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  notifications: AgentNotification[];
+}
+
+function groupNotificationsByTrip(notifications: AgentNotification[]): NotificationTripGroup[] {
+  const groups = new Map<string, NotificationTripGroup>();
+
+  // `notifications` is already deduplicated by id and sorted newest first, so
+  // the first notification encountered for a given trip is its most recent
+  // one: the Map preserves insertion order, which gives us trip groups
+  // already sorted by "most recently active trip first" for free.
+  notifications.forEach((notification) => {
+    const key = notification.tripId != null ? `trip-${notification.tripId}` : `request-${notification.bookingRequestId}`;
+    const existing = groups.get(key);
+
+    if (existing) {
+      existing.notifications.push(notification);
+      return;
+    }
+
+    const travelerName = [notification.travelerFirstName, notification.travelerLastName].filter(Boolean).join(" ") || null;
+
+    groups.set(key, {
+      key,
+      tripId: notification.tripId,
+      title: notification.tripTitle,
+      travelerName,
+      startDate: notification.tripStartDate,
+      endDate: notification.tripEndDate,
+      notifications: [notification],
+    });
+  });
+
+  return [...groups.values()];
+}
+
+function mergeNotifications(current: AgentNotification[], incoming: AgentNotification[]) {
+  const notificationsById = new Map(current.map((notification) => [notification.id, notification]));
+  incoming.forEach((notification) => notificationsById.set(notification.id, notification));
+  return [...notificationsById.values()].sort((first, second) => new Date(second.createdAt).getTime() - new Date(first.createdAt).getTime());
 }
 
 function formatRelativeDate(value: string) {
@@ -66,6 +124,14 @@ function formatExactDate(value: string) {
   }).format(new Date(value));
 }
 
+function formatTripDates(startDate: string, endDate: string) {
+  const dateFormatter = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "short" });
+  const yearFormatter = new Intl.DateTimeFormat("fr-FR", { year: "numeric" });
+  const start = new Date(`${startDate}T00:00:00`);
+  const end = new Date(`${endDate}T00:00:00`);
+  return `${dateFormatter.format(start)} → ${dateFormatter.format(end)} ${yearFormatter.format(end)}`;
+}
+
 export function AgentDashboardPage() {
   const [notifications, setNotifications] = useState<AgentNotification[]>([]);
   const [loading, setLoading] = useState(true);
@@ -74,8 +140,9 @@ export function AgentDashboardPage() {
 
   useEffect(() => {
     const controller = new AbortController();
-    let eventSource: EventSource | null = null;
-    let disposed = false;
+    const eventSource = openAgentNotificationStream(CURRENT_AGENT_ID, (notification) => {
+      setNotifications((current) => mergeNotifications(current, [notification]));
+    });
 
     async function loadNotifications() {
       setLoading(true);
@@ -83,7 +150,7 @@ export function AgentDashboardPage() {
 
       try {
         const data = await getAgentNotifications(CURRENT_AGENT_ID, controller.signal);
-        setNotifications(data);
+        setNotifications((current) => mergeNotifications(current, data));
       } catch (requestError) {
         if (requestError instanceof DOMException && requestError.name === "AbortError") {
           return;
@@ -94,30 +161,18 @@ export function AgentDashboardPage() {
           setLoading(false);
         }
       }
-
-      if (!disposed) {
-        eventSource = openAgentNotificationStream(CURRENT_AGENT_ID, (notification) => {
-          setNotifications((current) => {
-            if (current.some((item) => item.id === notification.id)) {
-              return current;
-            }
-
-            return [notification, ...current];
-          });
-        });
-      }
     }
 
     void loadNotifications();
     return () => {
-      disposed = true;
       controller.abort();
-      eventSource?.close();
+      eventSource.close();
     };
   }, [requestVersion]);
 
   const visibleNotifications = getVisibleNotifications(notifications);
   const unreadCount = visibleNotifications.filter((notification) => !notification.read).length;
+  const tripGroups = groupNotificationsByTrip(visibleNotifications);
 
   return (
     <div className="page-stack">
@@ -139,7 +194,7 @@ export function AgentDashboardPage() {
         <div className="section-heading notification-heading">
           <div>
             <h2 id="notifications-title">Notifications</h2>
-            <p>Suivez les dernières activités sur vos demandes.</p>
+            <p>Suivez les dernières activités sur vos demandes, groupées par voyage.</p>
           </div>
           <div className="notification-heading-status">
             {!loading && !error && unreadCount > 0 && (
@@ -178,7 +233,7 @@ export function AgentDashboardPage() {
           </div>
         )}
 
-        {!loading && !error && visibleNotifications.length === 0 && (
+        {!loading && !error && tripGroups.length === 0 && (
           <div className="state-panel notification-empty-state">
             <Inbox size={28} aria-hidden="true" />
             <strong>Vous n’avez aucune nouvelle notification.</strong>
@@ -186,45 +241,62 @@ export function AgentDashboardPage() {
           </div>
         )}
 
-        {!loading && !error && visibleNotifications.length > 0 && (
-          <ul className="notification-feed">
-            {visibleNotifications.map((notification) => {
-              const presentation = getNotificationPresentation(notification.message);
-              return (
-                <li key={notification.id}>
-                  <Link
-                    className={`notification-feed-item ${presentation.tone}${notification.read ? "" : " unread"}`}
-                    to={`/agent/booking-requests/${notification.bookingRequestId}`}
-                    aria-label={`${presentation.label}, demande ${notification.bookingRequestId}. ${notification.message}`}
-                  >
-                    <span className="notification-feed-icon" aria-hidden="true">
-                      {presentation.tone === "accepted" ? (
-                        <Check size={18} />
-                      ) : presentation.tone === "request" ? (
-                        <BellRing size={18} />
-                      ) : (
-                        <Bell size={18} />
-                      )}
-                    </span>
-                    <span className="notification-feed-content">
-                      <span className="notification-feed-topline">
-                        <span className={`notification-type-badge ${presentation.tone}`}>{presentation.label}</span>
-                        <time dateTime={notification.createdAt} title={formatExactDate(notification.createdAt)}>
-                          {formatRelativeDate(notification.createdAt)}
-                        </time>
-                      </span>
-                      <span className="notification-feed-reference">
-                        Demande #{notification.bookingRequestId}
-                        {presentation.travelerName && <> · {presentation.travelerName}</>}
-                      </span>
-                      <span className="notification-feed-message">{notification.message}</span>
-                    </span>
-                    <ArrowRight className="notification-feed-arrow" size={18} aria-hidden="true" />
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
+        {!loading && !error && tripGroups.length > 0 && (
+          <div className="notification-trip-list">
+            {tripGroups.map((group) => (
+              <section className="notification-trip-group" key={group.key} aria-labelledby={`notification-trip-${group.key}-title`}>
+                <header className="notification-trip-heading">
+                  <div className="notification-trip-heading-copy">
+                    <h3 id={`notification-trip-${group.key}-title`}>
+                      {group.title ?? (group.tripId != null ? `Voyage #${group.tripId}` : `Demande #${group.notifications[0].bookingRequestId}`)}
+                    </h3>
+                    {(group.travelerName || (group.startDate && group.endDate)) && (
+                      <p>
+                        {group.travelerName}
+                        {group.travelerName && group.startDate && group.endDate ? " · " : ""}
+                        {group.startDate && group.endDate ? formatTripDates(group.startDate, group.endDate) : null}
+                      </p>
+                    )}
+                  </div>
+                  <span className="notification-trip-count">
+                    {group.notifications.length} {group.notifications.length > 1 ? "notifications" : "notification"}
+                  </span>
+                </header>
+
+                <ul className="notification-trip-items">
+                  {group.notifications.map((notification) => {
+                    const presentation = getNotificationPresentation(notification.message);
+                    const need = notification.needType ? needPresentation[notification.needType] : null;
+                    const NeedIcon = need?.icon ?? Bell;
+
+                    return (
+                      <li key={notification.id}>
+                        <Link
+                          className={`notification-trip-item ${presentation.tone}${notification.read ? "" : " unread"}`}
+                          to={`/agent/booking-requests/${notification.bookingRequestId}`}
+                          aria-label={`${need?.label ?? "Notification"}, ${presentation.label}, demande ${notification.bookingRequestId}`}
+                        >
+                          <span className={`notification-trip-item-icon ${notification.needType?.toLowerCase() ?? ""}`} aria-hidden="true">
+                            <NeedIcon size={16} />
+                          </span>
+                          <span className="notification-trip-item-copy">
+                            <span className="notification-trip-item-topline">
+                              <span className="notification-trip-item-need">{need?.label ?? "Notification"}</span>
+                              <time dateTime={notification.createdAt} title={formatExactDate(notification.createdAt)}>
+                                {formatRelativeDate(notification.createdAt)}
+                              </time>
+                            </span>
+                            <span className={`notification-trip-item-action ${presentation.tone}`}>{presentation.label}</span>
+                          </span>
+                          <ArrowRight className="notification-trip-item-arrow" size={16} aria-hidden="true" />
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            ))}
+          </div>
         )}
       </section>
     </div>

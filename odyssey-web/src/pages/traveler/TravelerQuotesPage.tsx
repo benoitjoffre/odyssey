@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { CalendarDays, Check, Clock3, FileText, Inbox, LoaderCircle, RefreshCw, X } from "lucide-react";
+import { CalendarDays, Check, Clock3, CreditCard, FileText, Inbox, LoaderCircle, RefreshCw, X } from "lucide-react";
 import { acceptTravelerQuote, getTravelerQuotes, rejectTravelerQuote } from "../../api/travelerQuotes";
+import { createCheckoutSession } from "../../api/payments";
 import type { TravelerQuote, TravelerQuoteStatus } from "../../types/travelerQuote";
 
 const TRAVELER_ID = 1;
@@ -37,6 +38,8 @@ export function TravelerQuotesPage() {
   const [requestVersion, setRequestVersion] = useState(0);
   const [pendingActions, setPendingActions] = useState<Record<number, QuoteAction>>({});
   const [actionErrors, setActionErrors] = useState<Record<number, string>>({});
+  const [payingQuoteId, setPayingQuoteId] = useState<number | null>(null);
+  const [paymentErrors, setPaymentErrors] = useState<Record<number, string>>({});
 
   useEffect(() => {
     const controller = new AbortController();
@@ -58,6 +61,47 @@ export function TravelerQuotesPage() {
     void loadQuotes();
     return () => controller.abort();
   }, [requestVersion]);
+
+  // Le retour de Stripe (succès ou annulation) ne fait jamais foi côté client :
+  // on se contente de redemander l’état réel au backend, éventuellement à
+  // plusieurs reprises si le webhook Stripe n’a pas encore été traité.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("payment") !== "success") return;
+
+    window.history.replaceState({}, "", window.location.pathname);
+
+    let attempts = 0;
+    const interval = window.setInterval(() => {
+      attempts += 1;
+      setRequestVersion((version) => version + 1);
+      if (attempts >= 4) window.clearInterval(interval);
+    }, 1500);
+
+    return () => window.clearInterval(interval);
+  }, []);
+
+  async function handlePayQuote(quote: TravelerQuote) {
+    if (payingQuoteId) return;
+
+    setPayingQuoteId(quote.id);
+    setPaymentErrors((current) => {
+      const next = { ...current };
+      delete next[quote.id];
+      return next;
+    });
+
+    try {
+      const session = await createCheckoutSession(quote.id, TRAVELER_ID);
+      window.location.href = session.checkoutUrl;
+    } catch {
+      setPaymentErrors((current) => ({
+        ...current,
+        [quote.id]: "Impossible de démarrer le paiement pour le moment. Veuillez réessayer.",
+      }));
+      setPayingQuoteId(null);
+    }
+  }
 
   async function handleQuoteAction(quote: TravelerQuote, action: QuoteAction) {
     if (pendingActions[quote.id]) return;
@@ -136,7 +180,7 @@ export function TravelerQuotesPage() {
                 </div>
                 <div className="traveler-quote-main">
                   <h2>{quote.description}</h2>
-                  <strong className="traveler-quote-price">{formatPrice(quote.price, quote.currency)}</strong>
+                  <strong className="traveler-quote-price">{formatPrice(quote.totalAmount, quote.currency)}</strong>
                 </div>
                 <div className="traveler-quote-dates">
                   <span>
@@ -176,10 +220,23 @@ export function TravelerQuotesPage() {
                     </button>
                   </div>
                 )}
-                {quote.status === "ACCEPTED" && (
+                {quote.status === "ACCEPTED" && quote.paymentStatus === "PAID" && (
                   <p className="traveler-quote-outcome accepted">
-                    <Check size={18} /> Proposition acceptée
+                    <Check size={18} /> Payé
                   </p>
+                )}
+                {quote.status === "ACCEPTED" && quote.paymentStatus !== "PAID" && (
+                  <div className="traveler-quote-actions">
+                    {paymentErrors[quote.id] && (
+                      <p className="traveler-action-error" role="alert">
+                        {paymentErrors[quote.id]}
+                      </p>
+                    )}
+                    <button type="button" className="primary-button" disabled={payingQuoteId === quote.id} onClick={() => void handlePayQuote(quote)}>
+                      {payingQuoteId === quote.id ? <LoaderCircle className="rotating" size={18} /> : <CreditCard size={18} />}
+                      {payingQuoteId === quote.id ? "Redirection..." : `Payer ${formatPrice(quote.totalAmount, quote.currency)}`}
+                    </button>
+                  </div>
                 )}
                 {quote.status === "REJECTED" && (
                   <p className="traveler-quote-outcome rejected">

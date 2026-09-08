@@ -85,7 +85,7 @@ export function BookingRequestPage() {
   const [offers, setOffers] = useState<ProviderOffer[]>([]);
   const [searchingOffers, setSearchingOffers] = useState(false);
   const [selectedOffer, setSelectedOffer] = useState<ProviderOffer | null>(null);
-  const [sellingPrice, setSellingPrice] = useState("");
+  const [assistanceFee, setAssistanceFee] = useState("");
   const [quoteDescription, setQuoteDescription] = useState("");
   const [creatingQuote, setCreatingQuote] = useState(false);
   const [quoteError, setQuoteError] = useState<string | null>(null);
@@ -162,7 +162,7 @@ export function BookingRequestPage() {
 
   function handleSelectOffer(offer: ProviderOffer) {
     setSelectedOffer(offer);
-    setSellingPrice(String(offer.price));
+    setAssistanceFee("0");
     setQuoteDescription(getOfferDescription(offer));
     setQuoteError(null);
     setCreatedQuote(null);
@@ -173,9 +173,9 @@ export function BookingRequestPage() {
     event.preventDefault();
     if (!selectedOffer) return;
 
-    const parsedSellingPrice = Number(sellingPrice);
-    if (!Number.isFinite(parsedSellingPrice) || parsedSellingPrice < 0) {
-      setQuoteError("Saisissez un prix client valide.");
+    const parsedAssistanceFee = Number(assistanceFee);
+    if (!Number.isFinite(parsedAssistanceFee) || parsedAssistanceFee < 0) {
+      setQuoteError("Saisissez des frais d’assistance valides.");
       return;
     }
 
@@ -192,7 +192,7 @@ export function BookingRequestPage() {
         provider: selectedOffer.provider,
         externalOfferId: selectedOffer.externalId,
         providerPrice: selectedOffer.price,
-        sellingPrice: parsedSellingPrice,
+        assistanceFee: parsedAssistanceFee,
         currency: selectedOffer.currency,
         description: quoteDescription.trim(),
         expiresAt: null,
@@ -223,6 +223,7 @@ export function BookingRequestPage() {
   async function handleCreateBooking() {
     const quote = acceptedQuote ?? (createdQuote?.status === "ACCEPTED" ? createdQuote : null);
     if (!quote || creatingBooking) return;
+    if (!isBookableQuotePaid) return;
 
     setCreatingBooking(true);
     setBookingError(null);
@@ -299,6 +300,15 @@ export function BookingRequestPage() {
   const { need, traveler, trip } = bookingRequest;
   const canClaim = bookingRequest.status === "REQUESTED" && bookingRequest.assignedAgentId === null;
   const canSearchOffers = bookingRequest.status === "IN_PROGRESS" && bookingRequest.assignedAgentId === CURRENT_AGENT_ID;
+  // Le statut de paiement provient toujours du backend (TravelerQuote.paymentStatus,
+  // aliment\u00e9 par le webhook Stripe v\u00e9rifi\u00e9) : le frontend ne d\u00e9cide jamais lui-m\u00eame
+  // qu\u2019une proposition est pay\u00e9e.
+  const isBookableQuotePaid = acceptedQuote?.paymentStatus === "PAID";
+  const parsedAssistanceFeePreview = Number(assistanceFee);
+  const totalClientPreview =
+    selectedOffer && Number.isFinite(parsedAssistanceFeePreview) && parsedAssistanceFeePreview >= 0
+      ? selectedOffer.price + parsedAssistanceFeePreview
+      : null;
 
   return (
     <div className="page-stack booking-request-page">
@@ -530,9 +540,15 @@ export function BookingRequestPage() {
               <strong>{formatPrice(selectedOffer.price, selectedOffer.currency)}</strong>
             </div>
             <label className="form-field">
-              <span>Prix client ({selectedOffer.currency})</span>
-              <input type="number" min="0" step="0.01" value={sellingPrice} onChange={(event) => setSellingPrice(event.target.value)} required />
+              <span>Frais d’assistance Odyssey ({selectedOffer.currency})</span>
+              <input type="number" min="0" step="0.01" value={assistanceFee} onChange={(event) => setAssistanceFee(event.target.value)} required />
             </label>
+            {totalClientPreview !== null && (
+              <div className="quote-price-summary">
+                <span>Total client</span>
+                <strong>{formatPrice(totalClientPreview, selectedOffer.currency)}</strong>
+              </div>
+            )}
             <label className="form-field form-field-wide">
               <span>Description</span>
               <input type="text" value={quoteDescription} onChange={(event) => setQuoteDescription(event.target.value)} required />
@@ -568,8 +584,12 @@ export function BookingRequestPage() {
               <strong>{formatPrice(createdQuote.providerPrice, createdQuote.currency)}</strong>
             </div>
             <div>
-              <span>Prix client</span>
-              <strong>{formatPrice(createdQuote.sellingPrice, createdQuote.currency)}</strong>
+              <span>Frais d’assistance Odyssey</span>
+              <strong>{formatPrice(createdQuote.assistanceFee, createdQuote.currency)}</strong>
+            </div>
+            <div>
+              <span>Total client</span>
+              <strong>{formatPrice(createdQuote.totalAmount, createdQuote.currency)}</strong>
             </div>
             <div className="quote-description">
               <span>Description</span>
@@ -627,7 +647,11 @@ export function BookingRequestPage() {
             </p>
           )}
 
-          {!booking && (
+          {!booking && !isBookableQuotePaid && (
+            <p className="booking-payment-pending">En attente du paiement du client avant de pouvoir créer la réservation.</p>
+          )}
+
+          {!booking && isBookableQuotePaid && (
             <button type="button" className="primary-button" onClick={handleCreateBooking} disabled={creatingBooking}>
               {creatingBooking ? <LoaderCircle className="rotating" size={18} /> : <ClipboardCheck size={18} />}
               {creatingBooking ? "Création de la réservation…" : "Créer la réservation"}

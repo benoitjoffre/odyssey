@@ -6,6 +6,7 @@ import { AgentEventCreatePage } from "./pages/agent/AgentEventCreatePage";
 import { AgentEventsPage } from "./pages/agent/AgentEventsPage";
 import { AgentExperienceCreatePage } from "./pages/agent/AgentExperienceCreatePage";
 import { AgentExperiencesPage } from "./pages/agent/AgentExperiencesPage";
+import { AgentBookingRequestsPage } from "./pages/agent/AgentBookingRequestsPage";
 import { BookingRequestPage } from "./pages/BookingRequestPage";
 import { ComingSoonPage } from "./pages/ComingSoonPage";
 import { HomePage } from "./pages/HomePage";
@@ -22,7 +23,7 @@ function App() {
       <Route path="/" element={<HomePage />} />
       <Route path="/agent" element={<AgentLayout />}>
         <Route index element={<AgentDashboardPage />} />
-        <Route path="booking-requests" element={<ComingSoonPage title="Demandes" />} />
+        <Route path="booking-requests" element={<AgentBookingRequestsPage />} />
         <Route path="booking-requests/:id" element={<BookingRequestPage />} />
         <Route path="quotes" element={<ComingSoonPage title="Propositions" />} />
         <Route path="experiences" element={<AgentExperiencesPage />} />

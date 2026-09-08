@@ -2,6 +2,10 @@ import { apiFetch } from "./client";
 import type { BookingRequest } from "../types/bookingRequest";
 import type { ProviderOffer } from "../types/providerOffer";
 
+export function getBookingRequests(signal?: AbortSignal): Promise<BookingRequest[]> {
+  return apiFetch<BookingRequest[]>("/api/booking-requests", { signal });
+}
+
 export function getBookingRequest(id: number, signal?: AbortSignal): Promise<BookingRequest> {
   return apiFetch<BookingRequest>(`/api/booking-requests/${id}`, { signal });
 }

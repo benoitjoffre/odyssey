@@ -283,10 +283,166 @@ h2 {
   max-width: 920px;
 }
 
-.notification-heading-status,
-.notification-feed-item,
-.notification-feed-topline,
-.notification-feed-reference {
+.agent-requests-page {
+  max-width: 980px;
+}
+
+.agent-trip-request-list {
+  display: grid;
+  gap: 20px;
+}
+
+.agent-trip-request-group {
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(29, 69, 65, 0.05);
+}
+
+.agent-trip-request-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 22px 24px;
+  background: #f5f8f6;
+  border-bottom: 1px solid var(--border);
+}
+
+.agent-trip-reference {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--primary);
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.agent-trip-request-heading h2 {
+  margin-bottom: 5px;
+  color: var(--ink);
+  font-size: 19px;
+}
+
+.agent-trip-request-heading p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.agent-trip-request-meta {
+  display: grid;
+  flex: 0 0 auto;
+  justify-items: end;
+  gap: 9px;
+}
+
+.agent-trip-request-meta span {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #45615d;
+  font-size: 12px;
+}
+
+.agent-trip-request-meta strong {
+  padding: 5px 9px;
+  color: #075f57;
+  font-size: 11px;
+  background: #dff2ed;
+  border-radius: 999px;
+}
+
+.agent-trip-requests {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.agent-trip-requests li {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 16px;
+  min-height: 96px;
+  padding: 16px 20px 16px 24px;
+}
+
+.agent-trip-requests li + li {
+  border-top: 1px solid var(--border);
+}
+
+.agent-request-type-icon {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  color: #176b62;
+  background: #e4f2ee;
+  border-radius: 8px;
+}
+
+.agent-request-type-icon.accommodation {
+  color: #8a5b25;
+  background: #fff1df;
+}
+
+.agent-request-type-icon.car,
+.agent-request-type-icon.transfer,
+.agent-request-type-icon.bus {
+  color: #526b68;
+  background: #edf2f0;
+}
+
+.agent-request-copy {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.agent-request-copy > span {
+  color: var(--primary);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.agent-request-copy strong {
+  color: var(--ink);
+  font-size: 14px;
+}
+
+.agent-request-copy p {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.agent-request-link {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  gap: 7px;
+  padding: 0 11px;
+  color: var(--primary-dark);
+  font-size: 12px;
+  font-weight: 750;
+  border: 1px solid #b9d1cb;
+  border-radius: 6px;
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease;
+}
+
+.agent-request-link:hover,
+.agent-request-link:focus-visible {
+  background: #edf7f4;
+  border-color: var(--primary);
+  outline: none;
+}
+
+.notification-heading-status {
   display: flex;
   align-items: center;
 }
@@ -304,37 +460,87 @@ h2 {
   border-radius: 999px;
 }
 
-.notification-feed {
-  margin: 0;
-  padding: 0;
+.notification-trip-list {
+  display: grid;
+  max-width: 640px;
+  gap: 16px;
+}
+
+.notification-trip-group {
   overflow: hidden;
-  list-style: none;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 8px;
   box-shadow: 0 8px 24px rgba(29, 69, 65, 0.05);
 }
 
-.notification-feed li + li {
+.notification-trip-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px 16px;
+  padding: 14px 18px;
+  background: #f5f8f6;
+  border-bottom: 1px solid var(--border);
+}
+
+.notification-trip-heading-copy {
+  min-width: 0;
+}
+
+.notification-trip-heading-copy h3 {
+  margin: 0 0 3px;
+  overflow-wrap: anywhere;
+  color: var(--ink);
+  font-size: 15px;
+}
+
+.notification-trip-heading-copy p {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.notification-trip-count {
+  flex: 0 0 auto;
+  padding: 4px 9px;
+  color: #075f57;
+  font-size: 11px;
+  font-weight: 750;
+  white-space: nowrap;
+  background: #dff2ed;
+  border-radius: 999px;
+}
+
+.notification-trip-items {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.notification-trip-items li + li {
   border-top: 1px solid var(--border);
 }
 
-.notification-feed-item {
+.notification-trip-item {
   position: relative;
-  min-height: 116px;
-  gap: 17px;
-  padding: 18px 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 18px;
   outline: none;
   transition:
     background-color 150ms ease,
     box-shadow 150ms ease;
 }
 
-.notification-feed-item.unread {
+.notification-trip-item.unread {
   background: #fbfdfc;
 }
 
-.notification-feed-item.unread::before {
+.notification-trip-item.unread::before {
   position: absolute;
   inset: 0 auto 0 0;
   width: 3px;
@@ -342,99 +548,99 @@ h2 {
   background: #d28a43;
 }
 
-.notification-feed-item:hover {
+.notification-trip-item:hover {
   background: #f3f8f6;
 }
 
-.notification-feed-item:focus-visible {
+.notification-trip-item:focus-visible {
   z-index: 1;
   box-shadow: inset 0 0 0 3px rgba(8, 127, 114, 0.2);
 }
 
-.notification-feed-icon {
+.notification-trip-item-icon {
   display: grid;
-  width: 40px;
-  height: 40px;
+  width: 32px;
+  height: 32px;
   flex: 0 0 auto;
   place-items: center;
+  color: #176b62;
+  background: #e4f2ee;
+  border-radius: 7px;
+}
+
+.notification-trip-item-icon.accommodation {
   color: #8a5b25;
   background: #fff1df;
-  border-radius: 8px;
 }
 
-.notification-feed-item.accepted .notification-feed-icon {
-  color: #28643e;
-  background: #e7f4eb;
-}
-
-.notification-feed-item.neutral .notification-feed-icon {
+.notification-trip-item-icon.car,
+.notification-trip-item-icon.transfer,
+.notification-trip-item-icon.bus {
   color: #526b68;
   background: #edf2f0;
 }
 
-.notification-feed-content {
+.notification-trip-item-copy {
   display: grid;
   min-width: 0;
   flex: 1;
-  gap: 5px;
+  gap: 2px;
 }
 
-.notification-feed-topline {
+.notification-trip-item-topline {
+  display: flex;
+  align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 10px;
 }
 
-.notification-feed-topline time {
+.notification-trip-item-need {
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.notification-trip-item-topline time {
   flex: 0 0 auto;
   color: var(--muted);
   font-size: 11px;
 }
 
-.notification-type-badge {
-  display: inline-flex;
-  min-height: 22px;
-  align-items: center;
-  padding: 0 8px;
-  color: #7b521f;
-  font-size: 10px;
-  font-weight: 800;
-  background: #fff1df;
-  border-radius: 999px;
-}
-
-.notification-type-badge.accepted {
-  color: #28643e;
-  background: #e7f4eb;
-}
-
-.notification-type-badge.neutral {
-  color: #526b68;
-  background: #edf2f0;
-}
-
-.notification-feed-reference {
-  color: var(--primary-dark);
-  font-size: 12px;
-  font-weight: 750;
-}
-
-.notification-feed-message {
+.notification-trip-item-action {
   overflow-wrap: anywhere;
-  color: #314a47;
-  font-size: 13px;
-  line-height: 1.45;
+  color: #7b521f;
+  font-size: 12.5px;
 }
 
-.notification-feed-arrow {
+.notification-trip-item-action.accepted {
+  color: #28643e;
+}
+
+.notification-trip-item-action.neutral {
+  color: #526b68;
+}
+
+.notification-trip-item-arrow {
   flex: 0 0 auto;
   color: #80928f;
   transition: transform 150ms ease;
 }
 
-.notification-feed-item:hover .notification-feed-arrow,
-.notification-feed-item:focus-visible .notification-feed-arrow {
+.notification-trip-item:hover .notification-trip-item-arrow,
+.notification-trip-item:focus-visible .notification-trip-item-arrow {
   color: var(--primary);
   transform: translateX(3px);
+}
+
+@media (max-width: 480px) {
+  .notification-trip-heading {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .notification-trip-item {
+    padding: 12px 14px;
+  }
 }
 
 .notification-skeleton-list {
@@ -2752,26 +2958,59 @@ button.traveler-event-link {
     width: 100%;
   }
 
-  .notification-feed-item {
-    min-height: 0;
+  .notification-trip-heading {
+    flex-direction: column;
     align-items: flex-start;
-    gap: 13px;
-    padding: 17px 15px;
+    gap: 8px;
+    padding: 15px;
   }
 
-  .notification-feed-icon {
-    width: 36px;
-    height: 36px;
+  .notification-trip-item {
+    align-items: flex-start;
+    gap: 12px;
+    padding: 13px 15px;
   }
 
-  .notification-feed-topline {
+  .notification-trip-item-icon {
+    width: 30px;
+    height: 30px;
+  }
+
+  .notification-trip-item-topline {
     align-items: flex-start;
     flex-direction: column;
-    gap: 6px;
+    gap: 4px;
   }
 
-  .notification-feed-arrow {
+  .notification-trip-item-arrow {
     align-self: center;
+  }
+
+  .agent-trip-request-heading {
+    flex-direction: column;
+    gap: 14px;
+    padding: 19px;
+  }
+
+  .agent-trip-request-meta {
+    justify-items: start;
+  }
+
+  .agent-trip-requests li {
+    grid-template-columns: 38px minmax(0, 1fr);
+    gap: 12px;
+    padding: 17px;
+  }
+
+  .agent-request-type-icon {
+    width: 38px;
+    height: 38px;
+  }
+
+  .agent-trip-requests .request-status,
+  .agent-request-link {
+    grid-column: 2;
+    width: fit-content;
   }
 
   .detail-grid,

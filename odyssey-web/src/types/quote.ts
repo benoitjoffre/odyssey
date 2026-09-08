@@ -2,7 +2,7 @@ export interface CreateQuoteRequest {
   provider: string;
   externalOfferId: string;
   providerPrice: number;
-  sellingPrice: number;
+  assistanceFee: number;
   currency: string;
   description: string;
   expiresAt: string | null;
@@ -14,7 +14,8 @@ export interface QuoteResponse {
   provider: string;
   externalOfferId: string;
   providerPrice: number;
-  sellingPrice: number;
+  assistanceFee: number;
+  totalAmount: number;
   currency: string;
   description: string;
   status: string;
