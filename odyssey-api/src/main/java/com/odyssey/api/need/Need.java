@@ -3,6 +3,7 @@ package com.odyssey.api.need;
 import com.odyssey.api.booking.BookingRequest;
 import com.odyssey.api.need.accommodation.AccommodationCriteria;
 import com.odyssey.api.need.flight.FlightCriteria;
+import com.odyssey.api.need.transfer.TransferCriteria;
 import com.odyssey.api.trip.Trip;
 import jakarta.persistence.*;
 
@@ -35,6 +36,9 @@ public class Need {
 
     @OneToOne(mappedBy = "need", cascade = CascadeType.REMOVE)
     private FlightCriteria flightCriteria;
+
+    @OneToOne(mappedBy = "need", cascade = CascadeType.REMOVE)
+    private TransferCriteria transferCriteria;
 
     public Need() {
     }
@@ -73,5 +77,9 @@ public class Need {
 
     public void setTrip(Trip trip) {
         this.trip = trip;
+    }
+
+    public TransferCriteria getTransferCriteria() {
+        return transferCriteria;
     }
 }

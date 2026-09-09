@@ -2,6 +2,7 @@ package com.odyssey.api.need;
 
 import com.odyssey.api.need.flight.FlightCriteriaRequest;
 import com.odyssey.api.need.accommodation.AccommodationCriteriaRequest;
+import com.odyssey.api.need.transfer.TransferCriteriaRequest;
 
 import jakarta.validation.constraints.NotNull;
 
@@ -17,6 +18,7 @@ public record CreateNeedRequest(
     ,
 
     FlightCriteriaRequest flightCriteria,
-    AccommodationCriteriaRequest accommodationCriteria
+    AccommodationCriteriaRequest accommodationCriteria,
+    TransferCriteriaRequest transferCriteria
 
 ) {}

@@ -10,6 +10,9 @@ import com.odyssey.api.need.accommodation.AccommodationCriteriaRepository;
 
 import com.odyssey.api.exception.ResourceNotFoundException;
 import com.odyssey.api.need.flight.FlightCriteria;
+import com.odyssey.api.need.transfer.TransferCriteria;
+import com.odyssey.api.need.transfer.TransferCriteriaRepository;
+import com.odyssey.api.need.transfer.TransferCriteriaResponse;
 import com.odyssey.api.trip.Trip;
 import com.odyssey.api.trip.TripRepository;
 
@@ -21,17 +24,20 @@ public class NeedService {
     private final TripRepository tripRepository;
     private final FlightCriteriaRepository flightCriteriaRepository;
     private final AccommodationCriteriaRepository accommodationCriteriaRepository;
+    private final TransferCriteriaRepository transferCriteriaRepository;
 
     public NeedService(
         NeedRepository needRepository,
         TripRepository tripRepository,
         FlightCriteriaRepository flightCriteriaRepository,
-        AccommodationCriteriaRepository accommodationCriteriaRepository
+        AccommodationCriteriaRepository accommodationCriteriaRepository,
+        TransferCriteriaRepository transferCriteriaRepository
     ) {
         this.needRepository = needRepository;
         this.tripRepository = tripRepository;
         this.flightCriteriaRepository = flightCriteriaRepository;
         this.accommodationCriteriaRepository = accommodationCriteriaRepository;
+        this.transferCriteriaRepository = transferCriteriaRepository;
     }
     @Transactional
     public NeedResponse createNeed(CreateNeedRequest request) {
@@ -87,6 +93,24 @@ public class NeedService {
             accommodationCriteriaRepository.save(criteria);
         }
 
+        if (request.type() == NeedType.TRANSFER) {
+
+            if (request.transferCriteria() == null) {
+                throw new IllegalArgumentException(
+                        "Transfer criteria are required for a TRANSFER need"
+                );
+            }
+
+            TransferCriteria criteria = new TransferCriteria();
+
+            criteria.setNeed(savedNeed);
+            criteria.setPickupLocation(request.transferCriteria().pickupLocation());
+            criteria.setDropoffLocation(request.transferCriteria().dropoffLocation());
+            criteria.setTravelers(request.transferCriteria().travelers());
+
+            transferCriteriaRepository.save(criteria);
+        }
+
         return toResponse(savedNeed);
     }
 
@@ -135,13 +159,28 @@ public class NeedService {
         return toResponse(savedNeed);
     }
 
+    private TransferCriteriaResponse toTransferCriteriaResponse(
+        TransferCriteria criteria
+    ) {
+        if (criteria == null) {
+            return null;
+        }
+
+        return new TransferCriteriaResponse(
+            criteria.getPickupLocation(),
+            criteria.getDropoffLocation(),
+            criteria.getTravelers()
+        );
+    }
+
     private NeedResponse toResponse(Need need) {
         return new NeedResponse(
             need.getId(),
             need.getType(),
             need.getStatus(),
             need.getNotes(),
-            need.getTrip().getId()
+            need.getTrip().getId(),
+            toTransferCriteriaResponse(need.getTransferCriteria())
         );
     }
 
