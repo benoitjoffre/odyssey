@@ -1335,6 +1335,31 @@ h2 {
   font-size: 16px;
 }
 
+.provider-details-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  padding: 18px;
+  margin: 6px 0;
+  background: #f5f8f6;
+  border-radius: 6px;
+}
+
+.provider-details-form .detail-card-heading {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.provider-details-form .detail-card-heading h3 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.provider-details-form .secondary-button {
+  grid-column: 1 / -1;
+  justify-self: start;
+}
+
 .booking-error {
   margin: 0;
   color: #a34034;
@@ -1536,6 +1561,47 @@ h2 {
   color: var(--primary-dark);
   font-size: 27px;
   white-space: nowrap;
+}
+
+.traveler-quote-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-bottom: 16px;
+}
+
+.traveler-quote-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+  color: var(--ink);
+  font-size: 14px;
+}
+
+.traveler-quote-line strong {
+  color: var(--primary-dark);
+  font-size: 18px;
+  white-space: nowrap;
+}
+
+.traveler-quote-hint {
+  flex-basis: 100%;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.traveler-quote-line-total {
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.traveler-provider-payment-hint {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
 }
 
 .traveler-quote-dates {
@@ -1775,6 +1841,13 @@ h2 {
 .traveler-need-notes {
   margin: 18px 0 0;
   color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.traveler-need-transfer-summary {
+  margin: 18px 0 0;
+  color: var(--ink);
   font-size: 14px;
   line-height: 1.5;
 }

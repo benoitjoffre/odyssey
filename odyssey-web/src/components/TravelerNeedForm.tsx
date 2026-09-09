@@ -1,5 +1,5 @@
 import { useRef, useState, type FormEvent } from "react";
-import { BedDouble, LoaderCircle, Plane, X } from "lucide-react";
+import { BedDouble, LoaderCircle, Plane, Route, X } from "lucide-react";
 import { createNeed } from "../api/needs";
 import type { CreateNeedRequest, OrganizableNeedType } from "../types/need";
 
@@ -12,6 +12,8 @@ interface TravelerNeedFormProps {
 
 export function TravelerNeedForm({ tripId, type, onCancel, onCreated }: TravelerNeedFormProps) {
   const isFlight = type === "FLIGHT";
+  const isAccommodation = type === "ACCOMMODATION";
+  const isTransfer = type === "TRANSFER";
   const [place, setPlace] = useState("");
   const [destination, setDestination] = useState("");
   const [travelers, setTravelers] = useState(1);
@@ -21,11 +23,48 @@ export function TravelerNeedForm({ tripId, type, onCancel, onCreated }: Traveler
   const [submitting, setSubmitting] = useState(false);
   const submittingRef = useRef(false);
 
+  let FormIcon = BedDouble;
+  let formTitle = "un hébergement";
+  let placeLabel = "Ville";
+  let destinationLabel = "Destination";
+
+  if (isFlight) {
+    FormIcon = Plane;
+    formTitle = "un vol";
+    placeLabel = "Départ";
+    destinationLabel = "Destination";
+  } else if (isTransfer) {
+    FormIcon = Route;
+    formTitle = "un transfert";
+    placeLabel = "Lieu de prise en charge";
+    destinationLabel = "Lieu d’arrivée";
+  }
+
+  const showDestination = isFlight || isTransfer;
+  const showRooms = isAccommodation;
+
   function validate() {
-    if (!place.trim()) return isFlight ? "Le lieu de départ est obligatoire." : "La ville est obligatoire.";
-    if (isFlight && !destination.trim()) return "La destination est obligatoire.";
-    if (!Number.isInteger(travelers) || travelers < 1) return "Le nombre de voyageurs doit être au moins égal à 1.";
-    if (!isFlight && (!Number.isInteger(rooms) || rooms < 1)) return "Le nombre de chambres doit être au moins égal à 1.";
+    if (isFlight) {
+      if (!place.trim()) return "Le lieu de départ est obligatoire.";
+      if (!destination.trim()) return "La destination est obligatoire.";
+      if (!Number.isInteger(travelers) || travelers < 1) return "Le nombre de voyageurs doit être au moins égal à 1.";
+      return null;
+    }
+
+    if (isAccommodation) {
+      if (!place.trim()) return "La ville est obligatoire.";
+      if (!Number.isInteger(travelers) || travelers < 1) return "Le nombre de voyageurs doit être au moins égal à 1.";
+      if (!Number.isInteger(rooms) || rooms < 1) return "Le nombre de chambres doit être au moins égal à 1.";
+      return null;
+    }
+
+    if (isTransfer) {
+      if (!place.trim()) return "Le lieu de prise en charge est obligatoire.";
+      if (!destination.trim()) return "Le lieu d’arrivée est obligatoire.";
+      if (!Number.isInteger(travelers) || travelers < 1) return "Le nombre de voyageurs doit être au moins égal à 1.";
+      return null;
+    }
+
     return null;
   }
 
@@ -38,19 +77,33 @@ export function TravelerNeedForm({ tripId, type, onCancel, onCreated }: Traveler
     if (validationError) return;
 
     const common = { tripId, notes: notes.trim() || null };
-    const request: CreateNeedRequest = isFlight
-      ? {
-          ...common,
-          type: "FLIGHT",
-          flightCriteria: { origin: place.trim(), destination: destination.trim(), travelers },
-          accommodationCriteria: null,
-        }
-      : {
-          ...common,
-          type: "ACCOMMODATION",
-          flightCriteria: null,
-          accommodationCriteria: { city: place.trim(), travelers, rooms },
-        };
+    let request: CreateNeedRequest;
+
+    if (isFlight) {
+      request = {
+        ...common,
+        type: "FLIGHT",
+        flightCriteria: { origin: place.trim(), destination: destination.trim(), travelers },
+        accommodationCriteria: null,
+        transferCriteria: null,
+      };
+    } else if (isAccommodation) {
+      request = {
+        ...common,
+        type: "ACCOMMODATION",
+        flightCriteria: null,
+        accommodationCriteria: { city: place.trim(), travelers, rooms },
+        transferCriteria: null,
+      };
+    } else {
+      request = {
+        ...common,
+        type: "TRANSFER",
+        flightCriteria: null,
+        accommodationCriteria: null,
+        transferCriteria: { pickupLocation: place.trim(), dropoffLocation: destination.trim(), travelers },
+      };
+    }
 
     submittingRef.current = true;
     setSubmitting(true);
@@ -68,10 +121,12 @@ export function TravelerNeedForm({ tripId, type, onCancel, onCreated }: Traveler
   return (
     <section className="traveler-need-form-card" aria-labelledby="need-form-title">
       <div className="traveler-need-form-heading">
-        <span>{isFlight ? <Plane size={21} /> : <BedDouble size={21} />}</span>
+        <span>
+          <FormIcon size={21} />
+        </span>
         <div>
           <span className="eyebrow">Organiser mon voyage</span>
-          <h3 id="need-form-title">Ajouter {isFlight ? "un vol" : "un hébergement"}</h3>
+          <h3 id="need-form-title">Ajouter {formTitle}</h3>
         </div>
         <button type="button" className="traveler-form-close" onClick={onCancel} aria-label="Fermer le formulaire" disabled={submitting}>
           <X size={18} />
@@ -80,7 +135,7 @@ export function TravelerNeedForm({ tripId, type, onCancel, onCreated }: Traveler
 
       <form className="traveler-need-form" onSubmit={(event) => void handleSubmit(event)} noValidate>
         <label className="form-field">
-          <span>{isFlight ? "Départ" : "Ville"}</span>
+          <span>{placeLabel}</span>
           <input
             value={place}
             onChange={(event) => {
@@ -91,9 +146,9 @@ export function TravelerNeedForm({ tripId, type, onCancel, onCreated }: Traveler
             required
           />
         </label>
-        {isFlight && (
+        {showDestination && (
           <label className="form-field">
-            <span>Destination</span>
+            <span>{destinationLabel}</span>
             <input
               value={destination}
               onChange={(event) => {
@@ -120,7 +175,7 @@ export function TravelerNeedForm({ tripId, type, onCancel, onCreated }: Traveler
             required
           />
         </label>
-        {!isFlight && (
+        {showRooms && (
           <label className="form-field">
             <span>Nombre de chambres</span>
             <input

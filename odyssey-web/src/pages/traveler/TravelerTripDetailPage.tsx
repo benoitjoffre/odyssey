@@ -42,7 +42,7 @@ const needIcons: Record<TripNeedType, ReactNode> = {
 const organizationChoices: Array<{ type: TripNeedType; label: string; available: boolean }> = [
   { type: "FLIGHT", label: "Vol", available: true },
   { type: "ACCOMMODATION", label: "Hébergement", available: true },
-  { type: "TRANSFER", label: "Transfert", available: false },
+  { type: "TRANSFER", label: "Transfert", available: true },
   { type: "CAR", label: "Voiture", available: false },
   { type: "BUS", label: "Bus", available: false },
 ];
@@ -236,6 +236,13 @@ export function TravelerTripDetailPage() {
                     <strong>{state.label}</strong>
                   </div>
                   {need.notes && <p className="traveler-need-notes">{need.notes}</p>}
+                  {need.type === "TRANSFER" && need.transferCriteria && (
+                    <p className="traveler-need-transfer-summary">
+                      {need.transferCriteria.pickupLocation} → {need.transferCriteria.dropoffLocation}
+                      <br />
+                      {need.transferCriteria.travelers} {need.transferCriteria.travelers > 1 ? "voyageurs" : "voyageur"}
+                    </p>
+                  )}
                   {need.status === "DRAFT" && !need.bookingRequestStatus && (
                     <div className="traveler-need-request-action">
                       {requestErrors[need.id] && <p role="alert">{requestErrors[need.id]}</p>}

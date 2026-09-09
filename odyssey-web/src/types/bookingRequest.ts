@@ -14,6 +14,12 @@ export interface AccommodationCriteria {
   rooms: number;
 }
 
+export interface TransferCriteria {
+  pickupLocation: string;
+  dropoffLocation: string;
+  travelers: number;
+}
+
 export interface BookingRequest {
   id: number;
   status: BookingRequestStatus;

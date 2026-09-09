@@ -180,7 +180,21 @@ export function TravelerQuotesPage() {
                 </div>
                 <div className="traveler-quote-main">
                   <h2>{quote.description}</h2>
-                  <strong className="traveler-quote-price">{formatPrice(quote.totalAmount, quote.currency)}</strong>
+                </div>
+                <div className="traveler-quote-breakdown">
+                  <div className="traveler-quote-line">
+                    <span>Frais d’assistance Odyssey</span>
+                    <strong>{formatPrice(quote.assistanceFee, quote.currency)}</strong>
+                  </div>
+                  <div className="traveler-quote-line">
+                    <span>Prix fournisseur</span>
+                    <strong>{formatPrice(quote.providerPrice, quote.currency)}</strong>
+                    <span className="traveler-quote-hint">À régler directement au fournisseur</span>
+                  </div>
+                  <div className="traveler-quote-line traveler-quote-line-total">
+                    <span>Coût total estimé</span>
+                    <strong>{formatPrice(quote.totalAmount, quote.currency)}</strong>
+                  </div>
                 </div>
                 <div className="traveler-quote-dates">
                   <span>
@@ -221,9 +235,26 @@ export function TravelerQuotesPage() {
                   </div>
                 )}
                 {quote.status === "ACCEPTED" && quote.paymentStatus === "PAID" && (
-                  <p className="traveler-quote-outcome accepted">
-                    <Check size={18} /> Payé
-                  </p>
+                  <>
+                    <p className="traveler-quote-outcome accepted">
+                      <Check size={18} /> Frais d’assistance payés
+                    </p>
+                    {quote.providerPaymentStatus === "PAYMENT_REQUIRED" && quote.providerPaymentUrl && (
+                      <div className="traveler-quote-actions">
+                        <p className="traveler-provider-payment-hint">
+                          {formatPrice(quote.providerPrice, quote.currency)} à régler directement au fournisseur
+                        </p>
+                        <a className="primary-button" href={quote.providerPaymentUrl} target="_blank" rel="noopener noreferrer">
+                          <CreditCard size={18} /> Payer auprès du fournisseur
+                        </a>
+                      </div>
+                    )}
+                    {quote.providerPaymentStatus === "PAID_TO_PROVIDER" && (
+                      <p className="traveler-quote-outcome accepted">
+                        <Check size={18} /> Prestation fournisseur payée
+                      </p>
+                    )}
+                  </>
                 )}
                 {quote.status === "ACCEPTED" && quote.paymentStatus !== "PAID" && (
                   <div className="traveler-quote-actions">
@@ -234,7 +265,9 @@ export function TravelerQuotesPage() {
                     )}
                     <button type="button" className="primary-button" disabled={payingQuoteId === quote.id} onClick={() => void handlePayQuote(quote)}>
                       {payingQuoteId === quote.id ? <LoaderCircle className="rotating" size={18} /> : <CreditCard size={18} />}
-                      {payingQuoteId === quote.id ? "Redirection..." : `Payer ${formatPrice(quote.totalAmount, quote.currency)}`}
+                      {payingQuoteId === quote.id
+                        ? "Redirection..."
+                        : `Payer les frais d’assistance — ${formatPrice(quote.assistanceFee, quote.currency)}`}
                     </button>
                   </div>
                 )}

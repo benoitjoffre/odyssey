@@ -1,3 +1,5 @@
+import type { TransferCriteria } from "./bookingRequest";
+
 export type TripStatus = "DRAFT" | "CONFIRMED" | "CANCELLED";
 
 export type TripNeedType = "ACCOMMODATION" | "FLIGHT" | "TRANSFER" | "CAR" | "BUS";
@@ -26,6 +28,7 @@ export interface TripNeed {
   bookingRequestStatus: TripBookingRequestStatus | null;
   bookingStatus: TripBookingStatus | null;
   providerConfirmationId: string | null;
+  transferCriteria?: TransferCriteria | null;
 }
 
 export interface TripDetail extends Trip {
