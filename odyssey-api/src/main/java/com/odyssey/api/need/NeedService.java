@@ -121,6 +121,20 @@ public class NeedService {
             .toList();
     }
 
+    public NeedResponse updateNotes(Long id, UpdateNeedNotesRequest request) {
+        Need need = needRepository
+            .findById(id)
+            .orElseThrow(() ->
+                new ResourceNotFoundException("Need not found")
+            );
+
+        need.setNotes(request.getNotes());
+
+        Need savedNeed = needRepository.save(need);
+
+        return toResponse(savedNeed);
+    }
+
     private NeedResponse toResponse(Need need) {
         return new NeedResponse(
             need.getId(),
@@ -130,4 +144,6 @@ public class NeedService {
             need.getTrip().getId()
         );
     }
+
+
 }

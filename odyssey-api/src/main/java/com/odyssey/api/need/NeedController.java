@@ -39,4 +39,12 @@ public class NeedController {
     ) {
         return needService.getNeedsByTrip(tripId);
     }
+
+    @PatchMapping("/{id}/notes")
+    public NeedResponse updateNeedNotes(
+        @PathVariable Long id,
+        @Valid @RequestBody UpdateNeedNotesRequest request
+    ) {
+        return needService.updateNotes(id, request);
+    }
 }
