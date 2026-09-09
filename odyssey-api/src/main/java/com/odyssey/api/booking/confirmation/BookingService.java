@@ -173,12 +173,6 @@ public class BookingService {
                 )
             );
 
-        if (booking.getStatus() != BookingStatus.PENDING) {
-            throw new IllegalArgumentException(
-                "Only a PENDING booking can be confirmed"
-            );
-        }
-
         var bookingRequest =
             booking.getQuote().getBookingRequest();
 
@@ -193,13 +187,9 @@ public class BookingService {
             );
         }
 
-        // The Agent must have obtained (and recorded) a reference from
-        // the Provider before confirming: Odyssey Payment PAID only
-        // authorizes proceeding with the reservation, it is never
-        // equated with the Provider having actually confirmed it.
-        if (booking.getProviderReference() == null || booking.getProviderReference().isBlank()) {
-            throw new IllegalArgumentException(
-                "A providerReference must be recorded before this booking can be confirmed"
+        if (!booking.canBeConfirmed()) {
+            throw new IllegalStateException(
+                "Booking cannot be confirmed"
             );
         }
 
@@ -210,18 +200,8 @@ public class BookingService {
             confirmationId
         );
 
-        booking.setStatus(
-            BookingStatus.CONFIRMED
-        );
-
-        booking.setConfirmedAt(
-            Instant.now()
-        );
-
-        booking.setProviderConfirmationId(confirmationId);
-        booking.setStatus(BookingStatus.CONFIRMED);
-        booking.setConfirmedAt(Instant.now());
-
+        booking.confirm();
+        
         bookingRequest.setStatus(
             BookingRequestStatus.COMPLETED
         );

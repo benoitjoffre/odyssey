@@ -140,4 +140,23 @@ public class Booking {
     public void setProviderPaymentStatus(ProviderPaymentStatus providerPaymentStatus) {
         this.providerPaymentStatus = providerPaymentStatus;
     }
+
+    public void confirm() {
+        if (status != BookingStatus.PENDING) {
+            throw new IllegalStateException("Booking cannot be confirmed unless it is pending");
+        }
+
+        if (providerReference == null || providerReference.isBlank()) {
+            throw new IllegalStateException("Booking cannot be confirmed without a provider reference");
+        }
+
+        status = BookingStatus.CONFIRMED;
+        confirmedAt = Instant.now();
+    }
+
+    public boolean canBeConfirmed() {
+        return status == BookingStatus.PENDING &&
+               providerReference != null &&
+               !providerReference.isBlank();
+    }
 }
