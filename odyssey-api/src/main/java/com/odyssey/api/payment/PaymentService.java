@@ -17,6 +17,7 @@ import com.odyssey.api.quote.QuoteStatus;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -66,7 +67,15 @@ public class PaymentService {
         this.objectMapper = objectMapper;
     }
 
-    @Transactional
+    /**
+     * {@code noRollbackFor} lets a Stripe failure be recorded (Payment
+     * moved to {@code FAILED}, see below) without discarding that write:
+     * by default Spring would roll back the whole transaction — including
+     * the FAILED status update — on any unchecked exception, which would
+     * silently leave the Payment stuck PENDING forever with no Stripe
+     * session, blocking any future retry.
+     */
+    @Transactional(noRollbackFor = IllegalStateException.class)
     public CheckoutSessionResponse createCheckoutSession(
         Long quoteId,
         Long travelerId
@@ -78,8 +87,15 @@ public class PaymentService {
             );
         }
 
+        // Locks the Quote row (SELECT ... FOR UPDATE) for the rest of this
+        // transaction. A second concurrent request for the same Quote
+        // blocks here until this transaction commits or rolls back, so
+        // only one request at a time can decide whether to create or
+        // reuse this Quote's Payment: this is what prevents two concurrent
+        // Checkout requests from ever creating two Payment rows for the
+        // same Quote.
         Quote quote = quoteRepository
-            .findById(quoteId)
+            .findByIdForUpdate(quoteId)
             .orElseThrow(() ->
                 new ResourceNotFoundException("Quote not found")
             );
@@ -113,8 +129,13 @@ public class PaymentService {
             );
         }
 
-        // Reuse the existing PENDING/FAILED payment row instead of
-        // creating a new one on every checkout retry.
+        // Odyssey's invariant is ONE Payment per Quote: reuse the existing
+        // PENDING/FAILED payment row instead of creating a new one on
+        // every checkout retry (also enforced by a UNIQUE constraint on
+        // payments.quote_id as a last line of defence, see Payment.quote).
+        boolean isNewPayment = existingPayment.isEmpty();
+        boolean isRetryAfterFailure = existingPayment.isPresent()
+            && existingPayment.get().getStatus() == PaymentStatus.FAILED;
         Payment payment = existingPayment.orElseGet(Payment::new);
 
         BigDecimal assistanceFee = resolveAssistanceFee(quote);
@@ -130,19 +151,65 @@ public class PaymentService {
             payment.setCreatedAt(Instant.now());
         }
 
-        Payment savedPayment = paymentRepository.save(payment);
+        // Only bump the attempt number when a genuinely NEW Stripe session
+        // is required (first-ever attempt, or retrying a FAILED payment).
+        // Re-submitting while still PENDING keeps the same attempt number
+        // on purpose: combined with the idempotency key below, Stripe then
+        // recognizes it as the same request and returns the same Session
+        // instead of creating a duplicate one.
+        if (isNewPayment || isRetryAfterFailure) {
+            int previousAttempt = payment.getCheckoutAttempt() != null
+                ? payment.getCheckoutAttempt()
+                : 0;
+            payment.setCheckoutAttempt(previousAttempt + 1);
+        } else if (payment.getCheckoutAttempt() == null) {
+            payment.setCheckoutAttempt(1);
+        }
 
-        StripeCheckoutSession session = stripeGateway.createCheckoutSession(
-            new StripeCheckoutSessionRequest(
-                toSmallestCurrencyUnit(totalAmount),
-                quote.getCurrency().toLowerCase(Locale.ROOT),
-                quote.getDescription(),
-                String.valueOf(quoteId),
-                String.valueOf(savedPayment.getId()),
-                stripeProperties.getSuccessUrl(),
-                stripeProperties.getCancelUrl()
-            )
-        );
+        Payment savedPayment;
+        try {
+            savedPayment = paymentRepository.save(payment);
+        } catch (DataIntegrityViolationException duplicatePayment) {
+            // Last line of defence: the UNIQUE constraint on
+            // payments.quote_id rejected a second Payment row for this
+            // Quote. Should not normally happen (the Quote row lock above
+            // already serializes this), but never leak SQL/database
+            // details to the caller if it does.
+            throw new IllegalArgumentException(
+                "A payment for this quote is already being processed"
+            );
+        }
+
+        String idempotencyKey = "payment-" + savedPayment.getId()
+            + "-attempt-" + savedPayment.getCheckoutAttempt();
+
+        StripeCheckoutSession session;
+        try {
+            // Odyssey is an assistance service: it never resells the travel
+            // service and never collects the Provider's money. Stripe must
+            // only ever charge the assistanceFee, never
+            // providerAmount + assistanceFee (totalAmount). The Traveler pays
+            // providerAmount directly to the Provider, outside of Stripe.
+            session = stripeGateway.createCheckoutSession(
+                new StripeCheckoutSessionRequest(
+                    toSmallestCurrencyUnit(assistanceFee),
+                    quote.getCurrency().toLowerCase(Locale.ROOT),
+                    quote.getDescription(),
+                    String.valueOf(quoteId),
+                    String.valueOf(savedPayment.getId()),
+                    stripeProperties.getSuccessUrl(),
+                    stripeProperties.getCancelUrl(),
+                    idempotencyKey
+                )
+            );
+        } catch (IllegalStateException stripeFailure) {
+            // Do not leave the Payment stuck PENDING with no Stripe
+            // session: mark it FAILED so a subsequent call is correctly
+            // treated as a fresh retry (see isRetryAfterFailure above).
+            savedPayment.setStatus(PaymentStatus.FAILED);
+            paymentRepository.save(savedPayment);
+            throw stripeFailure;
+        }
 
         savedPayment.setStripeCheckoutSessionId(session.id());
         paymentRepository.save(savedPayment);
@@ -163,13 +230,26 @@ public class PaymentService {
      * Split out from {@link #handleWebhookPayload} so tests can exercise
      * the business reaction to an already-verified event without going
      * through real Stripe signature verification.
+     *
+     * <p>See {@link StripeWebhookEvent} for the list of handled event
+     * types and why {@code payment_intent.payment_failed} is intentionally
+     * not one of them.</p>
      */
     @Transactional
     void processVerifiedEvent(StripeWebhookEvent event) {
 
-        if (!event.isCheckoutSessionCompleted() || event.checkoutSessionId() == null) {
+        if (event.checkoutSessionId() == null) {
             return;
         }
+
+        if (event.isCheckoutSessionCompleted()) {
+            handleCheckoutSessionCompleted(event);
+        } else if (event.isTerminalFailure()) {
+            handleCheckoutSessionTerminalFailure(event);
+        }
+    }
+
+    private void handleCheckoutSessionCompleted(StripeWebhookEvent event) {
 
         Optional<Payment> paymentOptional = paymentRepository
             .findByStripeCheckoutSessionId(event.checkoutSessionId());
@@ -183,6 +263,48 @@ public class PaymentService {
         }
 
         Payment payment = paymentOptional.get();
+
+        // Attempt isolation (see handleCheckoutSessionTerminalFailure for
+        // the full explanation): a late success event for a superseded
+        // OLD checkout attempt must never mark the CURRENT attempt PAID.
+        // findByStripeCheckoutSessionId already guarantees this since the
+        // old session id is no longer stored anywhere once a new attempt
+        // has replaced it, but this check makes the invariant explicit.
+        if (!event.checkoutSessionId().equals(payment.getStripeCheckoutSessionId())) {
+            logger.warn(
+                "Ignoring Stripe {} webhook for checkout session {}: payment {} is now on a different checkout attempt",
+                event.type(),
+                event.checkoutSessionId(),
+                payment.getId()
+            );
+            return;
+        }
+
+        // Reconcile Stripe's reported amount/currency against the ONLY
+        // amount Odyssey ever collects: the assistance fee. Stripe must
+        // never be trusted to mark a Payment PAID if what it actually
+        // charged does not match what we asked it to charge (e.g. a
+        // corrupted/forged event, or a Checkout Session created for a
+        // different, unexpected amount).
+        long expectedAmountInSmallestCurrencyUnit = toSmallestCurrencyUnit(payment.getAssistanceFee());
+        String expectedCurrency = payment.getCurrency().toLowerCase(Locale.ROOT);
+
+        boolean amountMatches = event.amountTotal() != null
+            && event.amountTotal() == expectedAmountInSmallestCurrencyUnit;
+        boolean currencyMatches = event.currency() != null
+            && expectedCurrency.equalsIgnoreCase(event.currency());
+
+        if (!amountMatches || !currencyMatches) {
+            logger.error(
+                "Refusing to mark payment {} PAID: Stripe reported {} {} but expected {} {}",
+                payment.getId(),
+                event.amountTotal(),
+                event.currency(),
+                expectedAmountInSmallestCurrencyUnit,
+                expectedCurrency
+            );
+            return;
+        }
 
         // Compare-and-swap: if this returns 0 the payment was already
         // PAID, meaning this is a duplicate webhook delivery that must be
@@ -230,6 +352,56 @@ public class PaymentService {
         outboxEvent.setCreatedAt(Instant.now());
 
         outboxEventRepository.save(outboxEvent);
+    }
+
+    /**
+     * Handles {@code checkout.session.expired} and
+     * {@code checkout.session.async_payment_failed}: both are terminal
+     * failure signals for a Checkout Session and must transition
+     * {@code PENDING -> FAILED} only, never touching an already-PAID or
+     * already-FAILED payment (see {@code PaymentRepository.markAsFailedIfPending}).
+     *
+     * <p><strong>Attempt isolation:</strong> {@code Payment.stripeCheckoutSessionId}
+     * is overwritten with the newest Stripe Checkout Session id on every
+     * retry ({@code createCheckoutSession}), so an OLD attempt's session id
+     * is no longer stored anywhere once a new attempt has been created.
+     * {@code findByStripeCheckoutSessionId} therefore naturally returns
+     * empty for a late webhook belonging to a superseded attempt, which is
+     * treated the same as an unknown session below. The extra equality
+     * check against {@code payment.getStripeCheckoutSessionId()} makes this
+     * invariant explicit so it can never silently break under a future
+     * refactor of the lookup.</p>
+     */
+    private void handleCheckoutSessionTerminalFailure(StripeWebhookEvent event) {
+
+        Optional<Payment> paymentOptional = paymentRepository
+            .findByStripeCheckoutSessionId(event.checkoutSessionId());
+
+        if (paymentOptional.isEmpty()) {
+            logger.warn(
+                "Received Stripe {} webhook for unknown or superseded checkout session {}",
+                event.type(),
+                event.checkoutSessionId()
+            );
+            return;
+        }
+
+        Payment payment = paymentOptional.get();
+
+        if (!event.checkoutSessionId().equals(payment.getStripeCheckoutSessionId())) {
+            logger.warn(
+                "Ignoring Stripe {} webhook for checkout session {}: payment {} is now on a different checkout attempt",
+                event.type(),
+                event.checkoutSessionId(),
+                payment.getId()
+            );
+            return;
+        }
+
+        // Compare-and-swap: 0 rows updated means the payment was not
+        // PENDING (already PAID -> must stay PAID, or already FAILED ->
+        // stays FAILED), which is the correct, idempotent no-op outcome.
+        paymentRepository.markAsFailedIfPending(payment.getId());
     }
 
     /**

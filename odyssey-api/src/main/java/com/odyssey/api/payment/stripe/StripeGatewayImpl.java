@@ -5,6 +5,7 @@ import com.stripe.exception.StripeException;
 import com.stripe.model.Event;
 import com.stripe.model.EventDataObjectDeserializer;
 import com.stripe.model.checkout.Session;
+import com.stripe.net.RequestOptions;
 import com.stripe.net.Webhook;
 import com.stripe.param.checkout.SessionCreateParams;
 
@@ -51,7 +52,12 @@ public class StripeGatewayImpl implements StripeGateway {
                 )
                 .build();
 
-            Session session = Session.create(params);
+            Session session = Session.create(
+                params,
+                RequestOptions.builder()
+                    .setIdempotencyKey(request.idempotencyKey())
+                    .build()
+            );
 
             return new StripeCheckoutSession(session.getId(), session.getUrl());
         } catch (StripeException exception) {
@@ -81,13 +87,25 @@ public class StripeGatewayImpl implements StripeGateway {
 
         String checkoutSessionId = null;
         String paymentIntentId = null;
+        Long amountTotal = null;
+        String currency = null;
 
-        if (StripeWebhookEvent.CHECKOUT_SESSION_COMPLETED.equals(event.getType())) {
+        // checkout.session.completed / .expired / .async_payment_failed all
+        // carry a checkout.Session as their data object, so the same
+        // extraction applies to all three.
+        boolean isCheckoutSessionEvent =
+            StripeWebhookEvent.CHECKOUT_SESSION_COMPLETED.equals(event.getType())
+                || StripeWebhookEvent.CHECKOUT_SESSION_EXPIRED.equals(event.getType())
+                || StripeWebhookEvent.CHECKOUT_SESSION_ASYNC_PAYMENT_FAILED.equals(event.getType());
+
+        if (isCheckoutSessionEvent) {
             EventDataObjectDeserializer deserializer = event.getDataObjectDeserializer();
             Session session = (Session) deserializer.getObject().orElse(null);
             if (session != null) {
                 checkoutSessionId = session.getId();
                 paymentIntentId = session.getPaymentIntent();
+                amountTotal = session.getAmountTotal();
+                currency = session.getCurrency();
             }
         }
 
@@ -95,7 +113,9 @@ public class StripeGatewayImpl implements StripeGateway {
             event.getId(),
             event.getType(),
             checkoutSessionId,
-            paymentIntentId
+            paymentIntentId,
+            amountTotal,
+            currency
         );
     }
 }

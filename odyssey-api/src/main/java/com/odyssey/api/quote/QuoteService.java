@@ -3,6 +3,9 @@ package com.odyssey.api.quote;
 import com.odyssey.api.booking.BookingRequest;
 import com.odyssey.api.booking.BookingRequestRepository;
 import com.odyssey.api.booking.BookingRequestStatus;
+import com.odyssey.api.booking.confirmation.Booking;
+import com.odyssey.api.booking.confirmation.BookingRepository;
+import com.odyssey.api.booking.confirmation.ProviderPaymentStatus;
 import com.odyssey.api.event.QuoteSentEvent;
 import com.odyssey.api.exception.ResourceNotFoundException;
 import com.odyssey.api.outbox.OutboxEvent;
@@ -27,6 +30,7 @@ public class QuoteService {
     private final BookingRequestRepository bookingRequestRepository;
     private final OutboxEventRepository outboxEventRepository;
     private final PaymentRepository paymentRepository;
+    private final BookingRepository bookingRepository;
     private final ObjectMapper objectMapper;
 
     public QuoteService(
@@ -34,12 +38,14 @@ public class QuoteService {
             BookingRequestRepository bookingRequestRepository,
             OutboxEventRepository outboxEventRepository,
             PaymentRepository paymentRepository,
+            BookingRepository bookingRepository,
             ObjectMapper objectMapper
     ) {
         this.quoteRepository = quoteRepository;
         this.bookingRequestRepository = bookingRequestRepository;
         this.outboxEventRepository = outboxEventRepository;
         this.paymentRepository = paymentRepository;
+        this.bookingRepository = bookingRepository;
         this.objectMapper = objectMapper;
     }
 
@@ -312,16 +318,27 @@ public class QuoteService {
                 .map(Payment::getStatus)
                 .orElse(null);
 
+        // A Booking may not exist yet (e.g. before the Payment is PAID):
+        // in that case there is nothing to tell the traveler yet about
+        // paying the Provider directly.
+        Booking booking = bookingRepository
+                .findByQuoteId(quote.getId())
+                .orElse(null);
+
         return new TravelerQuoteResponse(
                 quote.getId(),
                 quote.getBookingRequest().getId(),
+                quote.getProviderPrice(),
+                quote.getAssistanceFee(),
                 quote.getTotalAmount(),
                 quote.getCurrency(),
                 quote.getDescription(),
                 quote.getStatus(),
                 quote.getCreatedAt(),
                 quote.getExpiresAt(),
-                paymentStatus
+                paymentStatus,
+                booking != null ? booking.getProviderPaymentUrl() : null,
+                booking != null ? booking.getProviderPaymentStatus() : ProviderPaymentStatus.NOT_REQUIRED_YET
         );
     }
 }

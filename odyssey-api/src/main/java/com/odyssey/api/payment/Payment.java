@@ -7,17 +7,22 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 /**
- * A Payment belongs to exactly one accepted {@link Quote}. It records the
- * authoritative, server-computed amounts (never trusted from the
- * frontend) and the Stripe Checkout/PaymentIntent identifiers needed to
- * reconcile the Stripe-hosted payment lifecycle.
+ * A Payment belongs to exactly one accepted {@link Quote}. It represents
+ * money paid by the Traveler to <strong>Odyssey</strong> only.
  *
- * <p>Odyssey does not resell the travel service: {@code providerAmount}
- * belongs to the provider and {@code assistanceFee} is Odyssey's own
- * remuneration. Keeping them separate here (rather than only storing the
- * total) is what will allow a clean introduction of Stripe Connect later
- * (splitting the transfer between the connected provider account and
- * Odyssey) without reshaping this table.</p>
+ * <p>Odyssey is an assistance service: it never resells the travel
+ * service and never collects the Provider's money. The Traveler pays
+ * the Provider ({@code providerAmount}) directly, outside of Odyssey/
+ * Stripe. The only amount Odyssey ever charges via Stripe, and the only
+ * amount this Payment's lifecycle (PENDING/PAID/FAILED) actually tracks,
+ * is {@link #assistanceFee}.</p>
+ *
+ * <p>{@code providerAmount} and {@code totalAmount} are kept here purely
+ * as an informational snapshot of the Quote's breakdown at the time the
+ * Payment was created (useful for display/audit, and for a future
+ * Stripe Connect split). They are never sent to Stripe and never used
+ * to decide whether the Payment is PAID: only {@link #assistanceFee} is
+ * authoritative for that.</p>
  */
 @Entity
 @Table(name = "payments")
@@ -27,16 +32,42 @@ public class Payment {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    /**
+     * Odyssey's invariant is ONE Payment per Quote: a Quote is paid at most
+     * once, and every Checkout retry (PENDING re-click, FAILED retry)
+     * reuses this same row rather than creating a new one. The
+     * {@code unique = true} join column turns this into an actual database
+     * constraint (not just an application convention), so that even a bug
+     * or a race that slips past the {@code Quote} row lock in
+     * {@code PaymentService.createCheckoutSession} can never result in two
+     * Payment rows for the same Quote.
+     */
     @ManyToOne(optional = false)
-    @JoinColumn(name = "quote_id", nullable = false)
+    @JoinColumn(name = "quote_id", nullable = false, unique = true)
     private Quote quote;
 
+    /**
+     * Informational only: the Provider's share of the estimated total
+     * cost, paid by the Traveler directly to the Provider. Never charged
+     * by Odyssey/Stripe.
+     */
     @Column(nullable = false)
     private BigDecimal providerAmount;
 
+    /**
+     * The ONLY amount Odyssey actually collects from the Traveler via
+     * Stripe. This is what is sent to Stripe Checkout and what the
+     * verified webhook reconciles against before marking this Payment
+     * PAID.
+     */
     @Column(nullable = false)
     private BigDecimal assistanceFee;
 
+    /**
+     * Informational only: {@code providerAmount + assistanceFee} at the
+     * time this Payment was created, i.e. the estimated total cost shown
+     * to the Traveler. NOT the amount charged by Stripe.
+     */
     @Column(nullable = false)
     private BigDecimal totalAmount;
 
@@ -50,6 +81,28 @@ public class Payment {
     private String stripeCheckoutSessionId;
 
     private String stripePaymentIntentId;
+
+    /**
+     * Counts distinct Checkout attempts for this Payment: starts at 1 when
+     * the Payment is first created, and is incremented only when a fresh
+     * Stripe Checkout Session is genuinely needed (initial attempt, or a
+     * retry after a previous attempt ended {@code FAILED}). Re-clicking
+     * Pay while still {@code PENDING} does NOT increment this value.
+     *
+     * <p>Used to build a stable Stripe idempotency key
+     * ({@code payment-<id>-attempt-<n>}) in {@code PaymentService}: as long
+     * as the attempt number is unchanged, Stripe treats repeated Checkout
+     * Session creation calls for this Payment as the exact same request and
+     * returns the same cached Session instead of creating a duplicate one,
+     * while a new attempt number (after a FAILED retry) always results in a
+     * genuinely fresh Session.</p>
+     *
+     * <p>Not marked {@code nullable = false} so this column can be added to
+     * the existing, already-populated {@code payments} table via
+     * {@code ddl-auto=update} without failing; application code always sets
+     * it when creating/reusing a Payment.</p>
+     */
+    private Integer checkoutAttempt;
 
     @Column(nullable = false)
     private Instant createdAt;
@@ -125,6 +178,14 @@ public class Payment {
 
     public void setStripePaymentIntentId(String stripePaymentIntentId) {
         this.stripePaymentIntentId = stripePaymentIntentId;
+    }
+
+    public Integer getCheckoutAttempt() {
+        return checkoutAttempt;
+    }
+
+    public void setCheckoutAttempt(Integer checkoutAttempt) {
+        this.checkoutAttempt = checkoutAttempt;
     }
 
     public Instant getCreatedAt() {

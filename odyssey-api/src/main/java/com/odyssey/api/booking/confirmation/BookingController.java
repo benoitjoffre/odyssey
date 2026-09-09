@@ -26,6 +26,21 @@ public class BookingController {
     }
 
 
+    @PostMapping("/{bookingId}/provider-details")
+    public BookingResponse updateProviderDetails(
+        @PathVariable Long bookingId,
+        @RequestParam Long agentId,
+        @RequestBody UpdateProviderDetailsRequest request
+    ) {
+        return bookingService.updateProviderDetails(
+            bookingId,
+            agentId,
+            request.providerReference(),
+            request.providerPaymentUrl(),
+            request.providerPaymentStatus()
+        );
+    }
+
     @PostMapping("/{bookingId}/confirm")
     public BookingResponse confirmBooking(
         @PathVariable Long bookingId,

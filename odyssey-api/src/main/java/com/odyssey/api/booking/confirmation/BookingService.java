@@ -84,6 +84,7 @@ public class BookingService {
         booking.setQuote(quote);
         booking.setStatus(BookingStatus.PENDING);
         booking.setCreatedAt(Instant.now());
+        booking.setProviderPaymentStatus(ProviderPaymentStatus.NOT_REQUIRED_YET);
 
         Booking savedBooking =
             bookingRepository.save(booking);
@@ -101,9 +102,61 @@ public class BookingService {
                 .getId(),
             booking.getStatus(),
             booking.getProviderConfirmationId(),
+            booking.getProviderReference(),
+            booking.getProviderPaymentUrl(),
+            booking.getProviderPaymentStatus(),
             booking.getCreatedAt(),
             booking.getConfirmedAt()
         );
+    }
+
+    /**
+     * Lets the assigned Agent record what they know about the Traveler's
+     * direct payment to the Provider (reference, external payment page,
+     * status). Entirely independent from the Odyssey assistance
+     * {@code Payment}: Odyssey never infers or verifies this itself.
+     */
+    @Transactional
+    public BookingResponse updateProviderDetails(
+        Long bookingId,
+        Long agentId,
+        String providerReference,
+        String providerPaymentUrl,
+        ProviderPaymentStatus providerPaymentStatus
+    ) {
+
+        Booking booking = bookingRepository
+            .findById(bookingId)
+            .orElseThrow(() ->
+                new ResourceNotFoundException(
+                    "Booking not found"
+                )
+            );
+
+        var bookingRequest = booking.getQuote().getBookingRequest();
+
+        if (bookingRequest.getAssignedAgent() == null ||
+            !bookingRequest
+                .getAssignedAgent()
+                .getId()
+                .equals(agentId)) {
+
+            throw new IllegalArgumentException(
+                "This BookingRequest is assigned to another agent"
+            );
+        }
+
+        booking.setProviderReference(providerReference);
+        booking.setProviderPaymentUrl(providerPaymentUrl);
+        booking.setProviderPaymentStatus(
+            providerPaymentStatus != null
+                ? providerPaymentStatus
+                : ProviderPaymentStatus.UNKNOWN
+        );
+
+        Booking savedBooking = bookingRepository.save(booking);
+
+        return toResponse(savedBooking);
     }
 
     @Transactional
@@ -137,6 +190,16 @@ public class BookingService {
 
             throw new IllegalArgumentException(
                 "This BookingRequest is assigned to another agent"
+            );
+        }
+
+        // The Agent must have obtained (and recorded) a reference from
+        // the Provider before confirming: Odyssey Payment PAID only
+        // authorizes proceeding with the reservation, it is never
+        // equated with the Provider having actually confirmed it.
+        if (booking.getProviderReference() == null || booking.getProviderReference().isBlank()) {
+            throw new IllegalArgumentException(
+                "A providerReference must be recorded before this booking can be confirmed"
             );
         }
 

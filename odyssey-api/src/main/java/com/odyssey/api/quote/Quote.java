@@ -47,11 +47,20 @@ public class Quote {
     private BigDecimal assistanceFee;
 
     /**
-     * Total amount paid by the traveler. ALWAYS computed server-side as
-     * {@code providerPrice + assistanceFee}, never supplied by the
-     * frontend. Mapped to the pre-existing {@code selling_price} column
-     * (renamed at the Java level only, to avoid an orphaned NOT NULL
-     * column on this incrementally-migrated schema).
+     * Estimated TOTAL cost of the trip for the traveler, ALWAYS computed
+     * server-side as {@code providerPrice + assistanceFee}, never supplied
+     * by the frontend. Mapped to the pre-existing {@code selling_price}
+     * column (renamed at the Java level only, to avoid an orphaned NOT
+     * NULL column on this incrementally-migrated schema).
+     *
+     * <p><strong>This is NOT the amount collected by Odyssey.</strong>
+     * Odyssey is an assistance service: it never resells the travel
+     * service, so it never collects {@code providerPrice} on the
+     * provider's behalf. The Traveler pays {@code providerPrice} directly
+     * to the Provider (outside of Odyssey/Stripe) and pays only
+     * {@code assistanceFee} to Odyssey via Stripe. This field exists
+     * purely so the Traveler can see the overall estimated cost of their
+     * trip; see {@link Payment} for what is actually charged.</p>
      */
     @Column(name = "selling_price", nullable = false)
     private BigDecimal totalAmount;

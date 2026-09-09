@@ -4,6 +4,7 @@ import com.odyssey.api.agent.Agent;
 import com.odyssey.api.booking.BookingRequest;
 import com.odyssey.api.booking.BookingRequestRepository;
 import com.odyssey.api.booking.BookingRequestStatus;
+import com.odyssey.api.booking.confirmation.BookingRepository;
 import com.odyssey.api.outbox.OutboxEventRepository;
 import com.odyssey.api.payment.Payment;
 import com.odyssey.api.payment.PaymentRepository;
@@ -52,6 +53,9 @@ class QuoteServiceTest {
     @Mock
     private PaymentRepository paymentRepository;
 
+    @Mock
+    private BookingRepository bookingRepository;
+
     private QuoteService quoteService;
 
     @BeforeEach
@@ -61,6 +65,7 @@ class QuoteServiceTest {
             bookingRequestRepository,
             outboxEventRepository,
             paymentRepository,
+            bookingRepository,
             new ObjectMapper()
         );
     }

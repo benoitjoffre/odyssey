@@ -107,5 +107,102 @@ class BookingServiceTest {
 
         assertEquals(500L, response.id());
         assertEquals(BookingStatus.PENDING, response.status());
+        // Odyssey Payment being PAID never implies anything about the
+        // Traveler's direct payment to the Provider: that must remain a
+        // manual, explicit decision by the Agent.
+        assertEquals(ProviderPaymentStatus.NOT_REQUIRED_YET, response.providerPaymentStatus());
+    }
+
+    private static final Long BOOKING_ID = 500L;
+
+    private Booking pendingBookingAssignedTo(Long agentId) {
+        Agent agent = new Agent();
+        ReflectionTestUtils.setField(agent, "id", agentId);
+
+        BookingRequest bookingRequest = new BookingRequest();
+        bookingRequest.setAssignedAgent(agent);
+        ReflectionTestUtils.setField(bookingRequest, "id", 9L);
+
+        Quote quote = new Quote();
+        ReflectionTestUtils.setField(quote, "id", QUOTE_ID);
+        quote.setBookingRequest(bookingRequest);
+        quote.setStatus(QuoteStatus.ACCEPTED);
+
+        Booking booking = new Booking();
+        ReflectionTestUtils.setField(booking, "id", BOOKING_ID);
+        booking.setQuote(quote);
+        booking.setStatus(BookingStatus.PENDING);
+        booking.setProviderPaymentStatus(ProviderPaymentStatus.NOT_REQUIRED_YET);
+        return booking;
+    }
+
+    @Test
+    void confirmBookingThrowsWhenProviderReferenceIsMissing() {
+
+        Booking booking = pendingBookingAssignedTo(AGENT_ID);
+        when(bookingRepository.findById(BOOKING_ID)).thenReturn(Optional.of(booking));
+
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> bookingService.confirmBooking(BOOKING_ID, AGENT_ID)
+        );
+        verify(bookingProvider, never()).confirmBooking(any());
+        verify(bookingRepository, never()).save(any());
+    }
+
+    @Test
+    void confirmBookingSucceedsWhenProviderReferenceIsSet() {
+
+        Booking booking = pendingBookingAssignedTo(AGENT_ID);
+        booking.setProviderReference("PNR-123");
+        when(bookingRepository.findById(BOOKING_ID)).thenReturn(Optional.of(booking));
+        when(bookingProvider.confirmBooking(booking)).thenReturn("conf-abc");
+        when(bookingRepository.save(any(Booking.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+
+        BookingResponse response = bookingService.confirmBooking(BOOKING_ID, AGENT_ID);
+
+        assertEquals(BookingStatus.CONFIRMED, response.status());
+        assertEquals("PNR-123", response.providerReference());
+    }
+
+    @Test
+    void updateProviderDetailsStoresReferenceUrlAndStatus() {
+
+        Booking booking = pendingBookingAssignedTo(AGENT_ID);
+        when(bookingRepository.findById(BOOKING_ID)).thenReturn(Optional.of(booking));
+        when(bookingRepository.save(any(Booking.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+
+        BookingResponse response = bookingService.updateProviderDetails(
+            BOOKING_ID,
+            AGENT_ID,
+            "PNR-123",
+            "https://provider.example.com/pay/PNR-123",
+            ProviderPaymentStatus.PAYMENT_REQUIRED
+        );
+
+        assertEquals("PNR-123", response.providerReference());
+        assertEquals("https://provider.example.com/pay/PNR-123", response.providerPaymentUrl());
+        assertEquals(ProviderPaymentStatus.PAYMENT_REQUIRED, response.providerPaymentStatus());
+    }
+
+    @Test
+    void updateProviderDetailsThrowsWhenAgentDoesNotMatch() {
+
+        Booking booking = pendingBookingAssignedTo(AGENT_ID);
+        when(bookingRepository.findById(BOOKING_ID)).thenReturn(Optional.of(booking));
+
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> bookingService.updateProviderDetails(
+                BOOKING_ID,
+                999L,
+                "PNR-123",
+                "https://provider.example.com/pay/PNR-123",
+                ProviderPaymentStatus.PAYMENT_REQUIRED
+            )
+        );
+        verify(bookingRepository, never()).save(any());
     }
 }

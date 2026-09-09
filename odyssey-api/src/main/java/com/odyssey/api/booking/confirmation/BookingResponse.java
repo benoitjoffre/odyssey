@@ -8,6 +8,9 @@ public record BookingResponse(
     Long bookingRequestId,
     BookingStatus status,
     String providerConfirmationId,
+    String providerReference,
+    String providerPaymentUrl,
+    ProviderPaymentStatus providerPaymentStatus,
     Instant createdAt,
     Instant confirmedAt
 ) {}

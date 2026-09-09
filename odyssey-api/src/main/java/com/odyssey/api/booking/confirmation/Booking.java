@@ -30,7 +30,43 @@ public class Booking {
 
     private Instant confirmedAt;
 
+    /**
+     * Odyssey-internal confirmation id, generated when the Agent
+     * confirms the booking (see {@link FakeBookingProvider}). Distinct
+     * from {@link #providerReference}, which the Agent enters manually
+     * from information obtained directly from the Provider.
+     */
     private String providerConfirmationId;
+
+    /**
+     * Reference/confirmation number communicated by the Provider to the
+     * Agent (e.g. over phone/email), entered manually. Required before
+     * the booking can be confirmed.
+     */
+    private String providerReference;
+
+    /**
+     * External, Provider-controlled payment page the Traveler must use
+     * to pay the Provider directly. Odyssey never proxies this payment
+     * and never stores the Traveler's payment credentials.
+     */
+    private String providerPaymentUrl;
+
+    /**
+     * What the Agent knows about the Traveler's direct payment to the
+     * Provider. Entirely independent from the Odyssey assistance
+     * {@code Payment}: it is never set automatically from it.
+     *
+     * <p>Nullable at the DB level (unlike most other columns here) on
+     * purpose: this column was added to an already-populated table under
+     * {@code ddl-auto=update}, which cannot add a NOT NULL column without
+     * a default to a non-empty table. Application code always sets a
+     * value (defaulting to {@code NOT_REQUIRED_YET}) on every new/updated
+     * Booking; only rows persisted before this change may read back as
+     * {@code null}.</p>
+     */
+    @Enumerated(EnumType.STRING)
+    private ProviderPaymentStatus providerPaymentStatus;
 
     public Booking() {
     }
@@ -79,5 +115,29 @@ public class Booking {
         String providerConfirmationId
     ) {
         this.providerConfirmationId = providerConfirmationId;
+    }
+
+    public String getProviderReference() {
+        return providerReference;
+    }
+
+    public void setProviderReference(String providerReference) {
+        this.providerReference = providerReference;
+    }
+
+    public String getProviderPaymentUrl() {
+        return providerPaymentUrl;
+    }
+
+    public void setProviderPaymentUrl(String providerPaymentUrl) {
+        this.providerPaymentUrl = providerPaymentUrl;
+    }
+
+    public ProviderPaymentStatus getProviderPaymentStatus() {
+        return providerPaymentStatus;
+    }
+
+    public void setProviderPaymentStatus(ProviderPaymentStatus providerPaymentStatus) {
+        this.providerPaymentStatus = providerPaymentStatus;
     }
 }

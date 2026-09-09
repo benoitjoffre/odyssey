@@ -45,4 +45,24 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
         @Param("paidAt") Instant paidAt,
         @Param("stripePaymentIntentId") String stripePaymentIntentId
     );
+
+    /**
+     * Atomically transitions a payment to {@link PaymentStatus#FAILED},
+     * guarded by {@code status = PENDING} so this can NEVER downgrade a
+     * PAID payment (a late {@code checkout.session.expired}/
+     * {@code checkout.session.async_payment_failed} webhook must not undo a
+     * successful payment) and is idempotent for an already-FAILED payment
+     * (a duplicate/retried failure webhook is a safe no-op).
+     *
+     * @return the number of rows updated (0 if the payment was not
+     *         PENDING, meaning this delivery must not change its state).
+     */
+    @Transactional
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(
+        "update Payment p " +
+        "set p.status = com.odyssey.api.payment.PaymentStatus.FAILED " +
+        "where p.id = :id and p.status = com.odyssey.api.payment.PaymentStatus.PENDING"
+    )
+    int markAsFailedIfPending(@Param("id") Long id);
 }
