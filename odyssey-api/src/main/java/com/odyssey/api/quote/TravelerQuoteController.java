@@ -1,5 +1,8 @@
 package com.odyssey.api.quote;
 
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -14,32 +17,29 @@ public class TravelerQuoteController {
         this.quoteService = quoteService;
     }
 
-    @GetMapping("/{travelerId}/quotes")
+    @PreAuthorize("hasRole('TRAVELER')")
+    @GetMapping("/me/quotes")
     public List<TravelerQuoteResponse> getTravelerQuotes(
-        @PathVariable Long travelerId
+        @AuthenticationPrincipal Jwt jwt
     ) {
-        return quoteService.getQuotesByTraveler(travelerId);
+        return quoteService.getQuotesByCurrentTraveler(jwt.getSubject());
     }
 
-    @PostMapping("/{travelerId}/quotes/{quoteId}/accept")
+    @PreAuthorize("hasRole('TRAVELER')")
+    @PostMapping("/me/quotes/{quoteId}/accept")
     public TravelerQuoteResponse acceptQuote(
-            @PathVariable Long travelerId,
-            @PathVariable Long quoteId
+            @PathVariable Long quoteId,
+            @AuthenticationPrincipal Jwt jwt
     ) {
-        return quoteService.acceptQuote(
-                quoteId,
-                travelerId
-        );
+        return quoteService.acceptQuote(quoteId, jwt.getSubject());
     }
 
-    @PostMapping("/{travelerId}/quotes/{quoteId}/reject")
+    @PreAuthorize("hasRole('TRAVELER')")
+    @PostMapping("/me/quotes/{quoteId}/reject")
     public TravelerQuoteResponse rejectQuote(
-            @PathVariable Long travelerId,
-            @PathVariable Long quoteId
+            @PathVariable Long quoteId,
+            @AuthenticationPrincipal Jwt jwt
     ) {
-        return quoteService.rejectQuote(
-                quoteId,
-                travelerId
-        );
+        return quoteService.rejectQuote(quoteId, jwt.getSubject());
     }
 }

@@ -14,6 +14,8 @@ import com.odyssey.api.payment.stripe.StripeWebhookEvent;
 import com.odyssey.api.quote.Quote;
 import com.odyssey.api.quote.QuoteRepository;
 import com.odyssey.api.quote.QuoteStatus;
+import com.odyssey.api.traveler.Traveler;
+import com.odyssey.api.traveler.TravelerRepository;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,6 +47,7 @@ public class PaymentService {
         LoggerFactory.getLogger(PaymentService.class);
 
     private final QuoteRepository quoteRepository;
+    private final TravelerRepository travelerRepository;
     private final PaymentRepository paymentRepository;
     private final OutboxEventRepository outboxEventRepository;
     private final StripeGateway stripeGateway;
@@ -53,6 +56,7 @@ public class PaymentService {
 
     public PaymentService(
         QuoteRepository quoteRepository,
+        TravelerRepository travelerRepository,
         PaymentRepository paymentRepository,
         OutboxEventRepository outboxEventRepository,
         StripeGateway stripeGateway,
@@ -60,6 +64,7 @@ public class PaymentService {
         ObjectMapper objectMapper
     ) {
         this.quoteRepository = quoteRepository;
+        this.travelerRepository = travelerRepository;
         this.paymentRepository = paymentRepository;
         this.outboxEventRepository = outboxEventRepository;
         this.stripeGateway = stripeGateway;
@@ -75,6 +80,18 @@ public class PaymentService {
      * silently leave the Payment stuck PENDING forever with no Stripe
      * session, blocking any future retry.
      */
+    @Transactional(noRollbackFor = IllegalStateException.class)
+    public CheckoutSessionResponse createCheckoutSession(
+        Long quoteId,
+        String auth0Subject
+    ) {
+        Traveler traveler = travelerRepository
+            .findByAuth0Subject(auth0Subject)
+            .orElseThrow(() -> new ResourceNotFoundException("Traveler not found"));
+
+        return createCheckoutSession(quoteId, traveler.getId());
+    }
+
     @Transactional(noRollbackFor = IllegalStateException.class)
     public CheckoutSessionResponse createCheckoutSession(
         Long quoteId,

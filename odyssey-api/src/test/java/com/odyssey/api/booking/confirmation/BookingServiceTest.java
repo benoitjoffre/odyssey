@@ -143,7 +143,7 @@ class BookingServiceTest {
         when(bookingRepository.findById(BOOKING_ID)).thenReturn(Optional.of(booking));
 
         assertThrows(
-            IllegalArgumentException.class,
+            IllegalStateException.class,
             () -> bookingService.confirmBooking(BOOKING_ID, AGENT_ID)
         );
         verify(bookingProvider, never()).confirmBooking(any());

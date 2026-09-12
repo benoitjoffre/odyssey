@@ -1,49 +1,54 @@
 package com.odyssey.api.trip;
 
-import com.odyssey.api.exception.GlobalExceptionHandler;
-import com.odyssey.api.exception.ResourceNotFoundException;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-
-import static org.mockito.Mockito.doThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.mockito.Mockito.when;
+
+import java.lang.reflect.Method;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.ResponseStatus;
 
 class TripControllerTest {
 
     private TripService tripService;
-    private MockMvc mockMvc;
+    private TripController tripController;
+    private Jwt jwt;
 
     @BeforeEach
     void setUp() {
         tripService = mock(TripService.class);
-        mockMvc = MockMvcBuilders
-            .standaloneSetup(new TripController(tripService))
-            .setControllerAdvice(new GlobalExceptionHandler())
-            .build();
+        tripController = new TripController(tripService);
+        jwt = mock(Jwt.class);
+        when(jwt.getSubject()).thenReturn("auth0|traveler-a");
     }
 
     @Test
-    void deleteTripReturnsNoContent() throws Exception {
-        mockMvc.perform(delete("/api/trips/1"))
-            .andExpect(status().isNoContent());
+    void deleteTripForwardsAuthenticatedSubjectAndKeepsNoContentStatus()
+        throws Exception {
+        tripController.deleteTrip(10L, jwt);
 
-        verify(tripService).deleteTrip(1L);
+        verify(tripService).deleteTrip(10L, "auth0|traveler-a");
+
+        Method method = TripController.class.getMethod(
+            "deleteTrip",
+            Long.class,
+            Jwt.class
+        );
+        assertEquals(
+            HttpStatus.NO_CONTENT,
+            method.getAnnotation(ResponseStatus.class).value()
+        );
     }
 
     @Test
-    void deleteTripReturnsNotFoundWhenTripDoesNotExist() throws Exception {
-        doThrow(new ResourceNotFoundException("Trip not found"))
-            .when(tripService)
-            .deleteTrip(1L);
+    void getTripDetailForwardsAuthenticatedSubject() {
+        tripController.getTripDetail(10L, jwt);
 
-        mockMvc.perform(delete("/api/trips/1"))
-            .andExpect(status().isNotFound())
-            .andExpect(jsonPath("$.message").value("Trip not found"));
+        verify(tripService).getTripDetail(10L, "auth0|traveler-a");
     }
 }

@@ -1,6 +1,9 @@
 package com.odyssey.api.payment;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -12,12 +15,13 @@ public class PaymentController {
         this.paymentService = paymentService;
     }
 
+    @PreAuthorize("hasRole('TRAVELER')")
     @PostMapping("/api/quotes/{quoteId}/payment/checkout")
     public CheckoutSessionResponse createCheckoutSession(
         @PathVariable Long quoteId,
-        @RequestParam Long travelerId
+        @AuthenticationPrincipal Jwt jwt
     ) {
-        return paymentService.createCheckoutSession(quoteId, travelerId);
+        return paymentService.createCheckoutSession(quoteId, jwt.getSubject());
     }
 
     /**

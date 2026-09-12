@@ -3,6 +3,7 @@ package com.odyssey.api.agent;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.odyssey.api.exception.ResourceNotFoundException;
 
@@ -59,16 +60,30 @@ public class AgentService {
         );
     }
 
-    public List<AgentNotificationResponse> getNotifications(Long agentId) {
+    public List<AgentNotificationResponse> getNotifications(String auth0Subject) {
 
-      if (!agentRepository.existsById(agentId)) {
-          throw new ResourceNotFoundException("Agent not found");
-      }
+        Agent agent = agentRepository
+            .findByAuth0Subject(auth0Subject)
+            .orElseThrow(() -> new ResourceNotFoundException("Agent not found"));
 
-      return notificationRepository
-          .findByAgentIdOrderByCreatedAtDesc(agentId)
-          .stream()
-          .map(AgentNotificationResponse::from)
-          .toList();
+        return notificationRepository
+            .findByAgentIdOrderByCreatedAtDesc(agent.getId())
+            .stream()
+            .map(AgentNotificationResponse::from)
+            .toList();
+    }
+
+    public Agent getAgentByAuth0Subject(String auth0Subject) {
+        return agentRepository
+            .findByAuth0Subject(auth0Subject)
+            .orElseThrow(() -> new ResourceNotFoundException("Agent not found"));
+    }
+
+  
+    public Long getAgentIdByAuth0Subject(String auth0Subject) {
+        return agentRepository
+            .findByAuth0Subject(auth0Subject)
+            .map(Agent::getId)
+            .orElseThrow(() -> new ResourceNotFoundException("Agent not found"));
     }
 }

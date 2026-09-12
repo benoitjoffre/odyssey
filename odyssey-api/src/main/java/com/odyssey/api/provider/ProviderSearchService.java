@@ -8,6 +8,9 @@ import com.odyssey.api.provider.accommodation.AccommodationSearchRequest;
 import com.odyssey.api.provider.accommodation.AccommodationSearchService;
 import com.odyssey.api.provider.flight.FlightSearchRequest;
 import com.odyssey.api.provider.flight.FlightSearchService;
+import com.odyssey.api.provider.transfer.TransferSearchRequest;
+import com.odyssey.api.provider.transfer.TransferSearchService;
+import com.odyssey.api.need.transfer.TransferCriteriaRepository;
 import org.springframework.stereotype.Service;
 import java.util.List;
 
@@ -19,19 +22,25 @@ public class ProviderSearchService {
     private final AccommodationSearchService accommodationSearchService;
     private final FlightCriteriaRepository flightCriteriaRepository;
     private final AccommodationCriteriaRepository accommodationCriteriaRepository;
+    private final TransferSearchService transferSearchService;
+    private final TransferCriteriaRepository transferCriteriaRepository;
 
     public ProviderSearchService(
             BookingRequestRepository bookingRequestRepository,
             FlightSearchService flightSearchService,
             AccommodationSearchService accommodationSearchService,
             FlightCriteriaRepository flightCriteriaRepository,
-            AccommodationCriteriaRepository accommodationCriteriaRepository
+            AccommodationCriteriaRepository accommodationCriteriaRepository,
+            TransferSearchService transferSearchService,
+            TransferCriteriaRepository transferCriteriaRepository
     ) {
         this.bookingRequestRepository = bookingRequestRepository;
         this.flightSearchService = flightSearchService;
         this.accommodationSearchService = accommodationSearchService;
         this.flightCriteriaRepository = flightCriteriaRepository;
         this.accommodationCriteriaRepository = accommodationCriteriaRepository;
+        this.transferSearchService = transferSearchService;
+        this.transferCriteriaRepository = transferCriteriaRepository;
     }
 
     public List<? extends ProviderOffer> search(Long bookingRequestId) {
@@ -79,6 +88,23 @@ public class ProviderSearchService {
                                 trip.getEndDate(),
                                 accommodationCriteria.getTravelers(),
                                 accommodationCriteria.getRooms()
+                        )
+                );
+            }
+
+            case TRANSFER -> {
+                var transferCriteria = transferCriteriaRepository
+                        .findByNeedId(need.getId())
+                        .orElseThrow(() ->
+                                new RuntimeException("TransferCriteria not found")
+                        );
+
+                yield transferSearchService.search(
+                        new TransferSearchRequest(
+                                transferCriteria.getPickupLocation(),
+                                transferCriteria.getDropoffLocation(),
+                                trip.getStartDate(),
+                                transferCriteria.getTravelers()
                         )
                 );
             }

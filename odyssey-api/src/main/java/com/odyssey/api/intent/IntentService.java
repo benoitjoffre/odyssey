@@ -41,10 +41,13 @@ public class IntentService {
         this.recommendationScorer = recommendationScorer;
     }
 
-    public IntentResponse createIntent(CreateIntentRequest request) {
+    public IntentResponse createIntent(
+        CreateIntentRequest request,
+        String auth0Subject
+    ) {
 
         Traveler traveler = travelerRepository
-            .findById(request.travelerId())
+            .findByAuth0Subject(auth0Subject)
             .orElseThrow(() ->
                 new ResourceNotFoundException("Traveler not found")
             );

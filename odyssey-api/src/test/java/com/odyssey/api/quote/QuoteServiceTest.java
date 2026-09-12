@@ -6,9 +6,12 @@ import com.odyssey.api.booking.BookingRequestRepository;
 import com.odyssey.api.booking.BookingRequestStatus;
 import com.odyssey.api.booking.confirmation.BookingRepository;
 import com.odyssey.api.outbox.OutboxEventRepository;
+import com.odyssey.api.exception.ResourceNotFoundException;
 import com.odyssey.api.payment.Payment;
 import com.odyssey.api.payment.PaymentRepository;
 import com.odyssey.api.payment.PaymentStatus;
+import com.odyssey.api.traveler.Traveler;
+import com.odyssey.api.traveler.TravelerRepository;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -56,12 +59,16 @@ class QuoteServiceTest {
     @Mock
     private BookingRepository bookingRepository;
 
+    @Mock
+    private TravelerRepository travelerRepository;
+
     private QuoteService quoteService;
 
     @BeforeEach
     void setUp() {
         quoteService = new QuoteService(
             quoteRepository,
+            travelerRepository,
             bookingRequestRepository,
             outboxEventRepository,
             paymentRepository,
@@ -226,5 +233,91 @@ class QuoteServiceTest {
 
         assertEquals(1, responses.size());
         assertNull(responses.get(0).paymentStatus());
+    }
+
+    @Test
+    void getQuotesByCurrentTravelerFiltersByAuthenticatedTraveler() {
+        String auth0Subject = "auth0|traveler-2";
+        Traveler traveler = new Traveler();
+        ReflectionTestUtils.setField(traveler, "id", 2L);
+        when(travelerRepository.findByAuth0Subject(auth0Subject)).thenReturn(Optional.of(traveler));
+
+        BookingRequest bookingRequest = new BookingRequest();
+        ReflectiveHelper.setQuoteOwner(bookingRequest, 2L);
+
+        Quote quote = new Quote();
+        ReflectionTestUtils.setField(quote, "id", 77L);
+        quote.setBookingRequest(bookingRequest);
+        quote.setStatus(QuoteStatus.SENT);
+        quote.setCurrency("EUR");
+        quote.setProviderPrice(BigDecimal.valueOf(670));
+        quote.setAssistanceFee(BigDecimal.valueOf(100));
+        quote.setTotalAmount(BigDecimal.valueOf(770));
+
+        when(quoteRepository.findByBookingRequestNeedTripTravelerIdAndStatusNot(2L, QuoteStatus.DRAFT))
+            .thenReturn(java.util.List.of(quote));
+
+        var responses = quoteService.getQuotesByCurrentTraveler(auth0Subject);
+
+        assertEquals(1, responses.size());
+        assertEquals(77L, responses.get(0).id());
+    }
+
+    @Test
+    void acceptQuoteRejectsQuoteOwnedByAnotherTraveler() {
+        String auth0Subject = "auth0|traveler-1";
+        Traveler traveler = new Traveler();
+        ReflectionTestUtils.setField(traveler, "id", 1L);
+        when(travelerRepository.findByAuth0Subject(auth0Subject)).thenReturn(Optional.of(traveler));
+
+        Quote quote = new Quote();
+        ReflectionTestUtils.setField(quote, "id", 90L);
+        BookingRequest bookingRequest = new BookingRequest();
+        ReflectiveHelper.setQuoteOwner(bookingRequest, 2L);
+        quote.setBookingRequest(bookingRequest);
+        quote.setStatus(QuoteStatus.SENT);
+        quote.setCurrency("EUR");
+        quote.setProviderPrice(BigDecimal.valueOf(670));
+        quote.setAssistanceFee(BigDecimal.valueOf(100));
+        quote.setTotalAmount(BigDecimal.valueOf(770));
+
+        when(quoteRepository.findById(90L)).thenReturn(Optional.of(quote));
+
+        assertThrows(ResourceNotFoundException.class, () -> quoteService.acceptQuote(90L, auth0Subject));
+    }
+
+    @Test
+    void rejectQuoteRejectsQuoteOwnedByAnotherTraveler() {
+        String auth0Subject = "auth0|traveler-1";
+        Traveler traveler = new Traveler();
+        ReflectionTestUtils.setField(traveler, "id", 1L);
+        when(travelerRepository.findByAuth0Subject(auth0Subject)).thenReturn(Optional.of(traveler));
+
+        Quote quote = new Quote();
+        ReflectionTestUtils.setField(quote, "id", 91L);
+        BookingRequest bookingRequest = new BookingRequest();
+        ReflectiveHelper.setQuoteOwner(bookingRequest, 2L);
+        quote.setBookingRequest(bookingRequest);
+        quote.setStatus(QuoteStatus.SENT);
+        quote.setCurrency("EUR");
+        quote.setProviderPrice(BigDecimal.valueOf(670));
+        quote.setAssistanceFee(BigDecimal.valueOf(100));
+        quote.setTotalAmount(BigDecimal.valueOf(770));
+
+        when(quoteRepository.findById(91L)).thenReturn(Optional.of(quote));
+
+        assertThrows(ResourceNotFoundException.class, () -> quoteService.rejectQuote(91L, auth0Subject));
+    }
+
+    private static final class ReflectiveHelper {
+        private static void setQuoteOwner(BookingRequest bookingRequest, Long travelerId) {
+            Traveler traveler = new Traveler();
+            ReflectionTestUtils.setField(traveler, "id", travelerId);
+            com.odyssey.api.trip.Trip trip = new com.odyssey.api.trip.Trip();
+            ReflectionTestUtils.setField(trip, "traveler", traveler);
+            com.odyssey.api.need.Need need = new com.odyssey.api.need.Need();
+            ReflectionTestUtils.setField(need, "trip", trip);
+            bookingRequest.setNeed(need);
+        }
     }
 }

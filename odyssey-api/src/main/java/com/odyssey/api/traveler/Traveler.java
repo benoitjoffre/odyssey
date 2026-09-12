@@ -12,16 +12,17 @@ public class Traveler {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @NotBlank
     private String firstName;
 
-    @NotBlank
     private String lastName;
 
     @Email
     @NotBlank
     @Column(unique = true)
     private String email;
+
+    @Column(unique = true)
+    private String auth0Subject;
 
     public Traveler() {
     }
@@ -48,6 +49,10 @@ public class Traveler {
         return email;
     }
 
+    public String getAuth0Subject() {
+        return auth0Subject;
+    }
+
     public void setFirstName(String firstName) {
         this.firstName = firstName;
     }
@@ -58,5 +63,9 @@ public class Traveler {
 
     public void setEmail(String email) {
         this.email = email;
+    }
+
+    public void setAuth0Subject(String auth0Subject) {
+        this.auth0Subject = auth0Subject;
     }
 }

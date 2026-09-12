@@ -2,6 +2,9 @@ package com.odyssey.api.intent;
 
 import java.util.List;
 
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import com.odyssey.api.intent.recommendation.ScoredExperienceResponse;
@@ -18,10 +21,13 @@ public class IntentController {
         this.intentService = intentService;
     }
 
+    @PreAuthorize("hasRole('TRAVELER')")
     @PostMapping
     public IntentResponse createIntent(
-        @Valid @RequestBody CreateIntentRequest request) {
-        return intentService.createIntent(request);
+        @Valid @RequestBody CreateIntentRequest request,
+        @AuthenticationPrincipal Jwt jwt
+    ) {
+        return intentService.createIntent(request, jwt.getSubject());
     }
 
     @GetMapping

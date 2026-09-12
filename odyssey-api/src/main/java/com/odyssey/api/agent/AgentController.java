@@ -2,7 +2,10 @@ package com.odyssey.api.agent;
 
 import java.util.List;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import jakarta.validation.Valid;
@@ -39,20 +42,38 @@ public class AgentController {
         return agentService.getAgent(id);
     }
 
-    @GetMapping("/{id}/notifications")
+    @PreAuthorize("hasRole('AGENT')")
+    @GetMapping("/me/notifications")
     public List<AgentNotificationResponse> getNotifications(
-        @PathVariable Long id
+        @AuthenticationPrincipal Jwt jwt
     ) {
-        return agentService.getNotifications(id);
+        String auth0Subject = jwt.getSubject();
+        return agentService.getNotifications(auth0Subject);
     }
 
-    @GetMapping(
-    value = "/{agentId}/notifications/stream",
+    // @PreAuthorize("hasRole('AGENT')")
+    // @GetMapping(
+    //     value = "/me/notifications/stream",
+    //     produces = "text/event-stream"
+    // )
+    // public SseEmitter streamNotifications(
+    //     @AuthenticationPrincipal Jwt jwt
+    // ) {
+    //     String auth0Subject = jwt.getSubject();
+    //     Agent agent = agentService.getAgentByAuth0Subject(auth0Subject);
+    //     return sseService.subscribe(agent.getId());
+    // }
+
+    @PreAuthorize("hasRole('AGENT')")
+@GetMapping(
+    value = "/me/notifications/stream",
     produces = "text/event-stream"
-    )
-    public SseEmitter streamNotifications(
-        @PathVariable Long agentId
-    ) {
-        return sseService.subscribe(agentId);
-    }
+)
+public SseEmitter streamNotifications(
+    @AuthenticationPrincipal Jwt jwt
+) {
+    Long agentId = agentService.getAgentIdByAuth0Subject(jwt.getSubject());
+
+    return sseService.subscribe(agentId);
+}
 }

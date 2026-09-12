@@ -19,6 +19,9 @@ public class Agent {
     @Enumerated(EnumType.STRING)
     private AgentStatus status;
 
+    @Column(unique = true)
+    private String auth0Subject;
+
     public Agent() {}
 
     public Long getId() {
@@ -55,5 +58,13 @@ public class Agent {
 
     public void setStatus(AgentStatus status) {
         this.status = status;
+    }
+
+    public String getAuth0Subject() {
+        return auth0Subject;
+    }
+
+    public void setAuth0Subject(String auth0Subject) {
+        this.auth0Subject = auth0Subject;
     }
 }

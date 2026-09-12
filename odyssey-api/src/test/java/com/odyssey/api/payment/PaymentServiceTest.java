@@ -15,6 +15,7 @@ import com.odyssey.api.quote.Quote;
 import com.odyssey.api.quote.QuoteRepository;
 import com.odyssey.api.quote.QuoteStatus;
 import com.odyssey.api.traveler.Traveler;
+import com.odyssey.api.traveler.TravelerRepository;
 import com.odyssey.api.trip.Trip;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -34,6 +35,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -65,6 +67,7 @@ class PaymentServiceTest {
     private StripeGateway stripeGateway;
 
     private StripeProperties stripeProperties;
+    private TravelerRepository travelerRepository;
     private PaymentService paymentService;
 
     @BeforeEach
@@ -74,8 +77,11 @@ class PaymentServiceTest {
         stripeProperties.setSuccessUrl("http://localhost:5173/traveler/quotes?payment=success");
         stripeProperties.setCancelUrl("http://localhost:5173/traveler/quotes?payment=cancelled");
 
+        travelerRepository = mock(TravelerRepository.class);
+
         paymentService = new PaymentService(
             quoteRepository,
+            travelerRepository,
             paymentRepository,
             outboxEventRepository,
             stripeGateway,

@@ -15,6 +15,8 @@ import com.odyssey.api.event.QuoteAcceptedEvent;
 import com.odyssey.api.payment.Payment;
 import com.odyssey.api.payment.PaymentRepository;
 import com.odyssey.api.payment.PaymentStatus;
+import com.odyssey.api.traveler.Traveler;
+import com.odyssey.api.traveler.TravelerRepository;
 import tools.jackson.databind.ObjectMapper;
 
 import org.springframework.stereotype.Service;
@@ -22,11 +24,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class QuoteService {
 
     private final QuoteRepository quoteRepository;
+    private final TravelerRepository travelerRepository;
     private final BookingRequestRepository bookingRequestRepository;
     private final OutboxEventRepository outboxEventRepository;
     private final PaymentRepository paymentRepository;
@@ -35,6 +39,7 @@ public class QuoteService {
 
     public QuoteService(
             QuoteRepository quoteRepository,
+            TravelerRepository travelerRepository,
             BookingRequestRepository bookingRequestRepository,
             OutboxEventRepository outboxEventRepository,
             PaymentRepository paymentRepository,
@@ -42,6 +47,7 @@ public class QuoteService {
             ObjectMapper objectMapper
     ) {
         this.quoteRepository = quoteRepository;
+        this.travelerRepository = travelerRepository;
         this.bookingRequestRepository = bookingRequestRepository;
         this.outboxEventRepository = outboxEventRepository;
         this.paymentRepository = paymentRepository;
@@ -192,6 +198,11 @@ public class QuoteService {
                 .toList();
     }
 
+    public List<TravelerQuoteResponse> getQuotesByCurrentTraveler(String auth0Subject) {
+        Traveler traveler = getCurrentTraveler(auth0Subject);
+        return getQuotesByTraveler(traveler.getId());
+    }
+
     private QuoteResponse toResponse(Quote quote) {
 
         return new QuoteResponse(
@@ -272,6 +283,51 @@ public class QuoteService {
     }
 
     @Transactional
+    public TravelerQuoteResponse acceptQuote(Long quoteId, String auth0Subject) {
+        Quote quote = getOwnedQuote(quoteId, auth0Subject);
+
+        if (quote.getStatus() != QuoteStatus.SENT) {
+            throw new IllegalArgumentException(
+                    "Only a SENT quote can be accepted"
+            );
+        }
+
+        quote.setStatus(QuoteStatus.ACCEPTED);
+
+        Quote savedQuote = quoteRepository.save(quote);
+
+        Long travelerId = quote.getBookingRequest()
+                .getNeed()
+                .getTrip()
+                .getTraveler()
+                .getId();
+
+        Long agentId = quote.getBookingRequest()
+                .getAssignedAgent()
+                .getId();
+
+        QuoteAcceptedEvent event = new QuoteAcceptedEvent(
+                savedQuote.getId(),
+                quote.getBookingRequest().getId(),
+                travelerId,
+                agentId
+        );
+
+        String payload = objectMapper.writeValueAsString(event);
+
+        OutboxEvent outboxEvent = new OutboxEvent();
+
+        outboxEvent.setEventType("QUOTE_ACCEPTED");
+        outboxEvent.setPayload(payload);
+        outboxEvent.setStatus(OutboxStatus.PENDING);
+        outboxEvent.setCreatedAt(Instant.now());
+
+        outboxEventRepository.save(outboxEvent);
+
+        return toTravelerResponse(savedQuote);
+    }
+
+    @Transactional
     public TravelerQuoteResponse rejectQuote(
             Long quoteId,
             Long travelerId
@@ -311,6 +367,47 @@ public class QuoteService {
         return toTravelerResponse(savedQuote);
     }
 
+    @Transactional
+    public TravelerQuoteResponse rejectQuote(Long quoteId, String auth0Subject) {
+        Quote quote = getOwnedQuote(quoteId, auth0Subject);
+
+        if (quote.getStatus() != QuoteStatus.SENT) {
+            throw new IllegalArgumentException(
+                    "Only a SENT quote can be rejected"
+            );
+        }
+
+        quote.setStatus(QuoteStatus.REJECTED);
+        Quote savedQuote = quoteRepository.save(quote);
+        return toTravelerResponse(savedQuote);
+    }
+
+    private Traveler getCurrentTraveler(String auth0Subject) {
+        return travelerRepository
+                .findByAuth0Subject(auth0Subject)
+                .orElseThrow(() -> new ResourceNotFoundException("Traveler not found"));
+    }
+
+    private Quote getOwnedQuote(Long quoteId, String auth0Subject) {
+        Traveler traveler = getCurrentTraveler(auth0Subject);
+        Quote quote = quoteRepository
+                .findById(quoteId)
+                .orElseThrow(() -> new ResourceNotFoundException("Quote not found"));
+
+        Long quoteTravelerId = quote
+                .getBookingRequest()
+                .getNeed()
+                .getTrip()
+                .getTraveler()
+                .getId();
+
+        if (!quoteTravelerId.equals(traveler.getId())) {
+            throw new ResourceNotFoundException("Quote not found");
+        }
+
+        return quote;
+    }
+
     private TravelerQuoteResponse toTravelerResponse(Quote quote) {
 
         PaymentStatus paymentStatus = paymentRepository
@@ -340,5 +437,19 @@ public class QuoteService {
                 booking != null ? booking.getProviderPaymentUrl() : null,
                 booking != null ? booking.getProviderPaymentStatus() : ProviderPaymentStatus.NOT_REQUIRED_YET
         );
+    }
+
+
+    public List<TravelerQuoteResponse> getQuotesByBookingRequest(Long bookingRequestId) {
+        // 1. récupérer les quotes avec :
+        List<Quote> quotes = quoteRepository.findByBookingRequestId(bookingRequestId);
+
+        // 2. transformer chaque Quote en TravelerQuoteResponse
+        List<TravelerQuoteResponse> responses = quotes.stream()
+                .map(this::toTravelerResponse)
+                .collect(Collectors.toList());
+
+        // 3. retourner la liste
+        return responses;
     }
 }

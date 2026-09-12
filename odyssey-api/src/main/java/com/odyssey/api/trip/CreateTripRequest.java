@@ -15,9 +15,6 @@ public record CreateTripRequest(
     @NotNull
     LocalDate endDate,
 
-    @NotNull
-    Long travelerId,
-
     Long travelEventId
 ) {
 }

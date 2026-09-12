@@ -212,18 +212,18 @@ public class AgentNotificationEventListener {
         AgentNotificationResponse response =
             AgentNotificationResponse.from(savedNotification);
 
-        sseService.send(
-            agent.getId(),
-            response
-        );
+            sseService.send(
+                agent.getId(),
+                response
+            );
 
-        System.out.println(
-            "NOTIFICATION → Agent "
-                + agent.getId()
-                + " : "
-                + notification.getMessage()
-        );
-    }
+            System.out.println(
+                "NOTIFICATION → Agent "
+                    + agent.getId()
+                    + " : "
+                    + notification.getMessage()
+            );
+        }
 
     private void handlePaymentSucceeded(PaymentSucceededEvent event) {
 

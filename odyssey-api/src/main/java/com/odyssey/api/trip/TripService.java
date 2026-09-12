@@ -55,7 +55,7 @@ public class TripService {
         this.travelEventRepository = travelEventRepository;
     }
 
-    public TripResponse createTrip(CreateTripRequest request) {
+    public TripResponse createTrip(CreateTripRequest request, String auth0Subject) {
 
         if (request.startDate().isAfter(request.endDate())) {
             throw new IllegalArgumentException("Start date cannot be after end date");
@@ -65,9 +65,7 @@ public class TripService {
             throw new IllegalArgumentException("Start date cannot be in the past");
         }
 
-        Traveler traveler = travelerRepository
-            .findById(request.travelerId())
-            .orElseThrow(() -> new ResourceNotFoundException("Traveler not found"));
+        Traveler traveler = getCurrentTraveler(auth0Subject);
 
         TravelEvent travelEvent = null;
 
@@ -107,26 +105,25 @@ public class TripService {
         return toResponse(savedTrip);
     }
 
-    public List<TripResponse> getTrips() {
-        return tripRepository.findAll()
+    public List<TripResponse> getTrips(String auth0Subject) {
+
+        Traveler traveler = getCurrentTraveler(auth0Subject);
+
+        return tripRepository.findByTravelerIdOrderByStartDateDesc(traveler.getId())
             .stream()
             .map(this::toResponse)
             .toList();
     }
 
-    public TripResponse getTrip(Long id) {
-        Trip trip = tripRepository
-            .findById(id)
-            .orElseThrow(() -> new ResourceNotFoundException("Trip not found"));
+    public TripResponse getTrip(Long id, String auth0Subject) {
+        Trip trip = getOwnedTrip(id, auth0Subject);
 
-        return toResponse(trip);
+       return toResponse(trip);
     }
 
     @Transactional
-    public void deleteTrip(Long id) {
-        Trip trip = tripRepository
-            .findById(id)
-            .orElseThrow(() -> new ResourceNotFoundException("Trip not found"));
+    public void deleteTrip(Long id, String auth0Subject) {
+        Trip trip = getOwnedTrip(id, auth0Subject);
 
         tripRepository.delete(trip);
     }
@@ -146,13 +143,9 @@ public class TripService {
             .toList();
     }
 
-    public TripDetailResponse getTripDetail(Long id) {
+    public TripDetailResponse getTripDetail(Long id, String auth0Subject) {
 
-        Trip trip = tripRepository
-            .findById(id)
-            .orElseThrow(() ->
-                new ResourceNotFoundException("Trip not found")
-            );
+        Trip trip = getOwnedTrip(id, auth0Subject);
 
             
 
@@ -208,5 +201,19 @@ public class TripService {
                 ? trip.getTravelEvent().getId()
                 : null
         );
+    }
+
+    private Traveler getCurrentTraveler(String auth0Subject) {
+        return travelerRepository
+            .findByAuth0Subject(auth0Subject)
+            .orElseThrow(() -> new ResourceNotFoundException("Traveler not found"));
+    }
+
+    private Trip getOwnedTrip(Long tripId, String auth0Subject) {
+        Traveler traveler = getCurrentTraveler(auth0Subject);
+
+        return tripRepository
+            .findByIdAndTravelerId(tripId, traveler.getId())
+            .orElseThrow(() -> new ResourceNotFoundException("Trip not found"));
     }
 }

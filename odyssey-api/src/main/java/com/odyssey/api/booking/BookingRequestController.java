@@ -4,6 +4,9 @@ import java.util.List;
 
 import org.springframework.web.bind.annotation.*;
 
+import com.odyssey.api.quote.QuoteService;
+import com.odyssey.api.quote.TravelerQuoteResponse;
+
 import jakarta.validation.Valid;
 
 @RestController
@@ -11,11 +14,14 @@ import jakarta.validation.Valid;
 public class BookingRequestController {
 
     private final BookingRequestService bookingRequestService;
+    private final QuoteService quoteService;
 
     public BookingRequestController(
-        BookingRequestService bookingRequestService
+        BookingRequestService bookingRequestService,
+        QuoteService quoteService
     ) {
         this.bookingRequestService = bookingRequestService;
+        this.quoteService = quoteService;
     }
 
     @PostMapping
@@ -47,5 +53,12 @@ public class BookingRequestController {
             bookingRequestId,
             agentId
         );
+    }
+
+    @GetMapping("/{bookingRequestId}/quotes")
+    public List<TravelerQuoteResponse> getQuotes(
+        @PathVariable Long bookingRequestId
+    ) {
+        return quoteService.getQuotesByBookingRequest(bookingRequestId);
     }
 }
