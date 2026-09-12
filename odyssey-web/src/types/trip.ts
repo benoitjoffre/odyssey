@@ -16,7 +16,6 @@ export interface Trip {
   startDate: string;
   endDate: string;
   status: TripStatus;
-  travelerId: number;
   travelEventId: number | null;
 }
 
@@ -39,6 +38,5 @@ export interface CreateTripRequest {
   title: string;
   startDate: string;
   endDate: string;
-  travelerId: number;
   travelEventId?: number;
 }

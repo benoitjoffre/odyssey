@@ -7,8 +7,6 @@ import { experienceCategoryLabels, experienceCategoryPrompts } from "../../helpe
 import type { ExperienceCategory, ScoredExperienceResponse } from "../../types/intent";
 import type { TravelEvent } from "../../types/travelEvent";
 
-const TRAVELER_ID = 1;
-
 const categoryChoices: Array<{ category: ExperienceCategory; icon: ReactNode }> = [
   { category: "DANCE", icon: "💃" },
   { category: "SURF", icon: "🏄" },
@@ -54,7 +52,7 @@ export function TravelerDiscoverPage() {
     setSelectedExperienceId(null);
 
     try {
-      const intent = await createIntent({ title: "Envie de voyage", description, travelerId: TRAVELER_ID });
+      const intent = await createIntent({ title: "Envie de voyage", description });
       setIntentLoading(false);
       setRecommendationLoading(true);
       setRecommendations(await getIntentRecommendations(intent.id));

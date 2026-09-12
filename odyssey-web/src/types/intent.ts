@@ -24,5 +24,4 @@ export interface ScoredExperienceResponse {
 export interface CreateIntentRequest {
   title: string;
   description: string;
-  travelerId: number;
 }

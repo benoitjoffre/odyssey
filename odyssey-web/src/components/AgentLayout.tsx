@@ -1,4 +1,6 @@
-import { Bell, CalendarRange, FileText, LayoutDashboard, MapPin, Plane, Sparkles } from "lucide-react";
+import { useAuth0 } from "@auth0/auth0-react";
+import { useEffect } from "react";
+import { Bell, CalendarRange, FileText, LayoutDashboard, MapPin, Plane, Sparkles, UserRound } from "lucide-react";
 import { NavLink, Outlet } from "react-router-dom";
 
 const navigation = [
@@ -10,6 +12,14 @@ const navigation = [
 ];
 
 export function AgentLayout() {
+  const { isAuthenticated, isLoading, logout, user } = useAuth0();
+
+  useEffect(() => {
+    document.title = "Odyssey | Espace Agent";
+  }, []);
+
+  const displayName = user?.name ?? user?.email ?? "Agent";
+
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -46,12 +56,27 @@ export function AgentLayout() {
           </div>
           <div className="agent-profile">
             <div className="agent-avatar" aria-hidden="true">
-              A
+              <UserRound size={18} />
             </div>
             <div>
-              <strong>Agent #1</strong>
-              <span>Connecté</span>
+              <strong>{isLoading ? "Chargement..." : displayName}</strong>
+              <span>{isAuthenticated ? "Connecté" : "Déconnecté"}</span>
             </div>
+            {isAuthenticated && (
+              <button
+                type="button"
+                className="traveler-auth-button"
+                onClick={() =>
+                  logout({
+                    logoutParams: {
+                      returnTo: window.location.origin,
+                    },
+                  })
+                }
+              >
+                Se déconnecter
+              </button>
+            )}
           </div>
         </header>
 

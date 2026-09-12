@@ -4,8 +4,6 @@ import { acceptTravelerQuote, getTravelerQuotes, rejectTravelerQuote } from "../
 import { createCheckoutSession } from "../../api/payments";
 import type { TravelerQuote, TravelerQuoteStatus } from "../../types/travelerQuote";
 
-const TRAVELER_ID = 1;
-
 const statusLabels: Record<TravelerQuoteStatus, string> = {
   SENT: "Proposition reçue",
   ACCEPTED: "Acceptée",
@@ -49,7 +47,7 @@ export function TravelerQuotesPage() {
       setError(null);
 
       try {
-        setQuotes(await getTravelerQuotes(TRAVELER_ID, controller.signal));
+        setQuotes(await getTravelerQuotes(controller.signal));
       } catch (requestError: unknown) {
         if (requestError instanceof DOMException && requestError.name === "AbortError") return;
         setError("Impossible de charger vos propositions pour le moment.");
@@ -92,7 +90,7 @@ export function TravelerQuotesPage() {
     });
 
     try {
-      const session = await createCheckoutSession(quote.id, TRAVELER_ID);
+      const session = await createCheckoutSession(quote.id);
       window.location.href = session.checkoutUrl;
     } catch {
       setPaymentErrors((current) => ({
@@ -114,7 +112,7 @@ export function TravelerQuotesPage() {
     });
 
     try {
-      const updatedQuote = action === "accept" ? await acceptTravelerQuote(TRAVELER_ID, quote.id) : await rejectTravelerQuote(TRAVELER_ID, quote.id);
+      const updatedQuote = action === "accept" ? await acceptTravelerQuote(quote.id) : await rejectTravelerQuote(quote.id);
       setQuotes((current) => current.map((item) => (item.id === updatedQuote.id ? updatedQuote : item)));
     } catch {
       setActionErrors((current) => ({

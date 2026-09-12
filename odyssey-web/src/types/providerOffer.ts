@@ -21,8 +21,19 @@ export interface FlightOffer extends ProviderOfferBase {
   airline: string;
 }
 
-export type ProviderOffer = AccommodationOffer | FlightOffer;
+export interface TransferOffer extends ProviderOfferBase {
+  pickupLocation: string;
+  dropoffLocation: string;
+  travelers: number;
+  vehicleType: string;
+}
 
 export function isAccommodationOffer(offer: ProviderOffer): offer is AccommodationOffer {
   return "hotelName" in offer;
 }
+
+export function isTransferOffer(offer: ProviderOffer): offer is TransferOffer {
+  return "vehicleType" in offer;
+}
+
+export type ProviderOffer = AccommodationOffer | FlightOffer | TransferOffer;

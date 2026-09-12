@@ -5,8 +5,6 @@ import { openAgentNotificationStream } from "../../api/agentNotificationStream";
 import { getBookingRequests } from "../../api/bookingRequests";
 import type { BookingRequest, BookingRequestStatus, NeedType } from "../../types/bookingRequest";
 
-const CURRENT_AGENT_ID = 1;
-
 const needPresentation: Record<NeedType, { label: string; icon: typeof Plane }> = {
   FLIGHT: { label: "Vol", icon: Plane },
   ACCOMMODATION: { label: "Hébergement", icon: BedDouble },
@@ -110,15 +108,22 @@ export function AgentBookingRequestsPage() {
       }
     }
 
-    const eventSource = openAgentNotificationStream(CURRENT_AGENT_ID, () => {
+    void openAgentNotificationStream(() => {
       void loadRequests();
+    }, controller.signal).catch((error) => {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        return;
+      }
+
+      if (import.meta.env.DEV) {
+        console.warn("SSE connection interrupted", error);
+      }
     });
     void loadRequests(true);
 
     return () => {
       disposed = true;
       controller.abort();
-      eventSource.close();
     };
   }, [reloadVersion]);
 
@@ -135,7 +140,9 @@ export function AgentBookingRequestsPage() {
         {!loading && !error && (
           <div className="summary-stat" role="status" aria-label={`${requests.length} demandes dans ${tripGroups.length} voyages`}>
             <span>{requests.length}</span>
-            <p>{requests.length > 1 ? "Demandes" : "Demande"} · {tripGroups.length} {tripGroups.length > 1 ? "voyages" : "voyage"}</p>
+            <p>
+              {requests.length > 1 ? "Demandes" : "Demande"} · {tripGroups.length} {tripGroups.length > 1 ? "voyages" : "voyage"}
+            </p>
           </div>
         )}
       </section>
@@ -175,11 +182,18 @@ export function AgentBookingRequestsPage() {
                 <div>
                   <span className="agent-trip-reference">Voyage #{group.tripId}</span>
                   <h2 id={`trip-${group.tripId}-title`}>{group.title}</h2>
-                  <p>{group.travelerName} · {group.travelerEmail}</p>
+                  <p>
+                    {group.travelerName} · {group.travelerEmail}
+                  </p>
                 </div>
                 <div className="agent-trip-request-meta">
-                  <span><CalendarDays size={15} aria-hidden="true" />{formatTripDates(group.startDate, group.endDate)}</span>
-                  <strong>{group.requests.length} {group.requests.length > 1 ? "demandes" : "demande"}</strong>
+                  <span>
+                    <CalendarDays size={15} aria-hidden="true" />
+                    {formatTripDates(group.startDate, group.endDate)}
+                  </span>
+                  <strong>
+                    {group.requests.length} {group.requests.length > 1 ? "demandes" : "demande"}
+                  </strong>
                 </div>
               </header>
 

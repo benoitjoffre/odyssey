@@ -4,8 +4,6 @@ import { Link } from "react-router-dom";
 import { getTravelerTrips } from "../../api/trips";
 import type { Trip, TripStatus } from "../../types/trip";
 
-const TRAVELER_ID = 1;
-
 const tripStatusLabels: Record<TripStatus, string> = {
   DRAFT: "En préparation",
   CONFIRMED: "Confirmé",
@@ -34,7 +32,7 @@ export function TravelerTripsPage() {
       setError(null);
 
       try {
-        setTrips(await getTravelerTrips(TRAVELER_ID, controller.signal));
+        setTrips(await getTravelerTrips(controller.signal));
       } catch (requestError: unknown) {
         if (requestError instanceof DOMException && requestError.name === "AbortError") return;
         setError("Impossible de charger vos voyages pour le moment.");

@@ -6,8 +6,6 @@ import { getTravelEvent } from "../../api/travelEvents";
 import { createTrip } from "../../api/trips";
 import type { TravelEvent } from "../../types/travelEvent";
 
-const TRAVELER_ID = 1;
-
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", year: "numeric" }).format(new Date(`${value}T00:00:00`));
 }
@@ -88,7 +86,7 @@ export function TravelerEventDetailPage() {
 
     setSubmitting(true);
     try {
-      const trip = await createTrip({ title: event.name, startDate, endDate, travelerId: TRAVELER_ID, travelEventId: event.id });
+      const trip = await createTrip({ title: event.name, startDate, endDate, travelEventId: event.id });
       navigate(`/traveler/trips/${trip.id}`);
     } catch {
       setSubmitError("Votre voyage n’a pas pu être créé. Vérifiez les dates puis réessayez.");

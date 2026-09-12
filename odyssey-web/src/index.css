@@ -1430,7 +1430,7 @@ h2 {
 .traveler-profile {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 12px;
 }
 
 .traveler-avatar {
@@ -1443,19 +1443,48 @@ h2 {
   border-radius: 50%;
 }
 
-.traveler-profile strong,
-.traveler-profile > div > span {
+.traveler-auth-state {
+  min-width: 0;
+}
+
+.traveler-auth-state strong,
+.traveler-auth-state span {
   display: block;
 }
 
-.traveler-profile strong {
+.traveler-auth-state strong {
   font-size: 13px;
 }
 
-.traveler-profile > div > span {
+.traveler-auth-state span {
   margin-top: 2px;
   color: var(--muted);
   font-size: 11px;
+}
+
+.traveler-auth-button {
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease;
+}
+
+.traveler-auth-button:hover:not(:disabled) {
+  background: #f5f7f7;
+  border-color: #cdd7d5;
+}
+
+.traveler-auth-button:disabled {
+  opacity: 0.7;
+  cursor: wait;
 }
 
 .traveler-content {

@@ -17,15 +17,16 @@ import {
   Save,
   Search,
   Users,
+  Car,
 } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { confirmBooking, createBooking, updateBookingProviderDetails } from "../api/bookings";
 import { claimBookingRequest, getBookingRequest, searchBookingRequestOffers } from "../api/bookingRequests";
 import { createQuote, sendQuote } from "../api/quotes";
-import { getTravelerQuotes } from "../api/travelerQuotes";
+import { getBookingRequestQuotes } from "../api/travelerQuotes";
 import type { Booking, ProviderPaymentStatus } from "../types/booking";
 import type { BookingRequest, BookingRequestStatus, NeedType } from "../types/bookingRequest";
-import { isAccommodationOffer, type ProviderOffer } from "../types/providerOffer";
+import { isAccommodationOffer, isTransferOffer, type ProviderOffer } from "../types/providerOffer";
 import type { QuoteResponse } from "../types/quote";
 import type { TravelerQuote } from "../types/travelerQuote";
 
@@ -77,6 +78,9 @@ function getOfferDescription(offer: ProviderOffer) {
     return `${offer.hotelName} - ${offer.roomType}`;
   }
 
+  if (isTransferOffer(offer)) {
+    return `Transfert - ${offer.vehicleType}`;
+  }
   return `${offer.airline} - ${offer.origin} → ${offer.destination}`;
 }
 
@@ -124,7 +128,7 @@ export function BookingRequestPage() {
         const request = await getBookingRequest(bookingRequestId, controller.signal);
         setBookingRequest(request);
 
-        const travelerQuotes = await getTravelerQuotes(request.traveler.id, controller.signal);
+        const travelerQuotes = await getBookingRequestQuotes(request.id, controller.signal);
         const matchingAcceptedQuote =
           travelerQuotes
             .filter((quote) => quote.bookingRequestId === request.id && quote.status === "ACCEPTED")
@@ -484,6 +488,32 @@ export function BookingRequestPage() {
         </section>
       )}
 
+      {need.type === "TRANSFER" && need.transferCriteria && (
+        <section className="criteria-card">
+          <div className="detail-card-heading">
+            <Car size={20} />
+            <h2>Transfert</h2>
+          </div>
+          <div className="criteria-grid">
+            <div>
+              <MapPin size={18} />
+              <span>Lieu de départ</span>
+              <strong>{need.transferCriteria.pickupLocation}</strong>
+            </div>
+            <div>
+              <MapPin size={18} />
+              <span>Lieu d'arrivée</span>
+              <strong>{need.transferCriteria.dropoffLocation}</strong>
+            </div>
+            <div>
+              <Users size={18} />
+              <span>Voyageurs</span>
+              <strong>{need.transferCriteria.travelers}</strong>
+            </div>
+          </div>
+        </section>
+      )}
+
       <section className="request-actions" aria-label="Actions sur la demande">
         {canClaim && (
           <button type="button" className="primary-button" onClick={handleClaim} disabled={claiming}>
@@ -546,6 +576,15 @@ export function BookingRequestPage() {
                       <p className="offer-dates">
                         {formatDate(offer.checkIn)} <ArrowRight size={15} /> {formatDate(offer.checkOut)}
                       </p>
+                    </>
+                  ) : isTransferOffer(offer) ? (
+                    <>
+                      <Car size={22} className="offer-icon" />
+                      <h3>{offer.vehicleType}</h3>
+                      <p className="offer-route">
+                        {offer.pickupLocation} <ArrowRight size={17} /> {offer.dropoffLocation}
+                      </p>
+                      <p>Voyageurs : {offer.travelers}</p>
                     </>
                   ) : (
                     <>

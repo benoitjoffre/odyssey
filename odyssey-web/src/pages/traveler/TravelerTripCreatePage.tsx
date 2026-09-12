@@ -3,8 +3,6 @@ import { ArrowLeft, CalendarDays, LoaderCircle, Luggage, Sparkles } from "lucide
 import { Link, useNavigate } from "react-router-dom";
 import { createTrip } from "../../api/trips";
 
-const TRAVELER_ID = 1;
-
 export function TravelerTripCreatePage() {
   const navigate = useNavigate();
   const [title, setTitle] = useState("");
@@ -37,7 +35,6 @@ export function TravelerTripCreatePage() {
         title: title.trim(),
         startDate,
         endDate,
-        travelerId: TRAVELER_ID,
       });
       navigate(`/traveler/trips/${trip.id}`);
     } catch {

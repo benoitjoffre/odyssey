@@ -6,8 +6,6 @@ import { getAgentNotifications } from "../api/agents";
 import type { AgentNotification } from "../types/agent";
 import type { NeedType } from "../types/bookingRequest";
 
-const CURRENT_AGENT_ID = 1;
-
 const needPresentation: Record<NeedType, { label: string; icon: typeof Plane }> = {
   FLIGHT: { label: "Vol", icon: Plane },
   ACCOMMODATION: { label: "Hébergement", icon: BedDouble },
@@ -140,8 +138,16 @@ export function AgentDashboardPage() {
 
   useEffect(() => {
     const controller = new AbortController();
-    const eventSource = openAgentNotificationStream(CURRENT_AGENT_ID, (notification) => {
+    void openAgentNotificationStream((notification) => {
       setNotifications((current) => mergeNotifications(current, [notification]));
+    }, controller.signal).catch((error) => {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        return;
+      }
+
+      if (import.meta.env.DEV) {
+        console.warn("SSE connection interrupted", error);
+      }
     });
 
     async function loadNotifications() {
@@ -149,7 +155,7 @@ export function AgentDashboardPage() {
       setError(null);
 
       try {
-        const data = await getAgentNotifications(CURRENT_AGENT_ID, controller.signal);
+        const data = await getAgentNotifications(controller.signal);
         setNotifications((current) => mergeNotifications(current, data));
       } catch (requestError) {
         if (requestError instanceof DOMException && requestError.name === "AbortError") {
@@ -166,7 +172,6 @@ export function AgentDashboardPage() {
     void loadNotifications();
     return () => {
       controller.abort();
-      eventSource.close();
     };
   }, [requestVersion]);
 

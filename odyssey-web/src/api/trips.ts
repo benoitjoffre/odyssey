@@ -1,8 +1,8 @@
 import { apiFetch } from "./client";
 import type { CreateTripRequest, Trip, TripDetail } from "../types/trip";
 
-export function getTravelerTrips(travelerId: number, signal?: AbortSignal): Promise<Trip[]> {
-  return apiFetch<Trip[]>(`/api/travelers/${travelerId}/trips`, { signal });
+export function getTravelerTrips(signal?: AbortSignal): Promise<Trip[]> {
+  return apiFetch<Trip[]>(`/api/trips`, { signal });
 }
 
 export function getTripDetail(tripId: number, signal?: AbortSignal): Promise<TripDetail> {

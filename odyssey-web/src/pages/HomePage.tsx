@@ -1,3 +1,4 @@
+import { useAuth0 } from "@auth0/auth0-react";
 import { useEffect, useState, type ComponentType } from "react";
 import {
   ArrowDown,
@@ -59,24 +60,30 @@ const journeySteps = [
 ];
 
 export function HomePage() {
+  const { isAuthenticated } = useAuth0();
   const [experiences, setExperiences] = useState<Experience[]>([]);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     document.title = "Odyssey | Voyagez pour ce que vous aimez";
+
+    if (!isAuthenticated) {
+      return;
+    }
+
     const controller = new AbortController();
 
     getExperiences(controller.signal)
-      .then((items) => setExperiences(items.slice(0, 6)))
-      .catch((requestError: unknown) => {
-        if (!(requestError instanceof DOMException && requestError.name === "AbortError")) setExperiences([]);
+      .then((items) => {
+        setExperiences(items.slice(0, 6));
       })
-      .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
+      .catch((requestError: unknown) => {
+        if (!(requestError instanceof DOMException && requestError.name === "AbortError")) {
+          setExperiences([]);
+        }
       });
 
     return () => controller.abort();
-  }, []);
+  }, [isAuthenticated]);
 
   return (
     <div className="public-home">
@@ -215,12 +222,7 @@ export function HomePage() {
               </span>
               <h3>Des expériences à découvrir</h3>
             </div>
-            {loading && (
-              <div className="public-experience-state" role="status">
-                <span className="spinner" /> Nous cherchons de nouvelles inspirations…
-              </div>
-            )}
-            {!loading && experiences.length === 0 && (
+            {experiences.length === 0 && (
               <div className="public-experience-state">
                 <Compass size={25} />
                 <strong>Le catalogue se prépare.</strong>
@@ -230,7 +232,7 @@ export function HomePage() {
                 </Link>
               </div>
             )}
-            {!loading && experiences.length > 0 && (
+            {experiences.length > 0 && (
               <div className="public-experience-grid">
                 {experiences.map((experience) => (
                   <article className="public-experience-card" key={experience.id}>

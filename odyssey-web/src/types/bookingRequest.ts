@@ -33,6 +33,7 @@ export interface BookingRequest {
     notes: string | null;
     flightCriteria: FlightCriteria | null;
     accommodationCriteria: AccommodationCriteria | null;
+    transferCriteria: TransferCriteria | null;
   };
   trip: {
     id: number;
