@@ -10,6 +10,7 @@ public record TripNeedResponse(
     NeedType type,
     NeedStatus status,
     String notes,
+    Long bookingRequestId,
     BookingRequestStatus bookingRequestStatus,
     BookingStatus bookingStatus,
     String providerConfirmationId

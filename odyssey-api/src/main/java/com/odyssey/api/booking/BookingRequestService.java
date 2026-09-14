@@ -188,7 +188,8 @@ public class BookingRequestService {
                 trip.getId(),
                 trip.getTitle(),
                 trip.getStartDate().toString(),
-                trip.getEndDate().toString()
+                trip.getEndDate().toString(),
+                trip.getAssistanceFee()
             );
 
         // Traveler

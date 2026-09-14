@@ -54,4 +54,13 @@ public class TripController {
     ) {
         return tripService.getTripDetail(id, jwt.getSubject());
     }
+
+    @PatchMapping("/{tripId}/assistance-fee")
+    @PreAuthorize("hasRole('AGENT')")
+    public TripResponse updateAssistanceFee(
+        @PathVariable Long tripId,
+        @Valid @RequestBody UpdateAssistanceFeeRequest request
+    ) {
+        return tripService.updateAssistanceFee(tripId, request.assistanceFee());
+    }
 }

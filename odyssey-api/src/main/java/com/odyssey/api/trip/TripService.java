@@ -8,9 +8,13 @@ import com.odyssey.api.booking.BookingRequestRepository;
 import com.odyssey.api.booking.confirmation.BookingRepository;
 import com.odyssey.api.exception.ResourceNotFoundException;
 import com.odyssey.api.need.NeedRepository;
+import com.odyssey.api.booking.confirmation.Booking;
+import com.odyssey.api.booking.BookingRequest;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
 import java.time.LocalDate;
 
 import java.util.List;
@@ -35,7 +39,8 @@ public class TripService {
         trip.getTraveler().getId(),
         trip.getTravelEvent() != null
             ? trip.getTravelEvent().getId()
-            : null
+            : null,
+        trip.getAssistanceFee()
     );
 }
 
@@ -116,9 +121,25 @@ public class TripService {
     }
 
     public TripResponse getTrip(Long id, String auth0Subject) {
-        Trip trip = getOwnedTrip(id, auth0Subject);
+        Trip trip = tripRepository.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("Trip not found"));
 
-       return toResponse(trip);
+        if (!trip.getTraveler().getAuth0Subject().equals(auth0Subject)) {
+            throw new ResourceNotFoundException("Trip not found");
+        }
+
+        return toResponse(trip);
+    }
+
+    @Transactional
+    public TripResponse updateAssistanceFee(Long tripId, BigDecimal assistanceFee) {
+        Trip trip = tripRepository.findById(tripId)
+            .orElseThrow(() -> new ResourceNotFoundException("Trip not found"));
+
+        trip.setAssistanceFee(assistanceFee);
+        tripRepository.save(trip);
+
+        return toResponse(trip);
     }
 
     @Transactional
@@ -154,12 +175,12 @@ public class TripService {
                 .stream()
                 .map(need -> {
 
-                    var bookingRequest =
+                    BookingRequest bookingRequest =
                         bookingRequestRepository
                             .findByNeedId(need.getId())
                             .orElse(null);
 
-                    var booking =
+                    Booking booking =
                         bookingRequest == null
                             ? null
                             : bookingRepository
@@ -173,11 +194,12 @@ public class TripService {
                         need.getType(),
                         need.getStatus(),
                         need.getNotes(),
-
+                        bookingRequest != null
+                            ? bookingRequest.getId()
+                            : null,
                         bookingRequest != null
                             ? bookingRequest.getStatus()
                             : null,
-
                         booking != null
                             ? booking.getStatus()
                             : null,
@@ -199,7 +221,8 @@ public class TripService {
             needs,
             trip.getTravelEvent() != null
                 ? trip.getTravelEvent().getId()
-                : null
+                : null,
+            trip.getAssistanceFee()
         );
     }
 
@@ -216,4 +239,5 @@ public class TripService {
             .findByIdAndTravelerId(tripId, traveler.getId())
             .orElseThrow(() -> new ResourceNotFoundException("Trip not found"));
     }
+
 }

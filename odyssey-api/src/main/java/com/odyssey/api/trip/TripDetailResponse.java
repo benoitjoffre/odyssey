@@ -1,5 +1,6 @@
 package com.odyssey.api.trip;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -11,5 +12,6 @@ public record TripDetailResponse(
     TripStatus status,
     Long travelerId,
     List<TripNeedResponse> needs,
-    Long travelEventId
+    Long travelEventId,
+    BigDecimal assistanceFee
 ) {}

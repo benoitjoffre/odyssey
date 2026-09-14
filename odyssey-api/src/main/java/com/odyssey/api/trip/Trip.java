@@ -4,6 +4,7 @@ import com.odyssey.api.travelevent.TravelEvent;
 import com.odyssey.api.traveler.Traveler;
 import jakarta.persistence.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -35,6 +36,9 @@ public class Trip {
 
     @OneToMany(mappedBy = "trip", cascade = CascadeType.REMOVE)
     private List<Need> needs = new ArrayList<>();
+
+    @Column(nullable = false)
+    private BigDecimal assistanceFee = BigDecimal.ZERO;
 
     public Trip() {
     }
@@ -89,5 +93,20 @@ public class Trip {
 
     public void setTravelEvent(TravelEvent travelEvent) {
         this.travelEvent = travelEvent;
+    }
+
+    public BigDecimal getAssistanceFee() {
+        return assistanceFee;
+    }
+
+    public void setAssistanceFee(BigDecimal assistanceFee) {
+        if (assistanceFee == null) {
+            throw new IllegalArgumentException("Assistance fee cannot be null");
+        }
+    
+        if (assistanceFee.compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("Assistance fee cannot be negative");
+        }
+        this.assistanceFee = assistanceFee;
     }
 }
