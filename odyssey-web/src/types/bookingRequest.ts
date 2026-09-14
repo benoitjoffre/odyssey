@@ -1,3 +1,5 @@
+import type { Trip } from "./trip";
+
 export type BookingRequestStatus = "REQUESTED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
 
 export type NeedType = "FLIGHT" | "ACCOMMODATION" | "CAR" | "TRANSFER" | "BUS";
@@ -35,12 +37,7 @@ export interface BookingRequest {
     accommodationCriteria: AccommodationCriteria | null;
     transferCriteria: TransferCriteria | null;
   };
-  trip: {
-    id: number;
-    title: string;
-    startDate: string;
-    endDate: string;
-  };
+  trip: Pick<Trip, "id" | "title" | "startDate" | "endDate"> & { assistanceFee?: number };
   traveler: {
     id: number;
     firstName: string;

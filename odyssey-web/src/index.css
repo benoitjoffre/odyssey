@@ -362,7 +362,7 @@ h2 {
 
 .agent-trip-requests li {
   display: grid;
-  grid-template-columns: 42px minmax(0, 1fr) auto auto;
+  grid-template-columns: 42px minmax(0, 1fr) minmax(130px, auto) auto auto;
   align-items: center;
   gap: 16px;
   min-height: 96px;
@@ -419,6 +419,23 @@ h2 {
   font-size: 12px;
 }
 
+.agent-request-price {
+  display: grid;
+  justify-items: end;
+  gap: 4px;
+}
+
+.agent-request-price span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.agent-request-price strong {
+  color: var(--ink);
+  font-size: 14px;
+  white-space: nowrap;
+}
+
 .agent-request-link {
   display: inline-flex;
   min-height: 36px;
@@ -440,6 +457,136 @@ h2 {
   background: #edf7f4;
   border-color: var(--primary);
   outline: none;
+}
+
+.trip-financial-summary {
+  display: grid;
+  gap: 0;
+  padding: 4px 24px 22px;
+  border-top: 1px solid var(--border);
+}
+
+.trip-financial-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 16px 0;
+}
+
+.trip-financial-row + .trip-financial-row {
+  border-top: 1px solid #e5ecea;
+}
+
+.trip-financial-row > div:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.trip-financial-row span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.trip-financial-values,
+.trip-fee-display {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.trip-financial-values strong,
+.trip-fee-display > strong {
+  color: var(--ink);
+  font-size: 18px;
+  white-space: nowrap;
+}
+
+.trip-assistance-row {
+  padding: 18px 0;
+  background: #f7faf8;
+}
+
+.trip-fee-inline-form {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+
+.trip-fee-inline-form label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.trip-fee-inline-form input {
+  width: 120px;
+  min-height: 42px;
+  padding: 0 10px;
+  color: var(--ink);
+  background: #ffffff;
+  border: 1px solid #c7d7d3;
+  border-radius: 6px;
+  outline: none;
+}
+
+.trip-fee-inline-form input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(8, 127, 114, 0.11);
+}
+
+.trip-estimated-total {
+  align-items: end;
+}
+
+.trip-estimated-total > strong {
+  max-width: 360px;
+  color: var(--primary-dark);
+  font-size: 21px;
+  text-align: right;
+}
+
+.trip-financial-error,
+.trip-financial-success {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  padding: 10px 0;
+  font-size: 13px;
+}
+
+.trip-financial-error {
+  color: #a34034;
+}
+
+.trip-financial-success {
+  color: #28643e;
+  font-weight: 700;
+}
+
+.trip-financial-explanation {
+  margin: 4px 0 0;
+  padding: 16px;
+  color: #45615d;
+  font-size: 13px;
+  line-height: 1.6;
+  background: #edf7f4;
+  border-left: 3px solid var(--primary);
+}
+
+.traveler-page > .trip-financial-summary {
+  padding: 8px 24px 24px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(29, 69, 65, 0.06);
 }
 
 .notification-heading-status {
@@ -1881,6 +2028,27 @@ h2 {
   line-height: 1.5;
 }
 
+.traveler-need-offer-price {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 20px;
+  padding-top: 17px;
+  border-top: 1px solid var(--border);
+}
+
+.traveler-need-offer-price span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.traveler-need-offer-price strong {
+  color: var(--primary-dark);
+  font-size: 16px;
+  text-align: right;
+}
+
 .traveler-booking-reference {
   display: grid;
   gap: 5px;
@@ -3109,10 +3277,35 @@ button.traveler-event-link {
     height: 38px;
   }
 
+  .agent-request-price,
   .agent-trip-requests .request-status,
   .agent-request-link {
     grid-column: 2;
     width: fit-content;
+  }
+
+  .agent-request-price {
+    justify-items: start;
+  }
+
+  .trip-financial-summary {
+    padding: 4px 17px 18px;
+  }
+
+  .trip-financial-row {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .trip-financial-values,
+  .trip-fee-display,
+  .trip-fee-inline-form {
+    justify-content: flex-start;
+  }
+
+  .trip-estimated-total > strong {
+    text-align: left;
   }
 
   .detail-grid,

@@ -17,6 +17,14 @@ export function createTrip(request: CreateTripRequest): Promise<Trip> {
   });
 }
 
+export function updateTripAssistanceFee(tripId: number, assistanceFee: number): Promise<Trip> {
+  return apiFetch<Trip>(`/api/trips/${tripId}/assistance-fee`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ assistanceFee }),
+  });
+}
+
 export function deleteTrip(tripId: number): Promise<void> {
   return apiFetch<void>(`/api/trips/${tripId}`, { method: "DELETE" });
 }

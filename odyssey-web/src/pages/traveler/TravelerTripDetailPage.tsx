@@ -18,10 +18,14 @@ import {
 } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { createBookingRequest } from "../../api/bookingRequests";
+import { getBookingRequestQuotes } from "../../api/travelerQuotes";
 import { deleteTrip, getTripDetail } from "../../api/trips";
+import { TripFinancialSummary } from "../../components/TripFinancialSummary";
 import { TravelerNeedForm } from "../../components/TravelerNeedForm";
+import { getLatestAcceptedQuote } from "../../helpers/travelerQuotes";
 import type { OrganizableNeedType } from "../../types/need";
 import type { TripDetail, TripNeed, TripNeedType } from "../../types/trip";
+import type { TravelerQuote } from "../../types/travelerQuote";
 
 const needLabels: Record<TripNeedType, string> = {
   ACCOMMODATION: "Hébergement",
@@ -68,12 +72,21 @@ function formatDate(value: string) {
   }).format(new Date(`${value}T00:00:00`));
 }
 
+function formatPrice(price: number, currency: string) {
+  return new Intl.NumberFormat("fr-FR", {
+    style: "currency",
+    currency,
+    maximumFractionDigits: 2,
+  }).format(price);
+}
+
 export function TravelerTripDetailPage() {
   const { tripId } = useParams<{ tripId: string }>();
   const navigate = useNavigate();
   const parsedTripId = Number(tripId);
   const hasInvalidTripId = !Number.isInteger(parsedTripId) || parsedTripId <= 0;
   const [trip, setTrip] = useState<TripDetail | null>(null);
+  const [acceptedQuotesByNeedId, setAcceptedQuotesByNeedId] = useState<Record<number, TravelerQuote | null>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [requestVersion, setRequestVersion] = useState(0);
@@ -134,7 +147,21 @@ export function TravelerTripDetailPage() {
       setError(null);
 
       try {
-        setTrip(await getTripDetail(parsedTripId, controller.signal));
+        const tripDetail = await getTripDetail(parsedTripId, controller.signal);
+
+        const acceptedQuoteEntries = await Promise.all(
+          tripDetail.needs.map(async (need) => {
+            if (!need.bookingRequestId) {
+              return [need.id, null] as const;
+            }
+
+            const quotes = await getBookingRequestQuotes(need.bookingRequestId, controller.signal);
+            return [need.id, getLatestAcceptedQuote(quotes)] as const;
+          }),
+        );
+
+        setTrip(tripDetail);
+        setAcceptedQuotesByNeedId(Object.fromEntries(acceptedQuoteEntries));
       } catch (requestError: unknown) {
         if (requestError instanceof DOMException && requestError.name === "AbortError") return;
         setError("Ce voyage est introuvable ou momentanément indisponible.");
@@ -224,6 +251,7 @@ export function TravelerTripDetailPage() {
           <div className="traveler-needs-grid">
             {trip.needs.map((need) => {
               const state = getTravelerNeedState(need);
+              const acceptedQuote = acceptedQuotesByNeedId[need.id] ?? null;
               return (
                 <article className="traveler-need-card" key={need.id}>
                   <div className="traveler-need-title">
@@ -243,6 +271,10 @@ export function TravelerTripDetailPage() {
                       {need.transferCriteria.travelers} {need.transferCriteria.travelers > 1 ? "voyageurs" : "voyageur"}
                     </p>
                   )}
+                  <div className="traveler-need-offer-price">
+                    <span>Offre retenue</span>
+                    <strong>{acceptedQuote ? formatPrice(acceptedQuote.providerPrice, acceptedQuote.currency) : "Offre à définir"}</strong>
+                  </div>
                   {need.status === "DRAFT" && !need.bookingRequestStatus && (
                     <div className="traveler-need-request-action">
                       {requestErrors[need.id] && <p role="alert">{requestErrors[need.id]}</p>}
@@ -264,6 +296,14 @@ export function TravelerTripDetailPage() {
           </div>
         )}
       </section>
+
+      <TripFinancialSummary
+        assistanceFee={trip.assistanceFee}
+        providerOffers={Object.values(acceptedQuotesByNeedId)
+          .filter((quote): quote is TravelerQuote => quote !== null)
+          .map(({ providerPrice, currency }) => ({ providerPrice, currency }))}
+        showTravelerExplanation
+      />
 
       <section aria-labelledby="organize-trip-title">
         <div className="section-heading traveler-needs-heading">

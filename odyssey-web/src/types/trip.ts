@@ -17,6 +17,7 @@ export interface Trip {
   endDate: string;
   status: TripStatus;
   travelEventId: number | null;
+  assistanceFee: number;
 }
 
 export interface TripNeed {
@@ -28,6 +29,7 @@ export interface TripNeed {
   bookingStatus: TripBookingStatus | null;
   providerConfirmationId: string | null;
   transferCriteria?: TransferCriteria | null;
+  bookingRequestId: number | null;
 }
 
 export interface TripDetail extends Trip {

@@ -3,7 +3,12 @@ import { ArrowRight, BedDouble, Bus, CalendarDays, Car, Inbox, Plane, RefreshCw,
 import { Link } from "react-router-dom";
 import { openAgentNotificationStream } from "../../api/agentNotificationStream";
 import { getBookingRequests } from "../../api/bookingRequests";
+import { getBookingRequestQuotes } from "../../api/travelerQuotes";
+import { updateTripAssistanceFee } from "../../api/trips";
+import { TripFinancialSummary } from "../../components/TripFinancialSummary";
+import { getLatestAcceptedQuote } from "../../helpers/travelerQuotes";
 import type { BookingRequest, BookingRequestStatus, NeedType } from "../../types/bookingRequest";
+import type { TravelerQuote } from "../../types/travelerQuote";
 
 const needPresentation: Record<NeedType, { label: string; icon: typeof Plane }> = {
   FLIGHT: { label: "Vol", icon: Plane },
@@ -27,6 +32,7 @@ interface TripRequestGroup {
   endDate: string;
   travelerName: string;
   travelerEmail: string;
+  assistanceFee?: number;
   requests: BookingRequest[];
 }
 
@@ -50,6 +56,7 @@ function groupRequestsByTrip(requests: BookingRequest[]) {
         endDate: request.trip.endDate,
         travelerName: request.traveler.firstName,
         travelerEmail: request.traveler.email,
+        assistanceFee: request.trip.assistanceFee,
         requests: [request],
       });
     });
@@ -73,7 +80,18 @@ function getRequestDetail(request: BookingRequest) {
     const { city, rooms } = request.need.accommodationCriteria;
     return `${city} · ${rooms} ${rooms > 1 ? "chambres" : "chambre"}`;
   }
+  if (request.need.type === "TRANSFER" && request.need.transferCriteria) {
+    return `${request.need.transferCriteria.pickupLocation} → ${request.need.transferCriteria.dropoffLocation}`;
+  }
   return request.notes ?? request.need.notes ?? "Aucune précision ajoutée";
+}
+
+function formatPrice(price: number, currency: string) {
+  return new Intl.NumberFormat("fr-FR", {
+    style: "currency",
+    currency,
+    maximumFractionDigits: 2,
+  }).format(price);
 }
 
 export function AgentBookingRequestsPage() {
@@ -81,6 +99,8 @@ export function AgentBookingRequestsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reloadVersion, setReloadVersion] = useState(0);
+  const [quotesByRequestId, setQuotesByRequestId] = useState<Record<number, TravelerQuote[]>>({});
+  const [tripFeeOverrides, setTripFeeOverrides] = useState<Record<number, number>>({});
   const latestRequestId = useRef(0);
 
   useEffect(() => {
@@ -94,9 +114,13 @@ export function AgentBookingRequestsPage() {
 
       try {
         const data = await getBookingRequests(controller.signal);
+        const quoteEntries = await Promise.all(
+          data.map(async (request) => [request.id, await getBookingRequestQuotes(request.id, controller.signal)] as const),
+        );
         if (!disposed && requestId === latestRequestId.current) {
           const requestsById = new Map(data.map((request) => [request.id, request]));
           setRequests([...requestsById.values()]);
+          setQuotesByRequestId(Object.fromEntries(quoteEntries));
         }
       } catch (requestError) {
         if (requestError instanceof DOMException && requestError.name === "AbortError") return;
@@ -128,6 +152,11 @@ export function AgentBookingRequestsPage() {
   }, [reloadVersion]);
 
   const tripGroups = groupRequestsByTrip(requests);
+
+  async function handleUpdateTripAssistanceFee(tripId: number, assistanceFee: number) {
+    const updatedTrip = await updateTripAssistanceFee(tripId, assistanceFee);
+    setTripFeeOverrides((current) => ({ ...current, [tripId]: updatedTrip.assistanceFee }));
+  }
 
   return (
     <div className="page-stack agent-requests-page">
@@ -176,52 +205,70 @@ export function AgentBookingRequestsPage() {
 
       {!loading && !error && tripGroups.length > 0 && (
         <div className="agent-trip-request-list">
-          {tripGroups.map((group) => (
-            <section className="agent-trip-request-group" key={group.tripId} aria-labelledby={`trip-${group.tripId}-title`}>
-              <header className="agent-trip-request-heading">
-                <div>
-                  <span className="agent-trip-reference">Voyage #{group.tripId}</span>
-                  <h2 id={`trip-${group.tripId}-title`}>{group.title}</h2>
-                  <p>
-                    {group.travelerName} · {group.travelerEmail}
-                  </p>
-                </div>
-                <div className="agent-trip-request-meta">
-                  <span>
-                    <CalendarDays size={15} aria-hidden="true" />
-                    {formatTripDates(group.startDate, group.endDate)}
-                  </span>
-                  <strong>
-                    {group.requests.length} {group.requests.length > 1 ? "demandes" : "demande"}
-                  </strong>
-                </div>
-              </header>
+          {tripGroups.map((group) => {
+            const acceptedQuotes = group.requests
+              .map((request) => getLatestAcceptedQuote(quotesByRequestId[request.id]))
+              .filter((quote): quote is TravelerQuote => quote !== null);
+            const assistanceFee = tripFeeOverrides[group.tripId] ?? group.assistanceFee;
 
-              <ul className="agent-trip-requests">
-                {group.requests.map((request) => {
-                  const presentation = needPresentation[request.need.type];
-                  const NeedIcon = presentation.icon;
-                  return (
-                    <li key={request.id}>
-                      <span className={`agent-request-type-icon ${request.need.type.toLowerCase()}`} aria-hidden="true">
-                        <NeedIcon size={19} />
-                      </span>
-                      <div className="agent-request-copy">
-                        <span>{presentation.label}</span>
-                        <strong>Demande #{request.id}</strong>
-                        <p>{getRequestDetail(request)}</p>
-                      </div>
-                      <span className={`request-status status-${request.status.toLowerCase()}`}>{statusLabels[request.status]}</span>
-                      <Link className="agent-request-link" to={`/agent/booking-requests/${request.id}`}>
-                        Voir la demande
-                        <ArrowRight size={16} aria-hidden="true" />
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
-            </section>
-          ))}
+            return (
+              <section className="agent-trip-request-group" key={group.tripId} aria-labelledby={`trip-${group.tripId}-title`}>
+                <header className="agent-trip-request-heading">
+                  <div>
+                    <span className="agent-trip-reference">Voyage #{group.tripId}</span>
+                    <h2 id={`trip-${group.tripId}-title`}>{group.title}</h2>
+                    <p>
+                      {group.travelerName} · {group.travelerEmail}
+                    </p>
+                  </div>
+                  <div className="agent-trip-request-meta">
+                    <span>
+                      <CalendarDays size={15} aria-hidden="true" />
+                      {formatTripDates(group.startDate, group.endDate)}
+                    </span>
+                    <strong>
+                      {group.requests.length} {group.requests.length > 1 ? "demandes" : "demande"}
+                    </strong>
+                  </div>
+                </header>
+
+                <ul className="agent-trip-requests">
+                  {group.requests.map((request) => {
+                    const presentation = needPresentation[request.need.type];
+                    const NeedIcon = presentation.icon;
+                    const acceptedQuote = getLatestAcceptedQuote(quotesByRequestId[request.id]);
+                    return (
+                      <li key={request.id}>
+                        <span className={`agent-request-type-icon ${request.need.type.toLowerCase()}`} aria-hidden="true">
+                          <NeedIcon size={19} />
+                        </span>
+                        <div className="agent-request-copy">
+                          <span>{presentation.label}</span>
+                          <strong>Demande #{request.id}</strong>
+                          <p>{getRequestDetail(request)}</p>
+                        </div>
+                        <div className="agent-request-price">
+                          <span>Prix de l’offre</span>
+                          <strong>{acceptedQuote ? formatPrice(acceptedQuote.providerPrice, acceptedQuote.currency) : "Offre à définir"}</strong>
+                        </div>
+                        <span className={`request-status status-${request.status.toLowerCase()}`}>{statusLabels[request.status]}</span>
+                        <Link className="agent-request-link" to={`/agent/booking-requests/${request.id}`}>
+                          Voir la demande
+                          <ArrowRight size={16} aria-hidden="true" />
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+                <TripFinancialSummary
+                  assistanceFee={assistanceFee}
+                  providerOffers={acceptedQuotes}
+                  editable
+                  onSaveAssistanceFee={(value) => handleUpdateTripAssistanceFee(group.tripId, value)}
+                />
+              </section>
+            );
+          })}
         </div>
       )}
     </div>
