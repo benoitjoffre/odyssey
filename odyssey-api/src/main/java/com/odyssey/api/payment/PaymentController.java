@@ -16,12 +16,12 @@ public class PaymentController {
     }
 
     @PreAuthorize("hasRole('TRAVELER')")
-    @PostMapping("/api/quotes/{quoteId}/payment/checkout")
+    @PostMapping("/api/trips/{tripId}/payment/checkout")
     public CheckoutSessionResponse createCheckoutSession(
-        @PathVariable Long quoteId,
+        @PathVariable Long tripId,
         @AuthenticationPrincipal Jwt jwt
     ) {
-        return paymentService.createCheckoutSession(quoteId, jwt.getSubject());
+        return paymentService.createCheckoutSession(tripId, jwt.getSubject());
     }
 
     /**

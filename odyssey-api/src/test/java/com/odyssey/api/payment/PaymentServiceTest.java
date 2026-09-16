@@ -1,8 +1,5 @@
 package com.odyssey.api.payment;
 
-import com.odyssey.api.agent.Agent;
-import com.odyssey.api.booking.BookingRequest;
-import com.odyssey.api.need.Need;
 import com.odyssey.api.outbox.OutboxEvent;
 import com.odyssey.api.outbox.OutboxEventRepository;
 import com.odyssey.api.outbox.OutboxStatus;
@@ -11,12 +8,11 @@ import com.odyssey.api.payment.stripe.StripeCheckoutSessionRequest;
 import com.odyssey.api.payment.stripe.StripeGateway;
 import com.odyssey.api.payment.stripe.StripeProperties;
 import com.odyssey.api.payment.stripe.StripeWebhookEvent;
-import com.odyssey.api.quote.Quote;
-import com.odyssey.api.quote.QuoteRepository;
-import com.odyssey.api.quote.QuoteStatus;
 import com.odyssey.api.traveler.Traveler;
 import com.odyssey.api.traveler.TravelerRepository;
 import com.odyssey.api.trip.Trip;
+import com.odyssey.api.trip.TripRepository;
+import com.odyssey.api.trip.TripStatus;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -49,13 +45,11 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class PaymentServiceTest {
 
-    private static final Long QUOTE_ID = 42L;
+    private static final Long TRIP_ID = 42L;
     private static final Long TRAVELER_ID = 5L;
-    private static final Long AGENT_ID = 7L;
-    private static final Long BOOKING_REQUEST_ID = 9L;
 
     @Mock
-    private QuoteRepository quoteRepository;
+    private TripRepository tripRepository;
 
     @Mock
     private PaymentRepository paymentRepository;
@@ -80,7 +74,7 @@ class PaymentServiceTest {
         travelerRepository = mock(TravelerRepository.class);
 
         paymentService = new PaymentService(
-            quoteRepository,
+            tripRepository,
             travelerRepository,
             paymentRepository,
             outboxEventRepository,
@@ -90,42 +84,24 @@ class PaymentServiceTest {
         );
     }
 
-    private Quote acceptedQuote() {
+    private Trip confirmedTrip() {
         Traveler traveler = new Traveler();
         ReflectionTestUtils.setField(traveler, "id", TRAVELER_ID);
 
         Trip trip = new Trip();
+        ReflectionTestUtils.setField(trip, "id", TRIP_ID);
         ReflectionTestUtils.setField(trip, "traveler", traveler);
-
-        Need need = new Need();
-        ReflectionTestUtils.setField(need, "trip", trip);
-
-        Agent agent = new Agent();
-        ReflectionTestUtils.setField(agent, "id", AGENT_ID);
-
-        BookingRequest bookingRequest = new BookingRequest();
-        ReflectionTestUtils.setField(bookingRequest, "id", BOOKING_REQUEST_ID);
-        bookingRequest.setNeed(need);
-        bookingRequest.setAssignedAgent(agent);
-
-        Quote quote = new Quote();
-        ReflectionTestUtils.setField(quote, "id", QUOTE_ID);
-        quote.setBookingRequest(bookingRequest);
-        quote.setStatus(QuoteStatus.ACCEPTED);
-        quote.setCurrency("EUR");
-        quote.setDescription("Hôtel test");
-        quote.setProviderPrice(BigDecimal.valueOf(670));
-        quote.setAssistanceFee(BigDecimal.valueOf(100));
-        quote.setTotalAmount(BigDecimal.valueOf(770));
-        return quote;
+        trip.setStatus(TripStatus.CONFIRMED);
+        trip.setAssistanceFee(BigDecimal.valueOf(100));
+        return trip;
     }
 
     @Test
     void createCheckoutSessionCreatesPendingPaymentAndReturnsCheckoutUrl() {
 
-        Quote quote = acceptedQuote();
-        when(quoteRepository.findByIdForUpdate(QUOTE_ID)).thenReturn(Optional.of(quote));
-        when(paymentRepository.findFirstByQuoteIdOrderByCreatedAtDesc(QUOTE_ID))
+        Trip trip = confirmedTrip();
+        when(tripRepository.findByIdForUpdate(TRIP_ID)).thenReturn(Optional.of(trip));
+        when(paymentRepository.findFirstByTripIdOrderByCreatedAtDesc(TRIP_ID))
             .thenReturn(Optional.empty());
         when(paymentRepository.save(any(Payment.class)))
             .thenAnswer(invocation -> {
@@ -138,7 +114,7 @@ class PaymentServiceTest {
         when(stripeGateway.createCheckoutSession(any(StripeCheckoutSessionRequest.class)))
             .thenReturn(new StripeCheckoutSession("cs_test_123", "https://checkout.stripe.com/test-session"));
 
-        CheckoutSessionResponse response = paymentService.createCheckoutSession(QUOTE_ID, TRAVELER_ID);
+        CheckoutSessionResponse response = paymentService.createCheckoutSession(TRIP_ID, TRAVELER_ID);
 
         assertEquals(100L, response.paymentId());
         assertEquals("https://checkout.stripe.com/test-session", response.checkoutUrl());
@@ -157,46 +133,46 @@ class PaymentServiceTest {
     }
 
     @Test
-    void createCheckoutSessionRejectsNonAcceptedQuote() {
+    void createCheckoutSessionRejectsNonConfirmedTrip() {
 
-        Quote quote = acceptedQuote();
-        quote.setStatus(QuoteStatus.SENT);
-        when(quoteRepository.findByIdForUpdate(QUOTE_ID)).thenReturn(Optional.of(quote));
+        Trip trip = confirmedTrip();
+        trip.setStatus(TripStatus.DRAFT);
+        when(tripRepository.findByIdForUpdate(TRIP_ID)).thenReturn(Optional.of(trip));
 
         assertThrows(
             IllegalArgumentException.class,
-            () -> paymentService.createCheckoutSession(QUOTE_ID, TRAVELER_ID)
+            () -> paymentService.createCheckoutSession(TRIP_ID, TRAVELER_ID)
         );
         verify(stripeGateway, never()).createCheckoutSession(any());
     }
 
     @Test
-    void createCheckoutSessionRejectsAlreadyPaidQuote() {
+    void createCheckoutSessionRejectsAlreadyPaidTrip() {
 
-        Quote quote = acceptedQuote();
-        when(quoteRepository.findByIdForUpdate(QUOTE_ID)).thenReturn(Optional.of(quote));
+        Trip trip = confirmedTrip();
+        when(tripRepository.findByIdForUpdate(TRIP_ID)).thenReturn(Optional.of(trip));
 
         Payment paidPayment = new Payment();
         paidPayment.setStatus(PaymentStatus.PAID);
-        when(paymentRepository.findFirstByQuoteIdOrderByCreatedAtDesc(QUOTE_ID))
+        when(paymentRepository.findFirstByTripIdOrderByCreatedAtDesc(TRIP_ID))
             .thenReturn(Optional.of(paidPayment));
 
         assertThrows(
             IllegalArgumentException.class,
-            () -> paymentService.createCheckoutSession(QUOTE_ID, TRAVELER_ID)
+            () -> paymentService.createCheckoutSession(TRIP_ID, TRAVELER_ID)
         );
         verify(stripeGateway, never()).createCheckoutSession(any());
     }
 
     @Test
-    void createCheckoutSessionRejectsWhenQuoteBelongsToAnotherTraveler() {
+    void createCheckoutSessionRejectsWhenTripBelongsToAnotherTraveler() {
 
-        Quote quote = acceptedQuote();
-        when(quoteRepository.findByIdForUpdate(QUOTE_ID)).thenReturn(Optional.of(quote));
+        Trip trip = confirmedTrip();
+        when(tripRepository.findByIdForUpdate(TRIP_ID)).thenReturn(Optional.of(trip));
 
         assertThrows(
             IllegalArgumentException.class,
-            () -> paymentService.createCheckoutSession(QUOTE_ID, 999L)
+            () -> paymentService.createCheckoutSession(TRIP_ID, 999L)
         );
         verify(stripeGateway, never()).createCheckoutSession(any());
     }
@@ -204,22 +180,22 @@ class PaymentServiceTest {
     @Test
     void createCheckoutSessionReusesExistingPendingPaymentRowOnDuplicateCheckout() {
 
-        Quote quote = acceptedQuote();
-        when(quoteRepository.findByIdForUpdate(QUOTE_ID)).thenReturn(Optional.of(quote));
+        Trip trip = confirmedTrip();
+        when(tripRepository.findByIdForUpdate(TRIP_ID)).thenReturn(Optional.of(trip));
 
         Payment existingPayment = new Payment();
         ReflectionTestUtils.setField(existingPayment, "id", 55L);
         existingPayment.setStatus(PaymentStatus.PENDING);
         existingPayment.setCheckoutAttempt(1);
         existingPayment.setStripeCheckoutSessionId("cs_test_456");
-        when(paymentRepository.findFirstByQuoteIdOrderByCreatedAtDesc(QUOTE_ID))
+        when(paymentRepository.findFirstByTripIdOrderByCreatedAtDesc(TRIP_ID))
             .thenReturn(Optional.of(existingPayment));
         when(paymentRepository.save(any(Payment.class)))
             .thenAnswer(invocation -> invocation.getArgument(0));
         when(stripeGateway.createCheckoutSession(any(StripeCheckoutSessionRequest.class)))
             .thenReturn(new StripeCheckoutSession("cs_test_456", "https://checkout.stripe.com/test-session-2"));
 
-        CheckoutSessionResponse response = paymentService.createCheckoutSession(QUOTE_ID, TRAVELER_ID);
+        CheckoutSessionResponse response = paymentService.createCheckoutSession(TRIP_ID, TRAVELER_ID);
 
         assertEquals(55L, response.paymentId());
         // Still ONE Payment row: no new Payment was created, the existing
@@ -242,22 +218,22 @@ class PaymentServiceTest {
     @Test
     void createCheckoutSessionUsesFreshAttemptAndIdempotencyKeyWhenRetryingAfterFailure() {
 
-        Quote quote = acceptedQuote();
-        when(quoteRepository.findByIdForUpdate(QUOTE_ID)).thenReturn(Optional.of(quote));
+        Trip trip = confirmedTrip();
+        when(tripRepository.findByIdForUpdate(TRIP_ID)).thenReturn(Optional.of(trip));
 
         Payment failedPayment = new Payment();
         ReflectionTestUtils.setField(failedPayment, "id", 77L);
         failedPayment.setStatus(PaymentStatus.FAILED);
         failedPayment.setCheckoutAttempt(1);
         failedPayment.setStripeCheckoutSessionId("cs_test_old_failed");
-        when(paymentRepository.findFirstByQuoteIdOrderByCreatedAtDesc(QUOTE_ID))
+        when(paymentRepository.findFirstByTripIdOrderByCreatedAtDesc(TRIP_ID))
             .thenReturn(Optional.of(failedPayment));
         when(paymentRepository.save(any(Payment.class)))
             .thenAnswer(invocation -> invocation.getArgument(0));
         when(stripeGateway.createCheckoutSession(any(StripeCheckoutSessionRequest.class)))
             .thenReturn(new StripeCheckoutSession("cs_test_new", "https://checkout.stripe.com/test-session-retry"));
 
-        CheckoutSessionResponse response = paymentService.createCheckoutSession(QUOTE_ID, TRAVELER_ID);
+        CheckoutSessionResponse response = paymentService.createCheckoutSession(TRIP_ID, TRAVELER_ID);
 
         // Still ONE Payment row (id 77 reused), now back to PENDING with a
         // fresh Stripe session and a bumped attempt number so the
@@ -275,9 +251,9 @@ class PaymentServiceTest {
     @Test
     void createCheckoutSessionMarksPaymentFailedAndRethrowsWhenStripeCallFails() {
 
-        Quote quote = acceptedQuote();
-        when(quoteRepository.findByIdForUpdate(QUOTE_ID)).thenReturn(Optional.of(quote));
-        when(paymentRepository.findFirstByQuoteIdOrderByCreatedAtDesc(QUOTE_ID))
+        Trip trip = confirmedTrip();
+        when(tripRepository.findByIdForUpdate(TRIP_ID)).thenReturn(Optional.of(trip));
+        when(paymentRepository.findFirstByTripIdOrderByCreatedAtDesc(TRIP_ID))
             .thenReturn(Optional.empty());
         when(paymentRepository.save(any(Payment.class)))
             .thenAnswer(invocation -> {
@@ -292,7 +268,7 @@ class PaymentServiceTest {
 
         assertThrows(
             IllegalStateException.class,
-            () -> paymentService.createCheckoutSession(QUOTE_ID, TRAVELER_ID)
+            () -> paymentService.createCheckoutSession(TRIP_ID, TRAVELER_ID)
         );
 
         ArgumentCaptor<Payment> savedPaymentCaptor = ArgumentCaptor.forClass(Payment.class);
@@ -305,34 +281,34 @@ class PaymentServiceTest {
     @Test
     void createCheckoutSessionTranslatesDuplicatePaymentConstraintViolationCleanly() {
 
-        // Last line of defence: even though the Quote row lock should
+        // Last line of defence: even though the Trip row lock should
         // already prevent this, a UNIQUE constraint violation on
-        // payments.quote_id must never leak SQL/database details to the
+        // payments.trip_id must never leak SQL/database details to the
         // caller.
-        Quote quote = acceptedQuote();
-        when(quoteRepository.findByIdForUpdate(QUOTE_ID)).thenReturn(Optional.of(quote));
-        when(paymentRepository.findFirstByQuoteIdOrderByCreatedAtDesc(QUOTE_ID))
+        Trip trip = confirmedTrip();
+        when(tripRepository.findByIdForUpdate(TRIP_ID)).thenReturn(Optional.of(trip));
+        when(paymentRepository.findFirstByTripIdOrderByCreatedAtDesc(TRIP_ID))
             .thenReturn(Optional.empty());
         when(paymentRepository.save(any(Payment.class)))
             .thenThrow(new org.springframework.dao.DataIntegrityViolationException("duplicate key value violates unique constraint"));
 
         IllegalArgumentException exception = assertThrows(
             IllegalArgumentException.class,
-            () -> paymentService.createCheckoutSession(QUOTE_ID, TRAVELER_ID)
+            () -> paymentService.createCheckoutSession(TRIP_ID, TRAVELER_ID)
         );
-        assertEquals("A payment for this quote is already being processed", exception.getMessage());
+        assertEquals("A payment for this trip is already being processed", exception.getMessage());
         verify(stripeGateway, never()).createCheckoutSession(any());
     }
 
-    private Payment pendingPaymentFor(Quote quote, String checkoutSessionId) {
+    private Payment pendingPaymentFor(Trip trip, String checkoutSessionId) {
         Payment payment = new Payment();
         ReflectionTestUtils.setField(payment, "id", 200L);
-        payment.setQuote(quote);
+        payment.setTrip(trip);
         payment.setStatus(PaymentStatus.PENDING);
-        payment.setCurrency(quote.getCurrency());
-        payment.setProviderAmount(quote.getProviderPrice());
-        payment.setAssistanceFee(quote.getAssistanceFee());
-        payment.setTotalAmount(quote.getTotalAmount());
+        payment.setCurrency("EUR");
+        payment.setProviderAmount(BigDecimal.ZERO);
+        payment.setAssistanceFee(trip.getAssistanceFee());
+        payment.setTotalAmount(trip.getAssistanceFee());
         payment.setStripeCheckoutSessionId(checkoutSessionId);
         return payment;
     }
@@ -340,8 +316,8 @@ class PaymentServiceTest {
     @Test
     void webhookMarksPaymentPaidAndCreatesPaymentSucceededOutboxEvent() {
 
-        Quote quote = acceptedQuote();
-        Payment payment = pendingPaymentFor(quote, "cs_test_123");
+        Trip trip = confirmedTrip();
+        Payment payment = pendingPaymentFor(trip, "cs_test_123");
 
         when(paymentRepository.findByStripeCheckoutSessionId("cs_test_123"))
             .thenReturn(Optional.of(payment));
@@ -368,8 +344,8 @@ class PaymentServiceTest {
         // reports having charged 77000 cents (providerPrice + assistanceFee),
         // this MUST be rejected: Odyssey never collects the Provider's
         // money, so such an event cannot be trusted.
-        Quote quote = acceptedQuote();
-        Payment payment = pendingPaymentFor(quote, "cs_test_123");
+        Trip trip = confirmedTrip();
+        Payment payment = pendingPaymentFor(trip, "cs_test_123");
 
         when(paymentRepository.findByStripeCheckoutSessionId("cs_test_123"))
             .thenReturn(Optional.of(payment));
@@ -385,8 +361,8 @@ class PaymentServiceTest {
     @Test
     void webhookRefusesToMarkPaidWhenStripeCurrencyMismatches() {
 
-        Quote quote = acceptedQuote();
-        Payment payment = pendingPaymentFor(quote, "cs_test_123");
+        Trip trip = confirmedTrip();
+        Payment payment = pendingPaymentFor(trip, "cs_test_123");
 
         when(paymentRepository.findByStripeCheckoutSessionId("cs_test_123"))
             .thenReturn(Optional.of(payment));
@@ -402,8 +378,8 @@ class PaymentServiceTest {
     @Test
     void duplicateWebhookDeliveryDoesNotCreateDuplicateOutboxEvent() {
 
-        Quote quote = acceptedQuote();
-        Payment payment = pendingPaymentFor(quote, "cs_test_123");
+        Trip trip = confirmedTrip();
+        Payment payment = pendingPaymentFor(trip, "cs_test_123");
 
         when(paymentRepository.findByStripeCheckoutSessionId("cs_test_123"))
             .thenReturn(Optional.of(payment));
@@ -448,8 +424,8 @@ class PaymentServiceTest {
     @Test
     void checkoutSessionExpiredMarksPendingPaymentFailed() {
 
-        Quote quote = acceptedQuote();
-        Payment payment = pendingPaymentFor(quote, "cs_test_123");
+        Trip trip = confirmedTrip();
+        Payment payment = pendingPaymentFor(trip, "cs_test_123");
 
         when(paymentRepository.findByStripeCheckoutSessionId("cs_test_123"))
             .thenReturn(Optional.of(payment));
@@ -464,8 +440,8 @@ class PaymentServiceTest {
     @Test
     void duplicateExpiredWebhookForAlreadyFailedPaymentIsIdempotent() {
 
-        Quote quote = acceptedQuote();
-        Payment payment = pendingPaymentFor(quote, "cs_test_123");
+        Trip trip = confirmedTrip();
+        Payment payment = pendingPaymentFor(trip, "cs_test_123");
         payment.setStatus(PaymentStatus.FAILED);
 
         when(paymentRepository.findByStripeCheckoutSessionId("cs_test_123"))
@@ -485,8 +461,8 @@ class PaymentServiceTest {
     @Test
     void lateExpiredWebhookForAlreadyPaidPaymentDoesNotDowngradeIt() {
 
-        Quote quote = acceptedQuote();
-        Payment payment = pendingPaymentFor(quote, "cs_test_123");
+        Trip trip = confirmedTrip();
+        Payment payment = pendingPaymentFor(trip, "cs_test_123");
         payment.setStatus(PaymentStatus.PAID);
 
         when(paymentRepository.findByStripeCheckoutSessionId("cs_test_123"))
@@ -507,8 +483,8 @@ class PaymentServiceTest {
     @Test
     void checkoutSessionAsyncPaymentFailedMarksPendingPaymentFailed() {
 
-        Quote quote = acceptedQuote();
-        Payment payment = pendingPaymentFor(quote, "cs_test_123");
+        Trip trip = confirmedTrip();
+        Payment payment = pendingPaymentFor(trip, "cs_test_123");
 
         when(paymentRepository.findByStripeCheckoutSessionId("cs_test_123"))
             .thenReturn(Optional.of(payment));
@@ -523,8 +499,8 @@ class PaymentServiceTest {
     @Test
     void lateAsyncPaymentFailedWebhookForAlreadyPaidPaymentDoesNotDowngradeIt() {
 
-        Quote quote = acceptedQuote();
-        Payment payment = pendingPaymentFor(quote, "cs_test_123");
+        Trip trip = confirmedTrip();
+        Payment payment = pendingPaymentFor(trip, "cs_test_123");
         payment.setStatus(PaymentStatus.PAID);
 
         when(paymentRepository.findByStripeCheckoutSessionId("cs_test_123"))

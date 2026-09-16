@@ -1,6 +1,10 @@
 package com.odyssey.api.event;
 
 import java.time.Instant;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -95,7 +99,7 @@ public class AgentNotificationEventListener {
         } catch (Exception exception) {
             logger.error(
                 "Failed to handle PaymentSucceededEvent for booking request {}",
-                event.bookingRequestId(),
+                event.tripId(),
                 exception
             );
         }
@@ -271,59 +275,40 @@ public class AgentNotificationEventListener {
 
     private void handlePaymentSucceeded(PaymentSucceededEvent event) {
 
-        if (event.agentId() == null) {
-            return;
-        }
+        List<BookingRequest> bookingRequests = bookingRequestRepository.findByNeedTripId(event.tripId());
 
-        BookingRequest bookingRequest =
-            bookingRequestRepository
-                .findById(event.bookingRequestId())
-                .orElseThrow(() ->
-                    new ResourceNotFoundException(
-                        "Booking request not found"
-                    )
-                );
+        Set<Long> notifiedAgentIds = new HashSet<Long>();
 
-        Agent agent = agentRepository
-            .findById(event.agentId())
-            .orElseThrow(() ->
-                new ResourceNotFoundException(
-                    "Agent not found"
-                )
+        for (BookingRequest bookingRequest : bookingRequests) {
+            Agent agent = bookingRequest.getAssignedAgent();
+            if (agent == null || notifiedAgentIds.contains(agent.getId())) {
+                continue;
+            }
+
+            notifiedAgentIds.add(agent.getId());
+
+            AgentNotification notification = new AgentNotification();
+
+            notification.setAgent(agent);
+            notification.setBookingRequest(bookingRequest);
+
+            notification.setMessage(
+                "Les frais d'assistance Odyssey ("
+                    + event.assistanceFee()
+                    + " "
+                    + event.currency()
+                    + ") ont été payés pour le voyage #"
+                    + event.tripId()
+                    + ". Vous pouvez poursuivre les réservations fournisseurs."
             );
 
-        AgentNotification notification =
-            new AgentNotification();
+            notification.setRead(false);
+            notification.setCreatedAt(Instant.now());
+            AgentNotification savedNotification = notificationRepository.save(notification);
 
-        notification.setAgent(agent);
-        notification.setBookingRequest(bookingRequest);
+            AgentNotificationResponse response = AgentNotificationResponse.from(savedNotification);
 
-        notification.setMessage(
-            "Le client a payé la proposition ("
-                + event.totalAmount()
-                + " "
-                + event.currency()
-                + ") pour la demande #"
-                + bookingRequest.getId()
-                + " — vous pouvez procéder à la réservation."
-        );
-
-        notification.setRead(false);
-        notification.setCreatedAt(Instant.now());
-
-        AgentNotification savedNotification =
-            notificationRepository.save(notification);
-
-        AgentNotificationResponse response =
-            AgentNotificationResponse.from(savedNotification);
-
-        sseService.send(agent.getId(), response);
-
-        System.out.println(
-            "NOTIFICATION → Agent "
-                + agent.getId()
-                + " : "
-                + notification.getMessage()
-        );
+            sseService.send(agent.getId(), response);
+        }
     }
 }

@@ -1,13 +1,13 @@
 package com.odyssey.api.payment;
 
-import com.odyssey.api.quote.Quote;
+import com.odyssey.api.trip.Trip;
 import jakarta.persistence.*;
 
 import java.math.BigDecimal;
 import java.time.Instant;
 
 /**
- * A Payment belongs to exactly one accepted {@link Quote}. It represents
+ * A Payment belongs to exactly one accepted {@link Trip}. It represents
  * money paid by the Traveler to <strong>Odyssey</strong> only.
  *
  * <p>Odyssey is an assistance service: it never resells the travel
@@ -33,25 +33,24 @@ public class Payment {
     private Long id;
 
     /**
-     * Odyssey's invariant is ONE Payment per Quote: a Quote is paid at most
+     * Odyssey's invariant is ONE Payment per Trip: a Trip is paid at most
      * once, and every Checkout retry (PENDING re-click, FAILED retry)
      * reuses this same row rather than creating a new one. The
      * {@code unique = true} join column turns this into an actual database
      * constraint (not just an application convention), so that even a bug
-     * or a race that slips past the {@code Quote} row lock in
+     * or a race that slips past the {@code Trip} row lock in
      * {@code PaymentService.createCheckoutSession} can never result in two
-     * Payment rows for the same Quote.
+     * Payment rows for the same Trip.
      */
-    @ManyToOne(optional = false)
-    @JoinColumn(name = "quote_id", nullable = false, unique = true)
-    private Quote quote;
+    @OneToOne(optional = false)
+    @JoinColumn(name = "trip_id", nullable = false, unique = true)
+    private Trip trip;
 
     /**
-     * Informational only: the Provider's share of the estimated total
-     * cost, paid by the Traveler directly to the Provider. Never charged
-     * by Odyssey/Stripe.
+     * Legacy Quote-level snapshot. New Trip payments leave it empty because
+     * a Trip can contain offers in multiple currencies.
      */
-    @Column(nullable = false)
+    @Column
     private BigDecimal providerAmount;
 
     /**
@@ -64,11 +63,10 @@ public class Payment {
     private BigDecimal assistanceFee;
 
     /**
-     * Informational only: {@code providerAmount + assistanceFee} at the
-     * time this Payment was created, i.e. the estimated total cost shown
-     * to the Traveler. NOT the amount charged by Stripe.
+     * Legacy Quote-level snapshot. The Trip assistance fee is the only
+     * authoritative amount collected by Odyssey.
      */
-    @Column(nullable = false)
+    @Column
     private BigDecimal totalAmount;
 
     @Column(nullable = false)
@@ -116,12 +114,12 @@ public class Payment {
         return id;
     }
 
-    public Quote getQuote() {
-        return quote;
+    public Trip getTrip() {
+        return trip;
     }
 
-    public void setQuote(Quote quote) {
-        this.quote = quote;
+    public void setTrip(Trip trip) {
+        this.trip = trip;
     }
 
     public BigDecimal getProviderAmount() {

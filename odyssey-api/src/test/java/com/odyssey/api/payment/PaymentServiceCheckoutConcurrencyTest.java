@@ -46,10 +46,10 @@ import static org.mockito.Mockito.when;
 
 /**
  * Reproduces two HTTP requests racing to create a Checkout Session for the
- * SAME Quote at (almost) the same time, and proves the fix in
- * {@link PaymentService#createCheckoutSession} — the Quote row lock
- * ({@code QuoteRepository.findByIdForUpdate}) — serializes them so that
- * only ONE {@link Payment} row is ever created for that Quote.
+ * SAME Trip at (almost) the same time, and proves the fix in
+ * {@link PaymentService#createCheckoutSession} — the Trip row lock
+ * ({@code TripRepository.findByIdForUpdate}) — serializes them so that
+ * only ONE {@link Payment} row is ever created for that Trip.
  *
  * <p>Not {@code @Transactional}: each concurrent call must run in its own
  * real transaction/connection to actually exercise Postgres row locking
@@ -92,19 +92,16 @@ class PaymentServiceCheckoutConcurrencyTest {
     @MockitoBean
     private StripeGateway stripeGateway;
 
-    private Long createdQuoteId;
     private Long createdTripId;
     private Long createdTravelerId;
     private Long createdAgentId;
 
     @AfterEach
     void cleanUp() {
-        // Payment is not part of the Trip -> Need -> BookingRequest -> Quote
-        // cascade (Payment has no mapped inverse collection on Quote), so it
-        // must be deleted explicitly before the cascading Trip deletion
-        // below removes the Quote it points to.
-        if (createdQuoteId != null) {
-            paymentRepository.findByQuoteIdOrderByCreatedAtDesc(createdQuoteId)
+        // Payment has no mapped inverse collection on Trip, so it must be
+        // deleted explicitly before deleting the Trip it points to.
+        if (createdTripId != null) {
+            paymentRepository.findByTripIdOrderByCreatedAtDesc(createdTripId)
                 .forEach(paymentRepository::delete);
         }
         // Deleting the Trip cascades (CascadeType.REMOVE) down through Need,
@@ -123,7 +120,7 @@ class PaymentServiceCheckoutConcurrencyTest {
     }
 
     @Test
-    void concurrentCheckoutRequestsForSameQuoteCreateOnlyOnePayment() throws Exception {
+    void concurrentCheckoutRequestsForSameTripCreateOnlyOnePayment() throws Exception {
 
         when(stripeGateway.createCheckoutSession(any(StripeCheckoutSessionRequest.class)))
             .thenAnswer(invocation -> new StripeCheckoutSession(
@@ -142,7 +139,8 @@ class PaymentServiceCheckoutConcurrencyTest {
         trip.setTitle("Concurrency test trip");
         trip.setStartDate(LocalDate.now().plusDays(1));
         trip.setEndDate(LocalDate.now().plusDays(2));
-        trip.setStatus(TripStatus.DRAFT);
+        trip.setStatus(TripStatus.CONFIRMED);
+        trip.setAssistanceFee(BigDecimal.valueOf(100));
         trip.setTraveler(traveler);
         trip = tripRepository.save(trip);
         createdTripId = trip.getId();
@@ -184,8 +182,6 @@ class PaymentServiceCheckoutConcurrencyTest {
                 null
             )
         );
-        createdQuoteId = quote.id();
-
         quoteService.sendQuote(quote.id(), agent.getId());
         quoteService.acceptQuote(quote.id(), traveler.getId());
 
@@ -201,7 +197,7 @@ class PaymentServiceCheckoutConcurrencyTest {
                 readyLatch.countDown();
                 try {
                     startLatch.await();
-                    paymentService.createCheckoutSession(quote.id(), traveler.getId());
+                    paymentService.createCheckoutSession(createdTripId, traveler.getId());
                     successCount.incrementAndGet();
                 } catch (InterruptedException interrupted) {
                     Thread.currentThread().interrupt();
@@ -220,7 +216,7 @@ class PaymentServiceCheckoutConcurrencyTest {
 
         assertEquals(concurrentRequests, successCount.get());
 
-        List<Payment> payments = paymentRepository.findByQuoteIdOrderByCreatedAtDesc(quote.id());
+        List<Payment> payments = paymentRepository.findByTripIdOrderByCreatedAtDesc(createdTripId);
         assertEquals(1, payments.size());
     }
 }

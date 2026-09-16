@@ -121,12 +121,7 @@ public class TripService {
     }
 
     public TripResponse getTrip(Long id, String auth0Subject) {
-        Trip trip = tripRepository.findById(id)
-            .orElseThrow(() -> new ResourceNotFoundException("Trip not found"));
-
-        if (!trip.getTraveler().getAuth0Subject().equals(auth0Subject)) {
-            throw new ResourceNotFoundException("Trip not found");
-        }
+        Trip trip = getOwnedTrip(id, auth0Subject);
 
         return toResponse(trip);
     }

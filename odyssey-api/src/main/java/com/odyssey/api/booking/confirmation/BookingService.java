@@ -63,12 +63,18 @@ public class BookingService {
             );
         }
 
-        // Accepting a quote does not mean it has been paid: the supplier
-        // Booking must never be created before the Traveler's payment has
-        // been confirmed by a verified Stripe webhook.
-        if (!paymentRepository.existsByQuoteIdAndStatus(quoteId, PaymentStatus.PAID)) {
+        Long tripId = quote
+            .getBookingRequest()
+            .getNeed()
+            .getTrip()
+            .getId();
+
+        // Accepting a Quote does not mean that Odyssey's assistance fee has
+        // been paid. The supplier Booking must not be created until the Trip's
+        // assistance fee has been confirmed as PAID by a verified Stripe webhook.
+        if (!paymentRepository.existsByTripIdAndStatus(tripId, PaymentStatus.PAID)) {
             throw new IllegalArgumentException(
-                "This quote must be paid before a booking can be created"
+                "The Trip assistance fee must be paid before a booking can be created"
             );
         }
 

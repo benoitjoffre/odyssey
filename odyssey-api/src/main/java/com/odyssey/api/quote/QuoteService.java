@@ -517,14 +517,20 @@ public class QuoteService {
 
     private TravelerQuoteResponse toTravelerResponse(Quote quote) {
 
+        Long tripId = quote
+                .getBookingRequest()
+                .getNeed()
+                .getTrip()
+                .getId();
+
         PaymentStatus paymentStatus = paymentRepository
-                .findFirstByQuoteIdOrderByCreatedAtDesc(quote.getId())
+                .findFirstByTripIdOrderByCreatedAtDesc(tripId)
                 .map(Payment::getStatus)
                 .orElse(null);
 
-        // A Booking may not exist yet (e.g. before the Payment is PAID):
-        // in that case there is nothing to tell the traveler yet about
-        // paying the Provider directly.
+        // A Booking may not exist yet. The Booking represents the selected
+        // provider service, while the Trip Payment represents Odyssey's
+        // assistance fee.
         Booking booking = bookingRepository
                 .findByQuoteId(quote.getId())
                 .orElse(null);
@@ -571,10 +577,16 @@ public class QuoteService {
     }
 
     private AgentQuoteResponse toAgentResponse(Quote quote) {
+       Long tripId = quote
+        .getBookingRequest()
+        .getNeed()
+        .getTrip()
+        .getId();
+
         PaymentStatus paymentStatus = paymentRepository
-                .findFirstByQuoteIdOrderByCreatedAtDesc(quote.getId())
-                .map(Payment::getStatus)
-                .orElse(null);
+        .findFirstByTripIdOrderByCreatedAtDesc(tripId)
+        .map(Payment::getStatus)
+        .orElse(null);
 
         Booking booking = bookingRepository
                 .findByQuoteId(quote.getId())

@@ -6,6 +6,7 @@ import com.odyssey.api.booking.BookingRequest;
 import com.odyssey.api.booking.BookingRequestRepository;
 import com.odyssey.api.booking.BookingRequestStatus;
 import com.odyssey.api.booking.confirmation.BookingRepository;
+import com.odyssey.api.need.Need;
 import com.odyssey.api.outbox.OutboxEventRepository;
 import com.odyssey.api.exception.ResourceNotFoundException;
 import com.odyssey.api.payment.Payment;
@@ -48,6 +49,8 @@ import static org.mockito.Mockito.when;
  */
 @ExtendWith(MockitoExtension.class)
 class QuoteServiceTest {
+
+    private static final Long TRIP_ID = 77L;
 
     @Mock
     private QuoteRepository quoteRepository;
@@ -97,7 +100,17 @@ class QuoteServiceTest {
         BookingRequest bookingRequest = new BookingRequest();
         bookingRequest.setStatus(BookingRequestStatus.IN_PROGRESS);
         bookingRequest.setAssignedAgent(agent);
+        attachToTrip(bookingRequest);
         return bookingRequest;
+    }
+
+    private void attachToTrip(BookingRequest bookingRequest) {
+        Trip trip = new Trip();
+        ReflectionTestUtils.setField(trip, "id", TRIP_ID);
+
+        Need need = new Need();
+        need.setTrip(trip);
+        bookingRequest.setNeed(need);
     }
 
     @Test
@@ -313,6 +326,7 @@ class QuoteServiceTest {
         Long travelerId = 5L;
         BookingRequest bookingRequest = new BookingRequest();
         ReflectionTestUtils.setField(bookingRequest, "id", 9L);
+        attachToTrip(bookingRequest);
 
         Quote quote = new Quote();
         ReflectionTestUtils.setField(quote, "id", 42L);
@@ -329,7 +343,7 @@ class QuoteServiceTest {
 
         Payment payment = mock(Payment.class);
         when(payment.getStatus()).thenReturn(PaymentStatus.PAID);
-        when(paymentRepository.findFirstByQuoteIdOrderByCreatedAtDesc(42L))
+        when(paymentRepository.findFirstByTripIdOrderByCreatedAtDesc(TRIP_ID))
             .thenReturn(Optional.of(payment));
 
         var responses = quoteService.getQuotesByTraveler(travelerId);
@@ -348,6 +362,7 @@ class QuoteServiceTest {
 
         Long travelerId = 5L;
         BookingRequest bookingRequest = new BookingRequest();
+        attachToTrip(bookingRequest);
 
         Quote quote = new Quote();
         ReflectionTestUtils.setField(quote, "id", 43L);
@@ -361,7 +376,7 @@ class QuoteServiceTest {
         when(quoteRepository.findByBookingRequestNeedTripTravelerIdAndStatusNot(
             travelerId, QuoteStatus.DRAFT
         )).thenReturn(java.util.List.of(quote));
-        when(paymentRepository.findFirstByQuoteIdOrderByCreatedAtDesc(43L))
+        when(paymentRepository.findFirstByTripIdOrderByCreatedAtDesc(TRIP_ID))
             .thenReturn(Optional.empty());
 
         var responses = quoteService.getQuotesByTraveler(travelerId);

@@ -1,6 +1,5 @@
 package com.odyssey.api.payment;
 
-import com.odyssey.api.booking.BookingRequest;
 import com.odyssey.api.event.PaymentSucceededEvent;
 import com.odyssey.api.exception.ResourceNotFoundException;
 import com.odyssey.api.outbox.OutboxEvent;
@@ -11,9 +10,10 @@ import com.odyssey.api.payment.stripe.StripeCheckoutSessionRequest;
 import com.odyssey.api.payment.stripe.StripeGateway;
 import com.odyssey.api.payment.stripe.StripeProperties;
 import com.odyssey.api.payment.stripe.StripeWebhookEvent;
-import com.odyssey.api.quote.Quote;
-import com.odyssey.api.quote.QuoteRepository;
-import com.odyssey.api.quote.QuoteStatus;
+
+import com.odyssey.api.trip.Trip;
+import com.odyssey.api.trip.TripRepository;
+import com.odyssey.api.trip.TripStatus;
 import com.odyssey.api.traveler.Traveler;
 import com.odyssey.api.traveler.TravelerRepository;
 
@@ -33,12 +33,13 @@ import java.util.Optional;
 
 /**
  * Orchestrates the Traveler payment lifecycle: creating a Stripe Checkout
- * Session for an ACCEPTED Quote, and reconciling payment success from a
- * verified Stripe webhook.
+ * Session for a Trip's assistance fee, and reconciling payment success from
+ * a verified Stripe webhook.
  *
- * <p>The frontend never decides amounts or payment status: this service
- * always (re)reads the authoritative {@code providerPrice}/
- * {@code assistanceFee}/{@code totalAmount} from the persisted Quote.</p>
+ * <p>The frontend never decides the amount or payment status: this service
+ * always reads the authoritative {@code assistanceFee} from the persisted
+ * {@link Trip}. Odyssey only collects its assistance fee; provider services
+ * are paid directly by the Traveler to the Provider.</p>
  */
 @Service
 public class PaymentService {
@@ -46,7 +47,7 @@ public class PaymentService {
     private static final Logger logger =
         LoggerFactory.getLogger(PaymentService.class);
 
-    private final QuoteRepository quoteRepository;
+    private final TripRepository tripRepository;
     private final TravelerRepository travelerRepository;
     private final PaymentRepository paymentRepository;
     private final OutboxEventRepository outboxEventRepository;
@@ -55,7 +56,7 @@ public class PaymentService {
     private final ObjectMapper objectMapper;
 
     public PaymentService(
-        QuoteRepository quoteRepository,
+        TripRepository tripRepository,
         TravelerRepository travelerRepository,
         PaymentRepository paymentRepository,
         OutboxEventRepository outboxEventRepository,
@@ -63,7 +64,7 @@ public class PaymentService {
         StripeProperties stripeProperties,
         ObjectMapper objectMapper
     ) {
-        this.quoteRepository = quoteRepository;
+        this.tripRepository = tripRepository;
         this.travelerRepository = travelerRepository;
         this.paymentRepository = paymentRepository;
         this.outboxEventRepository = outboxEventRepository;
@@ -82,19 +83,19 @@ public class PaymentService {
      */
     @Transactional(noRollbackFor = IllegalStateException.class)
     public CheckoutSessionResponse createCheckoutSession(
-        Long quoteId,
+        Long tripId,
         String auth0Subject
     ) {
         Traveler traveler = travelerRepository
             .findByAuth0Subject(auth0Subject)
             .orElseThrow(() -> new ResourceNotFoundException("Traveler not found"));
 
-        return createCheckoutSession(quoteId, traveler.getId());
+        return createCheckoutSession(tripId, traveler.getId());
     }
 
     @Transactional(noRollbackFor = IllegalStateException.class)
     public CheckoutSessionResponse createCheckoutSession(
-        Long quoteId,
+        Long tripId,
         Long travelerId
     ) {
 
@@ -104,70 +105,71 @@ public class PaymentService {
             );
         }
 
-        // Locks the Quote row (SELECT ... FOR UPDATE) for the rest of this
-        // transaction. A second concurrent request for the same Quote
-        // blocks here until this transaction commits or rolls back, so
-        // only one request at a time can decide whether to create or
-        // reuse this Quote's Payment: this is what prevents two concurrent
-        // Checkout requests from ever creating two Payment rows for the
-        // same Quote.
-        Quote quote = quoteRepository
-            .findByIdForUpdate(quoteId)
+        // Locks the Trip row (SELECT ... FOR UPDATE) for the rest of this
+        // transaction. A second concurrent checkout request for the same Trip
+        // blocks here until this transaction commits or rolls back.
+        //
+        // This ensures that only one request at a time can decide whether to
+        // create or reuse the Trip's Payment, preventing duplicate Payment rows
+        // and duplicate Stripe Checkout Sessions for the same Trip.
+        Trip trip = tripRepository
+            .findByIdForUpdate(tripId)
             .orElseThrow(() ->
-                new ResourceNotFoundException("Quote not found")
+                new ResourceNotFoundException("Trip not found")
             );
 
-        Long quoteTravelerId = quote
-            .getBookingRequest()
-            .getNeed()
-            .getTrip()
+        Long tripTravelerId = trip
             .getTraveler()
             .getId();
 
-        if (!quoteTravelerId.equals(travelerId)) {
+        if (!tripTravelerId.equals(travelerId)) {
             throw new IllegalArgumentException(
-                "This quote does not belong to this traveler"
+                "This trip does not belong to this traveler"
             );
         }
 
-        if (quote.getStatus() != QuoteStatus.ACCEPTED) {
+        if (trip.getStatus() != TripStatus.CONFIRMED) {
             throw new IllegalArgumentException(
-                "Only an ACCEPTED quote can be paid"
+                "Only a CONFIRMED trip can be paid"
             );
         }
 
         Optional<Payment> existingPayment =
-            paymentRepository.findFirstByQuoteIdOrderByCreatedAtDesc(quoteId);
+            paymentRepository.findFirstByTripIdOrderByCreatedAtDesc(tripId);
 
         if (existingPayment.isPresent()
             && existingPayment.get().getStatus() == PaymentStatus.PAID) {
             throw new IllegalArgumentException(
-                "This quote has already been paid"
+                "This trip has already been paid"
             );
         }
 
-        // Odyssey's invariant is ONE Payment per Quote: reuse the existing
+        // Odyssey's invariant is ONE Payment per Trip: reuse the existing
         // PENDING/FAILED payment row instead of creating a new one on
         // every checkout retry (also enforced by a UNIQUE constraint on
-        // payments.quote_id as a last line of defence, see Payment.quote).
+        // payments.trip_id as a last line of defence, see Payment.trip).
         boolean isNewPayment = existingPayment.isEmpty();
         boolean isRetryAfterFailure = existingPayment.isPresent()
             && existingPayment.get().getStatus() == PaymentStatus.FAILED;
         Payment payment = existingPayment.orElseGet(Payment::new);
 
-        BigDecimal assistanceFee = resolveAssistanceFee(quote);
-        BigDecimal totalAmount = resolveTotalAmount(quote, assistanceFee);
+        BigDecimal assistanceFee = trip.getAssistanceFee();
 
-        payment.setQuote(quote);
-        payment.setProviderAmount(quote.getProviderPrice());
+        if (assistanceFee == null || assistanceFee.signum() <= 0) {
+            throw new IllegalArgumentException(
+                "Trip assistance fee must be greater than zero"
+            );
+        }
+        String paymentCurrency = "EUR";
+
+        payment.setTrip(trip);
+        payment.setCurrency(paymentCurrency);
         payment.setAssistanceFee(assistanceFee);
-        payment.setTotalAmount(totalAmount);
-        payment.setCurrency(quote.getCurrency());
         payment.setStatus(PaymentStatus.PENDING);
+
         if (payment.getCreatedAt() == null) {
             payment.setCreatedAt(Instant.now());
         }
-
         // Only bump the attempt number when a genuinely NEW Stripe session
         // is required (first-ever attempt, or retrying a FAILED payment).
         // Re-submitting while still PENDING keeps the same attempt number
@@ -188,12 +190,12 @@ public class PaymentService {
             savedPayment = paymentRepository.save(payment);
         } catch (DataIntegrityViolationException duplicatePayment) {
             // Last line of defence: the UNIQUE constraint on
-            // payments.quote_id rejected a second Payment row for this
-            // Quote. Should not normally happen (the Quote row lock above
+            // payments.trip_id rejected a second Payment row for this
+            // Trip. Should not normally happen (the Trip row lock above
             // already serializes this), but never leak SQL/database
             // details to the caller if it does.
             throw new IllegalArgumentException(
-                "A payment for this quote is already being processed"
+                "A payment for this trip is already being processed"
             );
         }
 
@@ -201,32 +203,32 @@ public class PaymentService {
             + "-attempt-" + savedPayment.getCheckoutAttempt();
 
         StripeCheckoutSession session;
-        try {
+         try {
             // Odyssey is an assistance service: it never resells the travel
             // service and never collects the Provider's money. Stripe must
             // only ever charge the assistanceFee, never
-            // providerAmount + assistanceFee (totalAmount). The Traveler pays
+            // providerAmount. The Traveler pays
             // providerAmount directly to the Provider, outside of Stripe.
-            session = stripeGateway.createCheckoutSession(
-                new StripeCheckoutSessionRequest(
-                    toSmallestCurrencyUnit(assistanceFee),
-                    quote.getCurrency().toLowerCase(Locale.ROOT),
-                    quote.getDescription(),
-                    String.valueOf(quoteId),
-                    String.valueOf(savedPayment.getId()),
-                    stripeProperties.getSuccessUrl(),
-                    stripeProperties.getCancelUrl(),
-                    idempotencyKey
-                )
-            );
-        } catch (IllegalStateException stripeFailure) {
-            // Do not leave the Payment stuck PENDING with no Stripe
-            // session: mark it FAILED so a subsequent call is correctly
-            // treated as a fresh retry (see isRetryAfterFailure above).
-            savedPayment.setStatus(PaymentStatus.FAILED);
-            paymentRepository.save(savedPayment);
-            throw stripeFailure;
-        }
+                session = stripeGateway.createCheckoutSession(
+                    new StripeCheckoutSessionRequest(
+                        toSmallestCurrencyUnit(assistanceFee),
+                        paymentCurrency.toLowerCase(Locale.ROOT),
+                        "Frais d'assistance Odyssey - Voyage #" + trip.getId(),
+                        String.valueOf(tripId),
+                        String.valueOf(savedPayment.getId()),
+                        stripeProperties.getSuccessUrl(),
+                        stripeProperties.getCancelUrl(),
+                        idempotencyKey
+                    )
+                );
+            } catch (IllegalStateException stripeFailure) {
+                // Do not leave the Payment stuck PENDING with no Stripe
+                // session: mark it FAILED so a subsequent call is correctly
+                // treated as a fresh retry (see isRetryAfterFailure above).
+                savedPayment.setStatus(PaymentStatus.FAILED);
+                paymentRepository.save(savedPayment);
+                throw stripeFailure;
+            }
 
         savedPayment.setStripeCheckoutSessionId(session.id());
         paymentRepository.save(savedPayment);
@@ -337,26 +339,15 @@ public class PaymentService {
             return;
         }
 
-        Quote quote = payment.getQuote();
-        BookingRequest bookingRequest = quote.getBookingRequest();
+        Trip trip = payment.getTrip();
 
-        Long travelerId = bookingRequest
-            .getNeed()
-            .getTrip()
-            .getTraveler()
-            .getId();
-
-        Long agentId = bookingRequest.getAssignedAgent() != null
-            ? bookingRequest.getAssignedAgent().getId()
-            : null;
+        Long travelerId = trip.getTraveler().getId();
 
         PaymentSucceededEvent domainEvent = new PaymentSucceededEvent(
             payment.getId(),
-            quote.getId(),
-            bookingRequest.getId(),
+            trip.getId(),
             travelerId,
-            agentId,
-            payment.getTotalAmount(),
+            payment.getAssistanceFee(),
             payment.getCurrency()
         );
 
@@ -432,44 +423,5 @@ public class PaymentService {
             .setScale(2, RoundingMode.HALF_UP)
             .movePointRight(2)
             .longValueExact();
-    }
-
-    private BigDecimal resolveAssistanceFee(Quote quote) {
-        if (quote.getAssistanceFee() != null) {
-            return quote.getAssistanceFee();
-        }
-
-        if (quote.getProviderPrice() == null || quote.getTotalAmount() == null) {
-            throw new IllegalStateException(
-                "Quote amounts are incomplete: providerPrice and totalAmount are required"
-            );
-        }
-
-        BigDecimal computedAssistanceFee = quote.getTotalAmount().subtract(quote.getProviderPrice());
-        if (computedAssistanceFee.signum() < 0) {
-            throw new IllegalStateException(
-                "Quote amounts are inconsistent: totalAmount is lower than providerPrice"
-            );
-        }
-
-        logger.warn(
-            "Quote {} has null assistanceFee; inferring it from totalAmount - providerPrice for backward compatibility",
-            quote.getId()
-        );
-        return computedAssistanceFee;
-    }
-
-    private BigDecimal resolveTotalAmount(Quote quote, BigDecimal assistanceFee) {
-        if (quote.getTotalAmount() != null) {
-            return quote.getTotalAmount();
-        }
-
-        if (quote.getProviderPrice() == null) {
-            throw new IllegalStateException(
-                "Quote amounts are incomplete: providerPrice is required"
-            );
-        }
-
-        return quote.getProviderPrice().add(assistanceFee);
     }
 }

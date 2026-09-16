@@ -12,11 +12,11 @@ import java.util.Optional;
 
 public interface PaymentRepository extends JpaRepository<Payment, Long> {
 
-    List<Payment> findByQuoteIdOrderByCreatedAtDesc(Long quoteId);
+    List<Payment> findByTripIdOrderByCreatedAtDesc(Long tripId);
 
-    Optional<Payment> findFirstByQuoteIdOrderByCreatedAtDesc(Long quoteId);
+    Optional<Payment> findFirstByTripIdOrderByCreatedAtDesc(Long tripId);
 
-    boolean existsByQuoteIdAndStatus(Long quoteId, PaymentStatus status);
+    boolean existsByTripIdAndStatus(Long tripId, PaymentStatus status);
 
     Optional<Payment> findByStripeCheckoutSessionId(String stripeCheckoutSessionId);
 
