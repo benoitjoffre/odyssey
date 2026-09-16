@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Check, CreditCard, LoaderCircle, Pencil, X } from "lucide-react";
 import type { PaymentStatus } from "../types/payment";
+import { useSearchParams } from "react-router-dom";
 
 export interface ProviderOfferAmount {
   providerPrice: number;
@@ -76,7 +77,9 @@ export function TripFinancialSummary({
     providerTotals !== null &&
     (providerCurrencies.length === 0 || (providerCurrencies.length === 1 && providerCurrencies[0] === "EUR"));
   const estimatedTotal = canCalculateEstimatedTotal && providerTotals ? (providerTotals.get("EUR") ?? 0) + assistanceFee : null;
+  const [searchParams] = useSearchParams();
 
+  const paymentResult = searchParams.get("payment");
   function startEditing() {
     setFeeInput(assistanceFee === undefined ? "" : String(assistanceFee));
     setError(null);
@@ -198,29 +201,58 @@ export function TripFinancialSummary({
 
       {showPaymentStatus && (
         <div className="trip-payment-state">
+          {/* Message après retour de Stripe */}
+          {paymentResult === "success" && paymentStatus === "PAID" && (
+            <div className="trip-payment-success" role="status">
+              <Check size={20} />
+              <div>
+                <strong>Paiement réussi</strong>
+                <p>Vos frais d’assistance Odyssey ont bien été payés. Notre équipe peut maintenant poursuivre vos réservations.</p>
+              </div>
+            </div>
+          )}
+
+          {paymentResult === "cancelled" && paymentStatus !== "PAID" && (
+            <div className="trip-payment-cancelled" role="status">
+              <strong>Paiement annulé</strong>
+              <p>Aucun paiement n’a été effectué. Vous pouvez réessayer quand vous le souhaitez.</p>
+            </div>
+          )}
+
+          {/* État réel du paiement */}
           {paymentStatus === "PAID" ? (
-            <p className="trip-financial-success">
-              <Check size={16} /> Frais d’assistance Odyssey payés
-            </p>
+            paymentResult !== "success" && (
+              <p className="trip-financial-success">
+                <Check size={16} />
+                Frais d’assistance Odyssey payés
+              </p>
+            )
           ) : (
             <>
-              <p>
-                {paymentStatus === "PENDING"
-                  ? "Paiement des frais d’assistance en attente de confirmation."
-                  : paymentStatus === "FAILED"
-                    ? "Le paiement précédent a échoué."
-                    : "Frais d’assistance Odyssey à régler."}
-              </p>
+              {paymentResult !== "cancelled" && (
+                <p>
+                  {paymentStatus === "PENDING"
+                    ? "Votre paiement est en attente de confirmation."
+                    : paymentStatus === "FAILED"
+                      ? "Le paiement précédent a échoué. Vous pouvez réessayer."
+                      : "Les frais d’assistance Odyssey restent à régler."}
+                </p>
+              )}
+
               {onCheckout && assistanceFee !== undefined && assistanceFee > 0 && (
                 <button type="button" className="primary-button" disabled={checkoutLoading} onClick={onCheckout}>
                   {checkoutLoading ? <LoaderCircle className="rotating" size={17} /> : <CreditCard size={17} />}
+
                   {checkoutLoading
-                    ? "Redirection…"
-                    : `${paymentStatus === "PENDING" ? "Reprendre le paiement" : "Payer les frais d’assistance"} — ${formatPrice(assistanceFee, "EUR")}`}
+                    ? "Redirection vers Stripe…"
+                    : paymentStatus === "PENDING"
+                      ? "Reprendre le paiement"
+                      : `Payer ${formatPrice(assistanceFee, "EUR")}`}
                 </button>
               )}
             </>
           )}
+
           {checkoutError && (
             <p className="trip-financial-error" role="alert">
               {checkoutError}
