@@ -1,5 +1,8 @@
 package com.odyssey.api.booking.confirmation;
 
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -14,41 +17,44 @@ public class BookingController {
         this.bookingService = bookingService;
     }
 
+    @PreAuthorize("hasRole('AGENT')")
     @PostMapping
     public BookingResponse createBooking(
         @RequestParam Long quoteId,
-        @RequestParam Long agentId
+        @AuthenticationPrincipal Jwt jwt
     ) {
         return bookingService.createBooking(
             quoteId,
-            agentId
+            jwt.getSubject()
         );
     }
 
 
+    @PreAuthorize("hasRole('AGENT')")
     @PostMapping("/{bookingId}/provider-details")
     public BookingResponse updateProviderDetails(
         @PathVariable Long bookingId,
-        @RequestParam Long agentId,
+        @AuthenticationPrincipal Jwt jwt,
         @RequestBody UpdateProviderDetailsRequest request
     ) {
         return bookingService.updateProviderDetails(
             bookingId,
-            agentId,
+            jwt.getSubject(),
             request.providerReference(),
             request.providerPaymentUrl(),
             request.providerPaymentStatus()
         );
     }
 
+    @PreAuthorize("hasRole('AGENT')")
     @PostMapping("/{bookingId}/confirm")
     public BookingResponse confirmBooking(
         @PathVariable Long bookingId,
-        @RequestParam Long agentId
+        @AuthenticationPrincipal Jwt jwt
     ) {
         return bookingService.confirmBooking(
             bookingId,
-            agentId
+            jwt.getSubject()
         );
     }
 }

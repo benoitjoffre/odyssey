@@ -12,7 +12,12 @@ import java.util.Optional;
 
 public interface QuoteRepository extends JpaRepository<Quote, Long> {
 
-    List<Quote> findByBookingRequestId(Long bookingRequestId);
+    List<Quote> findByBookingRequestIdOrderByIdDesc(Long bookingRequestId);
+
+    List<Quote> findByBookingRequestNeedTripIdAndStatusOrderByIdAsc(
+        Long tripId,
+        QuoteStatus status
+    );
 
     List<Quote> findByBookingRequestNeedTripTravelerIdAndStatusNot(
         Long travelerId,

@@ -4,7 +4,9 @@ import com.odyssey.api.event.BookingAssignedEvent;
 import com.odyssey.api.event.BookingRequestedEvent;
 import com.odyssey.api.event.PaymentSucceededEvent;
 import com.odyssey.api.event.QuoteAcceptedEvent;
+import com.odyssey.api.event.QuoteRejectedEvent;
 import com.odyssey.api.event.QuoteSentEvent;
+import com.odyssey.api.event.TripQuotesSentEvent;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,8 +62,12 @@ public class OutboxProcessor {
                 objectMapper.readValue(payload, BookingAssignedEvent.class),
             "QUOTE_SENT", payload ->
                 objectMapper.readValue(payload, QuoteSentEvent.class),
+            "TRIP_QUOTES_SENT", payload ->
+                objectMapper.readValue(payload, TripQuotesSentEvent.class),
             "QUOTE_ACCEPTED", payload ->
                 objectMapper.readValue(payload, QuoteAcceptedEvent.class),
+            "QUOTE_REJECTED", payload ->
+                objectMapper.readValue(payload, QuoteRejectedEvent.class),
             "PAYMENT_SUCCEEDED", payload ->
                 objectMapper.readValue(payload, PaymentSucceededEvent.class)
         );

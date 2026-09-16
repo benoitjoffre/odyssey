@@ -2,10 +2,13 @@ package com.odyssey.api.booking;
 
 import java.util.List;
 
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
+import com.odyssey.api.quote.AgentQuoteResponse;
 import com.odyssey.api.quote.QuoteService;
-import com.odyssey.api.quote.TravelerQuoteResponse;
 
 import jakarta.validation.Valid;
 
@@ -44,21 +47,27 @@ public class BookingRequestController {
         return bookingRequestService.getBookingRequest(id);
     }
 
+    @PreAuthorize("hasRole('AGENT')")
     @PostMapping("/{bookingRequestId}/claim")
     public BookingRequestResponse claimBookingRequest(
         @PathVariable Long bookingRequestId,
-        @RequestParam Long agentId
+        @AuthenticationPrincipal Jwt jwt
     ) {
         return bookingRequestService.claimBookingRequest(
             bookingRequestId,
-            agentId
+            jwt.getSubject()
         );
     }
 
+    @PreAuthorize("hasRole('AGENT')")
     @GetMapping("/{bookingRequestId}/quotes")
-    public List<TravelerQuoteResponse> getQuotes(
-        @PathVariable Long bookingRequestId
+    public List<AgentQuoteResponse> getQuotes(
+        @PathVariable Long bookingRequestId,
+        @AuthenticationPrincipal Jwt jwt
     ) {
-        return quoteService.getQuotesByBookingRequest(bookingRequestId);
+        return quoteService.getQuotesByBookingRequest(
+            bookingRequestId,
+            jwt.getSubject()
+        );
     }
 }

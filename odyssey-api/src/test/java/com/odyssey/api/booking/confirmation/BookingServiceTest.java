@@ -1,6 +1,7 @@
 package com.odyssey.api.booking.confirmation;
 
 import com.odyssey.api.agent.Agent;
+import com.odyssey.api.agent.AgentRepository;
 import com.odyssey.api.booking.BookingRequest;
 import com.odyssey.api.payment.PaymentRepository;
 import com.odyssey.api.payment.PaymentStatus;
@@ -47,6 +48,9 @@ class BookingServiceTest {
     @Mock
     private FakeBookingProvider bookingProvider;
 
+    @Mock
+    private AgentRepository agentRepository;
+
     private BookingService bookingService;
 
     @BeforeEach
@@ -55,7 +59,8 @@ class BookingServiceTest {
             bookingRepository,
             quoteRepository,
             paymentRepository,
-            bookingProvider
+            bookingProvider,
+            agentRepository
         );
     }
 
@@ -111,6 +116,32 @@ class BookingServiceTest {
         // Traveler's direct payment to the Provider: that must remain a
         // manual, explicit decision by the Agent.
         assertEquals(ProviderPaymentStatus.NOT_REQUIRED_YET, response.providerPaymentStatus());
+    }
+
+    @Test
+    void createBookingResolvesAgentFromAuth0Subject() {
+        String auth0Subject = "auth0|agent-a";
+        Agent agent = new Agent();
+        ReflectionTestUtils.setField(agent, "id", AGENT_ID);
+        Quote quote = acceptedQuoteAssignedTo(AGENT_ID);
+
+        when(agentRepository.findByAuth0Subject(auth0Subject))
+            .thenReturn(Optional.of(agent));
+        when(quoteRepository.findById(QUOTE_ID)).thenReturn(Optional.of(quote));
+        when(paymentRepository.existsByQuoteIdAndStatus(QUOTE_ID, PaymentStatus.PAID))
+            .thenReturn(true);
+        when(bookingRepository.existsByQuoteId(QUOTE_ID)).thenReturn(false);
+        when(bookingRepository.save(any(Booking.class)))
+            .thenAnswer(invocation -> {
+                Booking booking = invocation.getArgument(0);
+                ReflectionTestUtils.setField(booking, "id", 500L);
+                return booking;
+            });
+
+        BookingResponse response = bookingService.createBooking(QUOTE_ID, auth0Subject);
+
+        assertEquals(500L, response.id());
+        verify(agentRepository).findByAuth0Subject(auth0Subject);
     }
 
     private static final Long BOOKING_ID = 500L;

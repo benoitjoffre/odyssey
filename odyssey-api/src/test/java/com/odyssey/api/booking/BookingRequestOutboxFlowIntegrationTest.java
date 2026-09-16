@@ -115,7 +115,10 @@ class BookingRequestOutboxFlowIntegrationTest {
             )
         );
 
-        quoteService.sendQuote(quote.id(), agent.getId());
+        quoteService.sendDraftQuotesForTrip(
+            need.getTrip().getId(),
+            agent.getAuth0Subject()
+        );
         outboxProcessor.processPendingEvents();
 
         quoteService.acceptQuote(quote.id(), need.getTrip().getTraveler().getId());
@@ -177,6 +180,7 @@ class BookingRequestOutboxFlowIntegrationTest {
         agent.setLastName("Agent");
         agent.setEmail("outbox-agent-" + UUID.randomUUID() + "@example.com");
         agent.setStatus(AgentStatus.AVAILABLE);
+        agent.setAuth0Subject("auth0|outbox-agent-" + UUID.randomUUID());
 
         return agentRepository.save(agent);
     }

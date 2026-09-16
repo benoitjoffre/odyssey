@@ -15,9 +15,14 @@ import java.util.List;
 public class TripController {
 
     private final TripService tripService;
+    private final com.odyssey.api.quote.QuoteService quoteService;
 
-    public TripController(TripService tripService) {
+    public TripController(
+        TripService tripService,
+        com.odyssey.api.quote.QuoteService quoteService
+    ) {
         this.tripService = tripService;
+        this.quoteService = quoteService;
     }
 
     @PreAuthorize("hasRole('TRAVELER')")
@@ -62,5 +67,14 @@ public class TripController {
         @Valid @RequestBody UpdateAssistanceFeeRequest request
     ) {
         return tripService.updateAssistanceFee(tripId, request.assistanceFee());
+    }
+
+    @PostMapping("/{tripId}/quotes/send")
+    @PreAuthorize("hasRole('AGENT')")
+    public SendTripQuotesResponse sendQuotes(
+        @PathVariable Long tripId,
+        @AuthenticationPrincipal Jwt jwt
+    ) {
+        return quoteService.sendDraftQuotesForTrip(tripId, jwt.getSubject());
     }
 }

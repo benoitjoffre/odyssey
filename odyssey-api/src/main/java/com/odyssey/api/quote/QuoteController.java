@@ -1,6 +1,9 @@
 package com.odyssey.api.quote;
 
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 
 @RestController
 @RequestMapping("/api/booking-requests/{bookingRequestId}/quotes")
@@ -13,23 +16,16 @@ public class QuoteController {
     }
 
     @PostMapping
+    @PreAuthorize("hasRole('AGENT')")
     public QuoteResponse createQuote(
             @PathVariable Long bookingRequestId,
-            @RequestParam Long agentId,
+            @AuthenticationPrincipal Jwt jwt,
             @RequestBody CreateQuoteRequest request
     ) {
         return quoteService.createQuote(
                 bookingRequestId,
-                agentId,
+                jwt.getSubject(),
                 request
         );
-    }
-
-    @PostMapping("/{quoteId}/send")
-    public QuoteResponse sendQuote(
-            @PathVariable Long quoteId,
-            @RequestParam Long agentId
-    ) {
-        return quoteService.sendQuote(quoteId, agentId);
     }
 }

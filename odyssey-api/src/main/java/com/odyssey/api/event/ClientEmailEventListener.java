@@ -12,6 +12,8 @@ import com.odyssey.api.quote.Quote;
 import com.odyssey.api.quote.QuoteRepository;
 import com.odyssey.api.traveler.Traveler;
 import com.odyssey.api.traveler.TravelerRepository;
+import com.odyssey.api.trip.Trip;
+import com.odyssey.api.trip.TripRepository;
 
 /**
  * Sends (fake) email notifications to the traveler at each step of their
@@ -30,15 +32,18 @@ public class ClientEmailEventListener {
     private final TravelerRepository travelerRepository;
     private final AgentRepository agentRepository;
     private final QuoteRepository quoteRepository;
+    private final TripRepository tripRepository;
 
     public ClientEmailEventListener(
         TravelerRepository travelerRepository,
         AgentRepository agentRepository,
-        QuoteRepository quoteRepository
+        QuoteRepository quoteRepository,
+        TripRepository tripRepository
     ) {
         this.travelerRepository = travelerRepository;
         this.agentRepository = agentRepository;
         this.quoteRepository = quoteRepository;
+        this.tripRepository = tripRepository;
     }
 
     @EventListener
@@ -75,6 +80,19 @@ public class ClientEmailEventListener {
             logger.error(
                 "Failed to send client email for quote {}",
                 event.quoteId(),
+                exception
+            );
+        }
+    }
+
+    @EventListener
+    public void onTripQuotesSent(TripQuotesSentEvent event) {
+        try {
+            handleTripQuotesSent(event);
+        } catch (Exception exception) {
+            logger.error(
+                "Failed to send client email for trip {}",
+                event.tripId(),
                 exception
             );
         }
@@ -142,6 +160,27 @@ public class ClientEmailEventListener {
             + " "
             + quote.getCurrency()
             + ". " + quote.getDescription()
+        );
+    }
+
+    private void handleTripQuotesSent(TripQuotesSentEvent event) {
+        Traveler traveler = travelerRepository
+            .findById(event.travelerId())
+            .orElseThrow(() -> new ResourceNotFoundException("Traveler not found"));
+        Trip trip = tripRepository
+            .findById(event.tripId())
+            .orElseThrow(() -> new ResourceNotFoundException("Trip not found"));
+
+        logger.info(
+            "Traveler email queued for trip {} after {} quote(s) were sent",
+            event.tripId(),
+            event.quoteIds().size()
+        );
+        System.out.println(
+            "EMAIL CLIENT → " + traveler.getEmail()
+                + " : De nouvelles offres sont disponibles pour votre voyage "
+                + trip.getTitle()
+                + "."
         );
     }
 }

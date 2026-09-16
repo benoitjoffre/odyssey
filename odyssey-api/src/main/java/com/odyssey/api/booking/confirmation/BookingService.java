@@ -1,5 +1,7 @@
 package com.odyssey.api.booking.confirmation;
 
+import com.odyssey.api.agent.Agent;
+import com.odyssey.api.agent.AgentRepository;
 import com.odyssey.api.booking.BookingRequestStatus;
 import com.odyssey.api.exception.ResourceNotFoundException;
 import com.odyssey.api.payment.PaymentRepository;
@@ -20,17 +22,25 @@ public class BookingService {
     private final QuoteRepository quoteRepository;
     private final PaymentRepository paymentRepository;
     private final FakeBookingProvider bookingProvider;
+    private final AgentRepository agentRepository;
 
     public BookingService(
         BookingRepository bookingRepository,
         QuoteRepository quoteRepository,
         PaymentRepository paymentRepository,
-        FakeBookingProvider bookingProvider
+        FakeBookingProvider bookingProvider,
+        AgentRepository agentRepository
     ) {
         this.bookingRepository = bookingRepository;
         this.quoteRepository = quoteRepository;
         this.paymentRepository = paymentRepository;
         this.bookingProvider = bookingProvider;
+        this.agentRepository = agentRepository;
+    }
+
+    @Transactional
+    public BookingResponse createBooking(Long quoteId, String auth0Subject) {
+        return createBooking(quoteId, getCurrentAgent(auth0Subject).getId());
     }
 
     @Transactional
@@ -119,6 +129,23 @@ public class BookingService {
     @Transactional
     public BookingResponse updateProviderDetails(
         Long bookingId,
+        String auth0Subject,
+        String providerReference,
+        String providerPaymentUrl,
+        ProviderPaymentStatus providerPaymentStatus
+    ) {
+        return updateProviderDetails(
+            bookingId,
+            getCurrentAgent(auth0Subject).getId(),
+            providerReference,
+            providerPaymentUrl,
+            providerPaymentStatus
+        );
+    }
+
+    @Transactional
+    public BookingResponse updateProviderDetails(
+        Long bookingId,
         Long agentId,
         String providerReference,
         String providerPaymentUrl,
@@ -157,6 +184,11 @@ public class BookingService {
         Booking savedBooking = bookingRepository.save(booking);
 
         return toResponse(savedBooking);
+    }
+
+    @Transactional
+    public BookingResponse confirmBooking(Long bookingId, String auth0Subject) {
+        return confirmBooking(bookingId, getCurrentAgent(auth0Subject).getId());
     }
 
     @Transactional
@@ -210,5 +242,11 @@ public class BookingService {
             bookingRepository.save(booking);
 
         return toResponse(savedBooking);
+    }
+
+    private Agent getCurrentAgent(String auth0Subject) {
+        return agentRepository
+            .findByAuth0Subject(auth0Subject)
+            .orElseThrow(() -> new ResourceNotFoundException("Agent not found"));
     }
 }

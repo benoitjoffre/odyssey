@@ -1,6 +1,8 @@
 package com.odyssey.api.outbox;
 
 import com.odyssey.api.event.BookingRequestedEvent;
+import com.odyssey.api.event.QuoteRejectedEvent;
+import com.odyssey.api.event.TripQuotesSentEvent;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -49,6 +51,26 @@ class OutboxProcessorTest {
         when(event.getStatus()).thenReturn(OutboxStatus.PENDING);
         when(event.getCreatedAt()).thenReturn(Instant.now());
         return event;
+    }
+
+    private OutboxEvent pendingEvent(Long id, String eventType, Object payload) {
+        OutboxEvent event = mock(OutboxEvent.class);
+        when(event.getId()).thenReturn(id);
+        when(event.getEventType()).thenReturn(eventType);
+        when(event.getPayload()).thenReturn(new ObjectMapper().writeValueAsString(payload));
+        when(event.getStatus()).thenReturn(OutboxStatus.PENDING);
+        when(event.getCreatedAt()).thenReturn(Instant.now());
+        return event;
+    }
+
+    private void arrangeClaimedEvent(OutboxEvent event) {
+        when(outboxEventRepository.findByStatus(OutboxStatus.PENDING))
+            .thenReturn(List.of(event));
+        when(outboxEventRepository.updateStatusIfCurrent(
+            eq(event.getId()), eq(OutboxStatus.PENDING), eq(OutboxStatus.PROCESSING)
+        )).thenReturn(1);
+        when(outboxEventRepository.findById(event.getId()))
+            .thenReturn(Optional.of(event));
     }
 
     @Test
@@ -117,6 +139,38 @@ class OutboxProcessorTest {
         );
         verify(outboxEventRepository, never()).updateStatusIfCurrent(
             eq(eventId), eq(OutboxStatus.PROCESSING), eq(OutboxStatus.PROCESSED)
+        );
+    }
+
+    @Test
+    void publishesTripQuotesSentEvent() {
+        OutboxEvent event = pendingEvent(
+            4L,
+            "TRIP_QUOTES_SENT",
+            new TripQuotesSentEvent(20L, 30L, List.of(10L, 11L))
+        );
+        arrangeClaimedEvent(event);
+
+        outboxProcessor.processPendingEvents();
+
+        verify(applicationEventPublisher).publishEvent(
+            new TripQuotesSentEvent(20L, 30L, List.of(10L, 11L))
+        );
+    }
+
+    @Test
+    void publishesQuoteRejectedEvent() {
+        OutboxEvent event = pendingEvent(
+            5L,
+            "QUOTE_REJECTED",
+            new QuoteRejectedEvent(1L, 10L, 20L, 30L)
+        );
+        arrangeClaimedEvent(event);
+
+        outboxProcessor.processPendingEvents();
+
+        verify(applicationEventPublisher).publishEvent(
+            new QuoteRejectedEvent(1L, 10L, 20L, 30L)
         );
     }
 }

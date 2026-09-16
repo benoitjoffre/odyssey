@@ -13,16 +13,20 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.ResponseStatus;
 
+import com.odyssey.api.quote.QuoteService;
+
 class TripControllerTest {
 
     private TripService tripService;
+    private QuoteService quoteService;
     private TripController tripController;
     private Jwt jwt;
 
     @BeforeEach
     void setUp() {
         tripService = mock(TripService.class);
-        tripController = new TripController(tripService);
+        quoteService = mock(QuoteService.class);
+        tripController = new TripController(tripService, quoteService);
         jwt = mock(Jwt.class);
         when(jwt.getSubject()).thenReturn("auth0|traveler-a");
     }
@@ -50,5 +54,12 @@ class TripControllerTest {
         tripController.getTripDetail(10L, jwt);
 
         verify(tripService).getTripDetail(10L, "auth0|traveler-a");
+    }
+
+    @Test
+    void sendQuotesForwardsTripAndAuthenticatedAgent() {
+        tripController.sendQuotes(10L, jwt);
+
+        verify(quoteService).sendDraftQuotesForTrip(10L, "auth0|traveler-a");
     }
 }

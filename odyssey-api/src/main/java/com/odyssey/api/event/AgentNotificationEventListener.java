@@ -76,6 +76,19 @@ public class AgentNotificationEventListener {
     }
 
     @EventListener
+    public void onQuoteRejected(QuoteRejectedEvent event) {
+        try {
+            handleQuoteRejected(event);
+        } catch (Exception exception) {
+            logger.error(
+                "Failed to handle QuoteRejectedEvent for booking request {}",
+                event.bookingRequestId(),
+                exception
+            );
+        }
+    }
+
+    @EventListener
     public void onPaymentSucceeded(PaymentSucceededEvent event) {
         try {
             handlePaymentSucceeded(event);
@@ -224,6 +237,37 @@ public class AgentNotificationEventListener {
                     + notification.getMessage()
             );
         }
+
+    private void handleQuoteRejected(QuoteRejectedEvent event) {
+        BookingRequest bookingRequest = bookingRequestRepository
+            .findById(event.bookingRequestId())
+            .orElseThrow(() -> new ResourceNotFoundException("Booking request not found"));
+        Agent agent = agentRepository
+            .findById(event.agentId())
+            .orElseThrow(() -> new ResourceNotFoundException("Agent not found"));
+        String travelerFirstName = bookingRequest
+            .getNeed()
+            .getTrip()
+            .getTraveler()
+            .getFirstName();
+
+        AgentNotification notification = new AgentNotification();
+        notification.setAgent(agent);
+        notification.setBookingRequest(bookingRequest);
+        notification.setMessage(
+            travelerFirstName
+                + " a refusé votre proposition pour la demande #"
+                + bookingRequest.getId()
+        );
+        notification.setRead(false);
+        notification.setCreatedAt(Instant.now());
+
+        AgentNotification savedNotification = notificationRepository.save(notification);
+        sseService.send(
+            agent.getId(),
+            AgentNotificationResponse.from(savedNotification)
+        );
+    }
 
     private void handlePaymentSucceeded(PaymentSucceededEvent event) {
 

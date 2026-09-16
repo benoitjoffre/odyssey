@@ -1,5 +1,7 @@
 package com.odyssey.api.quote;
 
+import com.odyssey.api.agent.Agent;
+import com.odyssey.api.agent.AgentRepository;
 import com.odyssey.api.booking.BookingRequest;
 import com.odyssey.api.booking.BookingRequestRepository;
 import com.odyssey.api.booking.BookingRequestStatus;
@@ -12,11 +14,16 @@ import com.odyssey.api.outbox.OutboxEvent;
 import com.odyssey.api.outbox.OutboxEventRepository;
 import com.odyssey.api.outbox.OutboxStatus;
 import com.odyssey.api.event.QuoteAcceptedEvent;
+import com.odyssey.api.event.QuoteRejectedEvent;
+import com.odyssey.api.event.TripQuotesSentEvent;
 import com.odyssey.api.payment.Payment;
 import com.odyssey.api.payment.PaymentRepository;
 import com.odyssey.api.payment.PaymentStatus;
 import com.odyssey.api.traveler.Traveler;
 import com.odyssey.api.traveler.TravelerRepository;
+import com.odyssey.api.trip.SendTripQuotesResponse;
+import com.odyssey.api.trip.Trip;
+import com.odyssey.api.trip.TripRepository;
 import tools.jackson.databind.ObjectMapper;
 
 import org.springframework.stereotype.Service;
@@ -24,36 +31,51 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 public class QuoteService {
 
     private final QuoteRepository quoteRepository;
+        private final AgentRepository agentRepository;
     private final TravelerRepository travelerRepository;
     private final BookingRequestRepository bookingRequestRepository;
     private final OutboxEventRepository outboxEventRepository;
     private final PaymentRepository paymentRepository;
     private final BookingRepository bookingRepository;
+        private final TripRepository tripRepository;
     private final ObjectMapper objectMapper;
 
     public QuoteService(
             QuoteRepository quoteRepository,
+            AgentRepository agentRepository,
             TravelerRepository travelerRepository,
             BookingRequestRepository bookingRequestRepository,
             OutboxEventRepository outboxEventRepository,
             PaymentRepository paymentRepository,
             BookingRepository bookingRepository,
+            TripRepository tripRepository,
             ObjectMapper objectMapper
     ) {
         this.quoteRepository = quoteRepository;
+                this.agentRepository = agentRepository;
         this.travelerRepository = travelerRepository;
         this.bookingRequestRepository = bookingRequestRepository;
         this.outboxEventRepository = outboxEventRepository;
         this.paymentRepository = paymentRepository;
         this.bookingRepository = bookingRepository;
+                this.tripRepository = tripRepository;
         this.objectMapper = objectMapper;
     }
+
+        @Transactional
+        public QuoteResponse createQuote(
+                        Long bookingRequestId,
+                        String auth0Subject,
+                        CreateQuoteRequest request
+        ) {
+                Agent agent = getCurrentAgent(auth0Subject);
+                return createQuote(bookingRequestId, agent.getId(), request);
+        }
 
     @Transactional
     public QuoteResponse createQuote(
@@ -185,6 +207,49 @@ public class QuoteService {
 
               return toResponse(savedQuote);
           }
+
+    @Transactional
+    public SendTripQuotesResponse sendDraftQuotesForTrip(
+            Long tripId,
+            String auth0Subject
+    ) {
+        Agent agent = getCurrentAgent(auth0Subject);
+        Trip trip = tripRepository
+                .findById(tripId)
+                .orElseThrow(() -> new ResourceNotFoundException("Trip not found"));
+
+        List<Quote> draftQuotes = quoteRepository
+                .findByBookingRequestNeedTripIdAndStatusOrderByIdAsc(
+                        tripId,
+                        QuoteStatus.DRAFT
+                );
+
+        for (Quote quote : draftQuotes) {
+            Agent assignedAgent = quote.getBookingRequest().getAssignedAgent();
+            if (assignedAgent == null || !assignedAgent.getId().equals(agent.getId())) {
+                throw new ResourceNotFoundException("Trip not found");
+            }
+        }
+
+        if (draftQuotes.isEmpty()) {
+            return new SendTripQuotesResponse(tripId, List.of());
+        }
+
+        draftQuotes.forEach(quote -> quote.setStatus(QuoteStatus.SENT));
+        quoteRepository.saveAll(draftQuotes);
+
+        List<Long> sentQuoteIds = draftQuotes.stream()
+                .map(Quote::getId)
+                .toList();
+        TripQuotesSentEvent event = new TripQuotesSentEvent(
+                tripId,
+                trip.getTraveler().getId(),
+                sentQuoteIds
+        );
+        saveOutboxEvent("TRIP_QUOTES_SENT", event);
+
+        return new SendTripQuotesResponse(tripId, sentQuoteIds);
+    }
 
     public List<TravelerQuoteResponse> getQuotesByTraveler(Long travelerId) {
 
@@ -364,6 +429,17 @@ public class QuoteService {
 
         Quote savedQuote = quoteRepository.save(quote);
 
+        Long agentId = quote.getBookingRequest().getAssignedAgent().getId();
+        saveOutboxEvent(
+                "QUOTE_REJECTED",
+                new QuoteRejectedEvent(
+                        savedQuote.getId(),
+                        quote.getBookingRequest().getId(),
+                        travelerId,
+                        agentId
+                )
+        );
+
         return toTravelerResponse(savedQuote);
     }
 
@@ -379,6 +455,22 @@ public class QuoteService {
 
         quote.setStatus(QuoteStatus.REJECTED);
         Quote savedQuote = quoteRepository.save(quote);
+
+        Long travelerId = quote.getBookingRequest()
+                .getNeed()
+                .getTrip()
+                .getTraveler()
+                .getId();
+        Long agentId = quote.getBookingRequest().getAssignedAgent().getId();
+        saveOutboxEvent(
+                "QUOTE_REJECTED",
+                new QuoteRejectedEvent(
+                        savedQuote.getId(),
+                        quote.getBookingRequest().getId(),
+                        travelerId,
+                        agentId
+                )
+        );
         return toTravelerResponse(savedQuote);
     }
 
@@ -387,6 +479,21 @@ public class QuoteService {
                 .findByAuth0Subject(auth0Subject)
                 .orElseThrow(() -> new ResourceNotFoundException("Traveler not found"));
     }
+
+        private Agent getCurrentAgent(String auth0Subject) {
+                return agentRepository
+                                .findByAuth0Subject(auth0Subject)
+                                .orElseThrow(() -> new ResourceNotFoundException("Agent not found"));
+        }
+
+        private void saveOutboxEvent(String eventType, Object event) {
+                OutboxEvent outboxEvent = new OutboxEvent();
+                outboxEvent.setEventType(eventType);
+                outboxEvent.setPayload(objectMapper.writeValueAsString(event));
+                outboxEvent.setStatus(OutboxStatus.PENDING);
+                outboxEvent.setCreatedAt(Instant.now());
+                outboxEventRepository.save(outboxEvent);
+        }
 
     private Quote getOwnedQuote(Long quoteId, String auth0Subject) {
         Traveler traveler = getCurrentTraveler(auth0Subject);
@@ -440,16 +547,57 @@ public class QuoteService {
     }
 
 
-    public List<TravelerQuoteResponse> getQuotesByBookingRequest(Long bookingRequestId) {
-        // 1. récupérer les quotes avec :
-        List<Quote> quotes = quoteRepository.findByBookingRequestId(bookingRequestId);
+        public List<AgentQuoteResponse> getQuotesByBookingRequest(
+            Long bookingRequestId,
+            String auth0Subject
+    ) {
+        Agent agent = agentRepository
+                .findByAuth0Subject(auth0Subject)
+                .orElseThrow(() -> new ResourceNotFoundException("Agent not found"));
 
-        // 2. transformer chaque Quote en TravelerQuoteResponse
-        List<TravelerQuoteResponse> responses = quotes.stream()
-                .map(this::toTravelerResponse)
-                .collect(Collectors.toList());
+        BookingRequest bookingRequest = bookingRequestRepository
+                .findById(bookingRequestId)
+                .orElseThrow(() -> new ResourceNotFoundException("Booking request not found"));
 
-        // 3. retourner la liste
-        return responses;
+        if (bookingRequest.getAssignedAgent() == null
+                || !bookingRequest.getAssignedAgent().getId().equals(agent.getId())) {
+            throw new ResourceNotFoundException("Booking request not found");
+        }
+
+        return quoteRepository.findByBookingRequestIdOrderByIdDesc(bookingRequestId)
+                .stream()
+                .map(this::toAgentResponse)
+                .toList();
+    }
+
+    private AgentQuoteResponse toAgentResponse(Quote quote) {
+        PaymentStatus paymentStatus = paymentRepository
+                .findFirstByQuoteIdOrderByCreatedAtDesc(quote.getId())
+                .map(Payment::getStatus)
+                .orElse(null);
+
+        Booking booking = bookingRepository
+                .findByQuoteId(quote.getId())
+                .orElse(null);
+
+        return new AgentQuoteResponse(
+                quote.getId(),
+                quote.getBookingRequest().getId(),
+                quote.getProvider(),
+                quote.getExternalOfferId(),
+                quote.getProviderPrice(),
+                quote.getAssistanceFee(),
+                quote.getTotalAmount(),
+                quote.getCurrency(),
+                quote.getDescription(),
+                quote.getStatus(),
+                quote.getCreatedAt(),
+                quote.getExpiresAt(),
+                paymentStatus,
+                booking != null ? booking.getProviderPaymentUrl() : null,
+                booking != null
+                        ? booking.getProviderPaymentStatus()
+                        : ProviderPaymentStatus.NOT_REQUIRED_YET
+        );
     }
 }

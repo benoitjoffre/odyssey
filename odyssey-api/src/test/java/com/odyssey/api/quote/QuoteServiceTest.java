@@ -1,6 +1,7 @@
 package com.odyssey.api.quote;
 
 import com.odyssey.api.agent.Agent;
+import com.odyssey.api.agent.AgentRepository;
 import com.odyssey.api.booking.BookingRequest;
 import com.odyssey.api.booking.BookingRequestRepository;
 import com.odyssey.api.booking.BookingRequestStatus;
@@ -12,6 +13,9 @@ import com.odyssey.api.payment.PaymentRepository;
 import com.odyssey.api.payment.PaymentStatus;
 import com.odyssey.api.traveler.Traveler;
 import com.odyssey.api.traveler.TravelerRepository;
+import com.odyssey.api.trip.Trip;
+import com.odyssey.api.trip.TripRepository;
+import com.odyssey.api.outbox.OutboxEvent;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -24,6 +28,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import tools.jackson.databind.ObjectMapper;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -48,6 +53,9 @@ class QuoteServiceTest {
     private QuoteRepository quoteRepository;
 
     @Mock
+    private AgentRepository agentRepository;
+
+    @Mock
     private BookingRequestRepository bookingRequestRepository;
 
     @Mock
@@ -62,17 +70,22 @@ class QuoteServiceTest {
     @Mock
     private TravelerRepository travelerRepository;
 
+    @Mock
+    private TripRepository tripRepository;
+
     private QuoteService quoteService;
 
     @BeforeEach
     void setUp() {
         quoteService = new QuoteService(
             quoteRepository,
+            agentRepository,
             travelerRepository,
             bookingRequestRepository,
             outboxEventRepository,
             paymentRepository,
             bookingRepository,
+            tripRepository,
             new ObjectMapper()
         );
     }
@@ -121,6 +134,7 @@ class QuoteServiceTest {
         Quote savedQuote = savedQuoteCaptor.getValue();
         assertEquals(QuoteStatus.DRAFT, savedQuote.getStatus());
         assertEquals(0, BigDecimal.valueOf(770).compareTo(savedQuote.getTotalAmount()));
+        verify(outboxEventRepository, never()).save(any());
     }
 
     @Test
@@ -178,7 +192,123 @@ class QuoteServiceTest {
     }
 
     @Test
-    void getQuotesByTravelerIncludesPaymentStatusFromLatestPayment() {
+    void assignedAgentSeesProviderPriceBeforeTravelerAcceptance() {
+        Long bookingRequestId = 1L;
+        Long agentId = 2L;
+        String auth0Subject = "auth0|agent";
+        BookingRequest bookingRequest = inProgressBookingRequestAssignedTo(agentId);
+
+        Agent agent = bookingRequest.getAssignedAgent();
+        when(agentRepository.findByAuth0Subject(auth0Subject))
+            .thenReturn(Optional.of(agent));
+        when(bookingRequestRepository.findById(bookingRequestId))
+            .thenReturn(Optional.of(bookingRequest));
+
+        Quote draftQuote = new Quote();
+        ReflectionTestUtils.setField(draftQuote, "id", 42L);
+        draftQuote.setBookingRequest(bookingRequest);
+        draftQuote.setProvider("test-provider");
+        draftQuote.setProviderPrice(BigDecimal.valueOf(670));
+        draftQuote.setAssistanceFee(BigDecimal.valueOf(100));
+        draftQuote.setTotalAmount(BigDecimal.valueOf(770));
+        draftQuote.setCurrency("EUR");
+        draftQuote.setStatus(QuoteStatus.DRAFT);
+        when(quoteRepository.findByBookingRequestIdOrderByIdDesc(bookingRequestId))
+            .thenReturn(java.util.List.of(draftQuote));
+
+        var responses = quoteService.getQuotesByBookingRequest(
+            bookingRequestId,
+            auth0Subject
+        );
+
+        assertEquals(1, responses.size());
+        assertEquals(QuoteStatus.DRAFT, responses.get(0).status());
+        assertEquals("test-provider", responses.get(0).provider());
+        assertEquals(0, BigDecimal.valueOf(670).compareTo(responses.get(0).providerPrice()));
+        assertEquals(0, BigDecimal.valueOf(100).compareTo(responses.get(0).assistanceFee()));
+        assertEquals(0, BigDecimal.valueOf(770).compareTo(responses.get(0).totalAmount()));
+    }
+
+    @Test
+    void agentCannotSeeQuotesFromAnotherAgentsBookingRequest() {
+        Long bookingRequestId = 1L;
+        String auth0Subject = "auth0|agent";
+        Agent currentAgent = new Agent();
+        ReflectionTestUtils.setField(currentAgent, "id", 2L);
+        BookingRequest bookingRequest = inProgressBookingRequestAssignedTo(3L);
+
+        when(agentRepository.findByAuth0Subject(auth0Subject))
+            .thenReturn(Optional.of(currentAgent));
+        when(bookingRequestRepository.findById(bookingRequestId))
+            .thenReturn(Optional.of(bookingRequest));
+
+        assertThrows(
+            ResourceNotFoundException.class,
+            () -> quoteService.getQuotesByBookingRequest(bookingRequestId, auth0Subject)
+        );
+        verify(quoteRepository, never()).findByBookingRequestIdOrderByIdDesc(any());
+    }
+
+    @Test
+    void sendDraftQuotesForTripSendsAllDraftsAndCreatesOneOutboxEvent() {
+        Long tripId = 10L;
+        String auth0Subject = "auth0|agent";
+        Agent agent = new Agent();
+        ReflectionTestUtils.setField(agent, "id", 2L);
+        Traveler traveler = new Traveler();
+        ReflectionTestUtils.setField(traveler, "id", 5L);
+        Trip trip = new Trip();
+        ReflectionTestUtils.setField(trip, "id", tripId);
+        trip.setTraveler(traveler);
+
+        BookingRequest firstRequest = inProgressBookingRequestAssignedTo(2L);
+        BookingRequest secondRequest = inProgressBookingRequestAssignedTo(2L);
+        Quote firstDraft = quote(101L, firstRequest, QuoteStatus.DRAFT);
+        Quote secondDraft = quote(102L, secondRequest, QuoteStatus.DRAFT);
+
+        when(agentRepository.findByAuth0Subject(auth0Subject)).thenReturn(Optional.of(agent));
+        when(tripRepository.findById(tripId)).thenReturn(Optional.of(trip));
+        when(quoteRepository.findByBookingRequestNeedTripIdAndStatusOrderByIdAsc(
+            tripId,
+            QuoteStatus.DRAFT
+        )).thenReturn(List.of(firstDraft, secondDraft));
+        when(quoteRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        var response = quoteService.sendDraftQuotesForTrip(tripId, auth0Subject);
+
+        assertEquals(List.of(101L, 102L), response.sentQuoteIds());
+        assertEquals(QuoteStatus.SENT, firstDraft.getStatus());
+        assertEquals(QuoteStatus.SENT, secondDraft.getStatus());
+        ArgumentCaptor<OutboxEvent> outboxCaptor = ArgumentCaptor.forClass(OutboxEvent.class);
+        verify(outboxEventRepository).save(outboxCaptor.capture());
+        assertEquals("TRIP_QUOTES_SENT", outboxCaptor.getValue().getEventType());
+    }
+
+    @Test
+    void sendDraftQuotesForTripDoesNothingWhenNoDraftExists() {
+        Long tripId = 10L;
+        String auth0Subject = "auth0|agent";
+        Agent agent = new Agent();
+        ReflectionTestUtils.setField(agent, "id", 2L);
+        Trip trip = new Trip();
+        ReflectionTestUtils.setField(trip, "id", tripId);
+
+        when(agentRepository.findByAuth0Subject(auth0Subject)).thenReturn(Optional.of(agent));
+        when(tripRepository.findById(tripId)).thenReturn(Optional.of(trip));
+        when(quoteRepository.findByBookingRequestNeedTripIdAndStatusOrderByIdAsc(
+            tripId,
+            QuoteStatus.DRAFT
+        )).thenReturn(List.of());
+
+        var response = quoteService.sendDraftQuotesForTrip(tripId, auth0Subject);
+
+        assertEquals(List.of(), response.sentQuoteIds());
+        verify(quoteRepository, never()).saveAll(any());
+        verify(outboxEventRepository, never()).save(any());
+    }
+
+    @Test
+    void getQuotesByTravelerExcludesDraftsAndIncludesLatestPaymentStatus() {
 
         Long travelerId = 5L;
         BookingRequest bookingRequest = new BookingRequest();
@@ -205,7 +335,12 @@ class QuoteServiceTest {
         var responses = quoteService.getQuotesByTraveler(travelerId);
 
         assertEquals(1, responses.size());
+        assertEquals(QuoteStatus.ACCEPTED, responses.get(0).status());
         assertEquals(PaymentStatus.PAID, responses.get(0).paymentStatus());
+        verify(quoteRepository).findByBookingRequestNeedTripTravelerIdAndStatusNot(
+            travelerId,
+            QuoteStatus.DRAFT
+        );
     }
 
     @Test
@@ -264,6 +399,54 @@ class QuoteServiceTest {
     }
 
     @Test
+    void travelerAcceptsSentQuoteAndCreatesAcceptedOutboxEvent() {
+        String auth0Subject = "auth0|traveler-1";
+        Traveler traveler = new Traveler();
+        ReflectionTestUtils.setField(traveler, "id", 1L);
+        when(travelerRepository.findByAuth0Subject(auth0Subject)).thenReturn(Optional.of(traveler));
+
+        BookingRequest bookingRequest = inProgressBookingRequestAssignedTo(5L);
+        ReflectionTestUtils.setField(bookingRequest, "id", 100L);
+        ReflectiveHelper.setQuoteOwner(bookingRequest, 1L);
+        bookingRequest.setAssignedAgent(agent(5L));
+        Quote quote = pricedQuote(90L, bookingRequest, QuoteStatus.SENT);
+
+        when(quoteRepository.findById(90L)).thenReturn(Optional.of(quote));
+        when(quoteRepository.save(quote)).thenReturn(quote);
+
+        var response = quoteService.acceptQuote(90L, auth0Subject);
+
+        assertEquals(QuoteStatus.ACCEPTED, response.status());
+        ArgumentCaptor<OutboxEvent> outboxCaptor = ArgumentCaptor.forClass(OutboxEvent.class);
+        verify(outboxEventRepository).save(outboxCaptor.capture());
+        assertEquals("QUOTE_ACCEPTED", outboxCaptor.getValue().getEventType());
+    }
+
+    @Test
+    void travelerRejectsSentQuoteAndCreatesRejectedOutboxEvent() {
+        String auth0Subject = "auth0|traveler-1";
+        Traveler traveler = new Traveler();
+        ReflectionTestUtils.setField(traveler, "id", 1L);
+        when(travelerRepository.findByAuth0Subject(auth0Subject)).thenReturn(Optional.of(traveler));
+
+        BookingRequest bookingRequest = inProgressBookingRequestAssignedTo(5L);
+        ReflectionTestUtils.setField(bookingRequest, "id", 100L);
+        ReflectiveHelper.setQuoteOwner(bookingRequest, 1L);
+        bookingRequest.setAssignedAgent(agent(5L));
+        Quote quote = pricedQuote(91L, bookingRequest, QuoteStatus.SENT);
+
+        when(quoteRepository.findById(91L)).thenReturn(Optional.of(quote));
+        when(quoteRepository.save(quote)).thenReturn(quote);
+
+        var response = quoteService.rejectQuote(91L, auth0Subject);
+
+        assertEquals(QuoteStatus.REJECTED, response.status());
+        ArgumentCaptor<OutboxEvent> outboxCaptor = ArgumentCaptor.forClass(OutboxEvent.class);
+        verify(outboxEventRepository).save(outboxCaptor.capture());
+        assertEquals("QUOTE_REJECTED", outboxCaptor.getValue().getEventType());
+    }
+
+    @Test
     void acceptQuoteRejectsQuoteOwnedByAnotherTraveler() {
         String auth0Subject = "auth0|traveler-1";
         Traveler traveler = new Traveler();
@@ -319,5 +502,28 @@ class QuoteServiceTest {
             ReflectionTestUtils.setField(need, "trip", trip);
             bookingRequest.setNeed(need);
         }
+    }
+
+    private Quote quote(Long id, BookingRequest bookingRequest, QuoteStatus status) {
+        Quote quote = new Quote();
+        ReflectionTestUtils.setField(quote, "id", id);
+        quote.setBookingRequest(bookingRequest);
+        quote.setStatus(status);
+        return quote;
+    }
+
+    private Quote pricedQuote(Long id, BookingRequest bookingRequest, QuoteStatus status) {
+        Quote quote = quote(id, bookingRequest, status);
+        quote.setProviderPrice(BigDecimal.valueOf(670));
+        quote.setAssistanceFee(BigDecimal.valueOf(100));
+        quote.setTotalAmount(BigDecimal.valueOf(770));
+        quote.setCurrency("EUR");
+        return quote;
+    }
+
+    private Agent agent(Long id) {
+        Agent agent = new Agent();
+        ReflectionTestUtils.setField(agent, "id", id);
+        return agent;
     }
 }

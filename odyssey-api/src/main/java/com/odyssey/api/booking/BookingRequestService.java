@@ -216,6 +216,20 @@ public class BookingRequestService {
     @Transactional
     public BookingRequestResponse claimBookingRequest(
         Long bookingRequestId,
+        String auth0Subject
+    ) {
+        Agent agent = agentRepository
+            .findByAuth0Subject(auth0Subject)
+            .orElseThrow(() ->
+                new ResourceNotFoundException("Agent not found")
+            );
+
+        return claimBookingRequest(bookingRequestId, agent.getId());
+    }
+
+    @Transactional
+    public BookingRequestResponse claimBookingRequest(
+        Long bookingRequestId,
         Long agentId
     ) {
 

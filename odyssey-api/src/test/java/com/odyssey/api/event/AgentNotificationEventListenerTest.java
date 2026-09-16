@@ -121,4 +121,37 @@ class AgentNotificationEventListenerTest {
         verify(notificationRepository).save(any(AgentNotification.class));
         verify(sseService).send(eq(5L), any(AgentNotificationResponse.class));
     }
+
+    @Test
+    void quoteRejectedCreatesNotificationAndPushesSse() {
+
+        Traveler traveler = mock(Traveler.class);
+        when(traveler.getFirstName()).thenReturn("Alice");
+
+        Trip trip = mock(Trip.class);
+        when(trip.getTraveler()).thenReturn(traveler);
+
+        Need need = mock(Need.class);
+        when(need.getTrip()).thenReturn(trip);
+
+        BookingRequest bookingRequest = mock(BookingRequest.class);
+        when(bookingRequest.getId()).thenReturn(100L);
+        when(bookingRequest.getNeed()).thenReturn(need);
+        when(bookingRequestRepository.findById(100L))
+            .thenReturn(Optional.of(bookingRequest));
+
+        Agent agent = mock(Agent.class);
+        when(agent.getId()).thenReturn(5L);
+        when(agentRepository.findById(5L)).thenReturn(Optional.of(agent));
+
+        when(notificationRepository.save(any()))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+
+        listener.onQuoteRejected(
+            new QuoteRejectedEvent(1L, 100L, 300L, 5L)
+        );
+
+        verify(notificationRepository).save(any(AgentNotification.class));
+        verify(sseService).send(eq(5L), any(AgentNotificationResponse.class));
+    }
 }
