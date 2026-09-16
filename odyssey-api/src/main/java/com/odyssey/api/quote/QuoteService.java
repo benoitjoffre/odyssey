@@ -24,6 +24,8 @@ import com.odyssey.api.traveler.TravelerRepository;
 import com.odyssey.api.trip.SendTripQuotesResponse;
 import com.odyssey.api.trip.Trip;
 import com.odyssey.api.trip.TripRepository;
+import com.odyssey.api.trip.TripStatus;
+
 import tools.jackson.databind.ObjectMapper;
 
 import org.springframework.stereotype.Service;
@@ -360,6 +362,19 @@ public class QuoteService {
         quote.setStatus(QuoteStatus.ACCEPTED);
 
         Quote savedQuote = quoteRepository.save(quote);
+
+        Trip trip = quote
+        .getBookingRequest()
+        .getNeed()
+        .getTrip();
+
+        List<Quote> tripQuotes = quoteRepository.findByBookingRequestNeedTripId(trip.getId());
+
+        boolean allAccepted = !tripQuotes.isEmpty() && tripQuotes.stream().allMatch(q -> q.getStatus() == QuoteStatus.ACCEPTED);
+
+        if (allAccepted) {
+            trip.setStatus(TripStatus.CONFIRMED);
+        }
 
         Long travelerId = quote.getBookingRequest()
                 .getNeed()

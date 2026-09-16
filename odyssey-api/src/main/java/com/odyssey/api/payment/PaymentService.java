@@ -111,7 +111,7 @@ public class PaymentService {
         //
         // This ensures that only one request at a time can decide whether to
         // create or reuse the Trip's Payment, preventing duplicate Payment rows
-        // and duplicate Stripe Checkout Sessions for the same Trip.
+        // and duplicate Stripe Checkout Sessions for the same Trip.   
         Trip trip = tripRepository
             .findByIdForUpdate(tripId)
             .orElseThrow(() ->

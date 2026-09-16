@@ -37,4 +37,7 @@ public interface QuoteRepository extends JpaRepository<Quote, Long> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select q from Quote q where q.id = :id")
     Optional<Quote> findByIdForUpdate(@Param("id") Long id);
+
+
+    List<Quote> findByBookingRequestNeedTripId(Long tripId);
 }

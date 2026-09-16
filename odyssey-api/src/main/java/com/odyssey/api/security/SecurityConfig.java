@@ -46,6 +46,7 @@ public class SecurityConfig {
             .httpBasic(httpBasic -> httpBasic.disable())
             .formLogin(form -> form.disable())
             .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/api/payments/webhook").permitAll()
                 .anyRequest().authenticated()
             )
             .oauth2ResourceServer(oauth2 ->

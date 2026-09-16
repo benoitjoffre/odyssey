@@ -21,7 +21,19 @@ public class PaymentController {
         @PathVariable Long tripId,
         @AuthenticationPrincipal Jwt jwt
     ) {
-        return paymentService.createCheckoutSession(tripId, jwt.getSubject());
+        System.out.println("=== CHECKOUT HIT ===");
+        System.out.println("tripId = " + tripId);
+        System.out.println("subject = " + jwt.getSubject());
+        try {
+            return paymentService.createCheckoutSession(tripId, jwt.getSubject());
+
+        } catch (IllegalArgumentException e) {
+            System.err.println("=== CHECKOUT ERROR ===");
+            System.err.println("tripId = " + tripId);
+            System.err.println("subject = " + jwt.getSubject());
+            System.err.println("error = " + e.getMessage());
+            throw e;
+        }
     }
 
     /**
