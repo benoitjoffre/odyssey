@@ -204,6 +204,16 @@ public class PaymentService {
 
         StripeCheckoutSession session;
          try {
+
+            String successUrl = stripeProperties.getSuccessUrl()
+                + "/traveler/trips/"
+                + trip.getId()
+                + "?payment=success";
+
+            String cancelUrl = stripeProperties.getCancelUrl()
+                + "/traveler/trips/"
+                + trip.getId()
+                + "?payment=cancelled";
             // Odyssey is an assistance service: it never resells the travel
             // service and never collects the Provider's money. Stripe must
             // only ever charge the assistanceFee, never
@@ -216,8 +226,8 @@ public class PaymentService {
                         "Frais d'assistance Odyssey - Voyage #" + trip.getId(),
                         String.valueOf(tripId),
                         String.valueOf(savedPayment.getId()),
-                        stripeProperties.getSuccessUrl(),
-                        stripeProperties.getCancelUrl(),
+                        successUrl,
+                        cancelUrl,
                         idempotencyKey
                     )
                 );
