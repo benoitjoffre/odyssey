@@ -247,6 +247,7 @@ export function AgentBookingRequestsPage() {
               .filter((quote): quote is AgentQuoteResponse => quote !== null);
             const assistanceFee = tripFeeOverrides[group.tripId] ?? group.assistanceFee;
             const hasDraftQuote = currentQuotes.some((quote) => quote.status === "DRAFT");
+            const paymentStatus = currentQuotes.find((quote) => quote.paymentStatus !== null)?.paymentStatus ?? null;
 
             return (
               <section className="agent-trip-request-group" key={group.tripId} aria-labelledby={`trip-${group.tripId}-title`}>
@@ -304,6 +305,8 @@ export function AgentBookingRequestsPage() {
                   providerOffers={currentQuotes}
                   editable
                   onSaveAssistanceFee={(value) => handleUpdateTripAssistanceFee(group.tripId, value)}
+                  paymentStatus={paymentStatus}
+                  showPaymentStatus
                 />
                 <div className="trip-quote-send-actions">
                   {sendErrors[group.tripId] && (

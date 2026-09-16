@@ -18,12 +18,14 @@ import {
 } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { createBookingRequest } from "../../api/bookingRequests";
+import { createTripCheckoutSession } from "../../api/payments";
 import { getTravelerQuotes } from "../../api/travelerQuotes";
 import { deleteTrip, getTripDetail } from "../../api/trips";
 import { TripFinancialSummary } from "../../components/TripFinancialSummary";
 import { TravelerNeedForm } from "../../components/TravelerNeedForm";
 import { getLatestAcceptedQuote } from "../../helpers/travelerQuotes";
 import type { OrganizableNeedType } from "../../types/need";
+import type { PaymentStatus } from "../../types/payment";
 import type { TripDetail, TripNeed, TripNeedType } from "../../types/trip";
 import type { TravelerQuote } from "../../types/travelerQuote";
 
@@ -96,8 +98,27 @@ export function TravelerTripDetailPage() {
   const [confirmingDeletion, setConfirmingDeletion] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [paymentStatus, setPaymentStatus] = useState<PaymentStatus | null>(null);
+  const [startingCheckout, setStartingCheckout] = useState(false);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const sendingRequestRef = useRef(false);
   const deletingRef = useRef(false);
+
+  async function handleCheckout() {
+    if (!trip || startingCheckout) return;
+    setStartingCheckout(true);
+    setCheckoutError(null);
+
+    try {
+      sessionStorage.setItem("odyssey-payment-trip-id", String(trip.id));
+      const session = await createTripCheckoutSession(trip.id);
+      window.location.href = session.checkoutUrl;
+    } catch {
+      sessionStorage.removeItem("odyssey-payment-trip-id");
+      setCheckoutError("Impossible de démarrer le paiement pour le moment. Veuillez réessayer.");
+      setStartingCheckout(false);
+    }
+  }
 
   async function handleDeleteTrip() {
     if (deletingRef.current || !trip) return;
@@ -160,9 +181,14 @@ export function TravelerTripDetailPage() {
         const acceptedQuoteEntries = tripDetail.needs.map(
           (need) => [need.id, need.bookingRequestId ? getLatestAcceptedQuote(quotesByBookingRequestId.get(need.bookingRequestId)) : null] as const,
         );
+        const tripBookingRequestIds = new Set(tripDetail.needs.flatMap((need) => (need.bookingRequestId === null ? [] : [need.bookingRequestId])));
+        const tripPaymentStatus = travelerQuotes.find(
+          (quote) => tripBookingRequestIds.has(quote.bookingRequestId) && quote.paymentStatus !== null,
+        )?.paymentStatus;
 
         setTrip(tripDetail);
         setAcceptedQuotesByNeedId(Object.fromEntries(acceptedQuoteEntries));
+        setPaymentStatus(tripPaymentStatus ?? null);
       } catch (requestError: unknown) {
         if (requestError instanceof DOMException && requestError.name === "AbortError") return;
         setError("Ce voyage est introuvable ou momentanément indisponible.");
@@ -174,6 +200,25 @@ export function TravelerTripDetailPage() {
     void loadTrip();
     return () => controller.abort();
   }, [hasInvalidTripId, parsedTripId, requestVersion]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const paymentResult = params.get("payment");
+    if (paymentResult !== "success" && paymentResult !== "cancelled") return;
+
+    window.history.replaceState({}, "", window.location.pathname);
+    sessionStorage.removeItem("odyssey-payment-trip-id");
+    if (paymentResult === "cancelled") return;
+
+    let attempts = 0;
+    const interval = window.setInterval(() => {
+      attempts += 1;
+      setRequestVersion((version) => version + 1);
+      if (attempts >= 4) window.clearInterval(interval);
+    }, 1500);
+
+    return () => window.clearInterval(interval);
+  }, []);
 
   if (hasInvalidTripId) {
     return (
@@ -304,6 +349,11 @@ export function TravelerTripDetailPage() {
           .filter((quote): quote is TravelerQuote => quote !== null)
           .map(({ providerPrice, currency }) => ({ providerPrice, currency }))}
         showTravelerExplanation
+        paymentStatus={paymentStatus}
+        showPaymentStatus
+        checkoutLoading={startingCheckout}
+        checkoutError={checkoutError}
+        onCheckout={() => void handleCheckout()}
       />
 
       <section aria-labelledby="organize-trip-title">

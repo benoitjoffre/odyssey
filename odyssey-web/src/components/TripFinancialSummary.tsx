@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
-import { Check, LoaderCircle, Pencil, X } from "lucide-react";
+import { Check, CreditCard, LoaderCircle, Pencil, X } from "lucide-react";
+import type { PaymentStatus } from "../types/payment";
 
 export interface ProviderOfferAmount {
   providerPrice: number;
@@ -12,6 +13,11 @@ interface TripFinancialSummaryProps {
   editable?: boolean;
   onSaveAssistanceFee?: (assistanceFee: number) => Promise<void>;
   showTravelerExplanation?: boolean;
+  paymentStatus?: PaymentStatus | null;
+  showPaymentStatus?: boolean;
+  checkoutLoading?: boolean;
+  checkoutError?: string | null;
+  onCheckout?: () => void;
 }
 
 function formatPrice(price: number, currency: string) {
@@ -52,6 +58,11 @@ export function TripFinancialSummary({
   editable = false,
   onSaveAssistanceFee,
   showTravelerExplanation = false,
+  paymentStatus,
+  showPaymentStatus = false,
+  checkoutLoading = false,
+  checkoutError,
+  onCheckout,
 }: TripFinancialSummaryProps) {
   const [editing, setEditing] = useState(false);
   const [feeInput, setFeeInput] = useState("");
@@ -182,6 +193,39 @@ export function TripFinancialSummary({
             <span>Offres fournisseurs et frais Odyssey</span>
           </div>
           <strong>{estimatedTotal === null ? "Non calculé en présence de devises différentes" : formatPrice(estimatedTotal, "EUR")}</strong>
+        </div>
+      )}
+
+      {showPaymentStatus && (
+        <div className="trip-payment-state">
+          {paymentStatus === "PAID" ? (
+            <p className="trip-financial-success">
+              <Check size={16} /> Frais d’assistance Odyssey payés
+            </p>
+          ) : (
+            <>
+              <p>
+                {paymentStatus === "PENDING"
+                  ? "Paiement des frais d’assistance en attente de confirmation."
+                  : paymentStatus === "FAILED"
+                    ? "Le paiement précédent a échoué."
+                    : "Frais d’assistance Odyssey à régler."}
+              </p>
+              {onCheckout && assistanceFee !== undefined && assistanceFee > 0 && (
+                <button type="button" className="primary-button" disabled={checkoutLoading} onClick={onCheckout}>
+                  {checkoutLoading ? <LoaderCircle className="rotating" size={17} /> : <CreditCard size={17} />}
+                  {checkoutLoading
+                    ? "Redirection…"
+                    : `${paymentStatus === "PENDING" ? "Reprendre le paiement" : "Payer les frais d’assistance"} — ${formatPrice(assistanceFee, "EUR")}`}
+                </button>
+              )}
+            </>
+          )}
+          {checkoutError && (
+            <p className="trip-financial-error" role="alert">
+              {checkoutError}
+            </p>
+          )}
         </div>
       )}
 

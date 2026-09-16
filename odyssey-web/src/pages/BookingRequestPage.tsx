@@ -35,8 +35,6 @@ const providerPaymentStatusLabels: Record<ProviderPaymentStatus, string> = {
   UNKNOWN: "Inconnu",
 };
 
-const CURRENT_AGENT_ID = 1;
-
 const statusLabels: Record<BookingRequestStatus, string> = {
   REQUESTED: "Demandée",
   IN_PROGRESS: "En cours",
@@ -236,7 +234,7 @@ export function BookingRequestPage() {
 
   async function handleCreateBooking() {
     if (!acceptedQuote || creatingBooking) return;
-    if (!isBookableQuotePaid) return;
+    if (!isTripAssistanceFeePaid) return;
 
     setCreatingBooking(true);
     setBookingError(null);
@@ -257,7 +255,7 @@ export function BookingRequestPage() {
     setBookingError(null);
 
     try {
-      const confirmedBooking = await confirmBooking(booking.id, CURRENT_AGENT_ID);
+      const confirmedBooking = await confirmBooking(booking.id);
       setBooking(confirmedBooking);
       setReloadVersion((version) => version + 1);
     } catch {
@@ -280,7 +278,7 @@ export function BookingRequestPage() {
     setProviderDetailsError(null);
 
     try {
-      const updatedBooking = await updateBookingProviderDetails(booking.id, CURRENT_AGENT_ID, {
+      const updatedBooking = await updateBookingProviderDetails(booking.id, {
         providerReference: providerReference.trim(),
         providerPaymentUrl: providerPaymentUrl.trim(),
         providerPaymentStatus,
@@ -339,10 +337,9 @@ export function BookingRequestPage() {
   const { need, traveler, trip } = bookingRequest;
   const canClaim = bookingRequest.status === "REQUESTED" && bookingRequest.assignedAgentId === null;
   const canSearchOffers = bookingRequest.status === "IN_PROGRESS" && bookingRequest.assignedAgentId !== null;
-  // Le statut de paiement provient toujours du backend (TravelerQuote.paymentStatus,
-  // aliment\u00e9 par le webhook Stripe v\u00e9rifi\u00e9) : le frontend ne d\u00e9cide jamais lui-m\u00eame
-  // qu\u2019une proposition est pay\u00e9e.
-  const isBookableQuotePaid = acceptedQuote?.paymentStatus === "PAID";
+  // AgentQuoteResponse conserve ce champ de compatibilité, mais il représente
+  // désormais le paiement unique du Trip auquel appartient la proposition.
+  const isTripAssistanceFeePaid = acceptedQuote?.paymentStatus === "PAID";
   return (
     <div className="page-stack booking-request-page">
       <Link className="back-link" to="/agent">
@@ -744,11 +741,11 @@ export function BookingRequestPage() {
             </p>
           )}
 
-          {!booking && !isBookableQuotePaid && (
+          {!booking && !isTripAssistanceFeePaid && (
             <p className="booking-payment-pending">En attente du paiement du client avant de pouvoir créer la réservation.</p>
           )}
 
-          {!booking && isBookableQuotePaid && (
+          {!booking && isTripAssistanceFeePaid && (
             <button type="button" className="primary-button" onClick={handleCreateBooking} disabled={creatingBooking}>
               {creatingBooking ? <LoaderCircle className="rotating" size={18} /> : <ClipboardCheck size={18} />}
               {creatingBooking ? "Création de la réservation…" : "Créer la réservation"}

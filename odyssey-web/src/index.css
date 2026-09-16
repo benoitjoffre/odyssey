@@ -571,6 +571,25 @@ h2 {
   font-weight: 700;
 }
 
+.trip-payment-state {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 16px 0;
+  border-top: 1px solid var(--border);
+}
+
+.trip-payment-state > p {
+  margin: 0;
+  color: #45615d;
+}
+
+.trip-payment-state .trip-financial-error {
+  flex-basis: 100%;
+}
+
 .trip-financial-explanation {
   margin: 4px 0 0;
   padding: 16px;
