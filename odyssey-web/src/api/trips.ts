@@ -1,6 +1,11 @@
 import { apiFetch } from "./client";
 import type { CreateTripRequest, Trip, TripDetail } from "../types/trip";
 
+export interface SendTripQuotesResponse {
+  tripId: number;
+  sentQuoteIds: number[];
+}
+
 export function getTravelerTrips(signal?: AbortSignal): Promise<Trip[]> {
   return apiFetch<Trip[]>(`/api/trips`, { signal });
 }
@@ -22,6 +27,12 @@ export function updateTripAssistanceFee(tripId: number, assistanceFee: number): 
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ assistanceFee }),
+  });
+}
+
+export function sendTripQuotes(tripId: number): Promise<SendTripQuotesResponse> {
+  return apiFetch<SendTripQuotesResponse>(`/api/trips/${tripId}/quotes/send`, {
+    method: "POST",
   });
 }
 

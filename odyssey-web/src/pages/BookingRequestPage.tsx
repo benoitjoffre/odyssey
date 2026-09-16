@@ -22,13 +22,11 @@ import {
 import { Link, useParams } from "react-router-dom";
 import { confirmBooking, createBooking, updateBookingProviderDetails } from "../api/bookings";
 import { claimBookingRequest, getBookingRequest, searchBookingRequestOffers } from "../api/bookingRequests";
-import { createQuote, sendQuote } from "../api/quotes";
-import { getBookingRequestQuotes } from "../api/travelerQuotes";
+import { createQuote, getAgentBookingRequestQuotes } from "../api/quotes";
 import type { Booking, ProviderPaymentStatus } from "../types/booking";
 import type { BookingRequest, BookingRequestStatus, NeedType } from "../types/bookingRequest";
 import { isAccommodationOffer, isTransferOffer, type ProviderOffer } from "../types/providerOffer";
-import type { QuoteResponse } from "../types/quote";
-import type { TravelerQuote } from "../types/travelerQuote";
+import type { AgentQuoteResponse, QuoteResponse } from "../types/quote";
 
 const providerPaymentStatusLabels: Record<ProviderPaymentStatus, string> = {
   NOT_REQUIRED_YET: "Pas encore déterminé",
@@ -84,6 +82,15 @@ function getOfferDescription(offer: ProviderOffer) {
   return `${offer.airline} - ${offer.origin} → ${offer.destination}`;
 }
 
+function toAgentQuoteResponse(quote: QuoteResponse): AgentQuoteResponse {
+  return {
+    ...quote,
+    paymentStatus: null,
+    providerPaymentUrl: null,
+    providerPaymentStatus: "NOT_REQUIRED_YET",
+  };
+}
+
 export function BookingRequestPage() {
   const { id } = useParams<{ id: string }>();
   const bookingRequestId = Number(id);
@@ -97,14 +104,10 @@ export function BookingRequestPage() {
   const [offers, setOffers] = useState<ProviderOffer[]>([]);
   const [searchingOffers, setSearchingOffers] = useState(false);
   const [selectedOffer, setSelectedOffer] = useState<ProviderOffer | null>(null);
-  const [assistanceFee, setAssistanceFee] = useState("");
   const [quoteDescription, setQuoteDescription] = useState("");
   const [creatingQuote, setCreatingQuote] = useState(false);
   const [quoteError, setQuoteError] = useState<string | null>(null);
-  const [createdQuote, setCreatedQuote] = useState<QuoteResponse | null>(null);
-  const [sendingQuote, setSendingQuote] = useState(false);
-  const [sendQuoteError, setSendQuoteError] = useState<string | null>(null);
-  const [acceptedQuote, setAcceptedQuote] = useState<TravelerQuote | null>(null);
+  const [agentQuotes, setAgentQuotes] = useState<AgentQuoteResponse[]>([]);
   const [booking, setBooking] = useState<Booking | null>(null);
   const [creatingBooking, setCreatingBooking] = useState(false);
   const [confirmingBooking, setConfirmingBooking] = useState(false);
@@ -114,6 +117,7 @@ export function BookingRequestPage() {
   const [providerPaymentStatus, setProviderPaymentStatus] = useState<ProviderPaymentStatus>("NOT_REQUIRED_YET");
   const [savingProviderDetails, setSavingProviderDetails] = useState(false);
   const [providerDetailsError, setProviderDetailsError] = useState<string | null>(null);
+  const acceptedQuote = agentQuotes.find((quote) => quote.status === "ACCEPTED") ?? null;
 
   useEffect(() => {
     if (hasInvalidId) return;
@@ -128,12 +132,17 @@ export function BookingRequestPage() {
         const request = await getBookingRequest(bookingRequestId, controller.signal);
         setBookingRequest(request);
 
-        const travelerQuotes = await getBookingRequestQuotes(request.id, controller.signal);
-        const matchingAcceptedQuote =
-          travelerQuotes
-            .filter((quote) => quote.bookingRequestId === request.id && quote.status === "ACCEPTED")
-            .sort((first, second) => second.id - first.id)[0] ?? null;
-        setAcceptedQuote(matchingAcceptedQuote);
+        if (request.assignedAgentId !== null) {
+          try {
+            const quotes = await getAgentBookingRequestQuotes(request.id, controller.signal);
+            setAgentQuotes(quotes.sort((first, second) => second.id - first.id));
+          } catch (quotesError: unknown) {
+            if (quotesError instanceof DOMException && quotesError.name === "AbortError") throw quotesError;
+            setAgentQuotes([]);
+          }
+        } else {
+          setAgentQuotes([]);
+        }
       } catch (requestError: unknown) {
         if (requestError instanceof DOMException && requestError.name === "AbortError") return;
         setError("Impossible de charger cette demande pour le moment.");
@@ -164,7 +173,7 @@ export function BookingRequestPage() {
     setActionError(null);
 
     try {
-      await claimBookingRequest(bookingRequestId, CURRENT_AGENT_ID);
+      await claimBookingRequest(bookingRequestId);
       setReloadVersion((version) => version + 1);
     } catch {
       setActionError("La prise en charge a échoué. Veuillez réessayer.");
@@ -178,7 +187,6 @@ export function BookingRequestPage() {
     setActionError(null);
     setOffers([]);
     setSelectedOffer(null);
-    setCreatedQuote(null);
 
     try {
       setOffers(await searchBookingRequestOffers(bookingRequestId));
@@ -191,22 +199,13 @@ export function BookingRequestPage() {
 
   function handleSelectOffer(offer: ProviderOffer) {
     setSelectedOffer(offer);
-    setAssistanceFee("0");
     setQuoteDescription(getOfferDescription(offer));
     setQuoteError(null);
-    setCreatedQuote(null);
-    setSendQuoteError(null);
   }
 
   async function handleCreateQuote(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!selectedOffer) return;
-
-    const parsedAssistanceFee = Number(assistanceFee);
-    if (!Number.isFinite(parsedAssistanceFee) || parsedAssistanceFee < 0) {
-      setQuoteError("Saisissez des frais d’assistance valides.");
-      return;
-    }
 
     if (!quoteDescription.trim()) {
       setQuoteError("La description est obligatoire.");
@@ -217,16 +216,17 @@ export function BookingRequestPage() {
     setQuoteError(null);
 
     try {
-      const quote = await createQuote(bookingRequestId, CURRENT_AGENT_ID, {
+      const quote = await createQuote(bookingRequestId, {
         provider: selectedOffer.provider,
         externalOfferId: selectedOffer.externalId,
         providerPrice: selectedOffer.price,
-        assistanceFee: parsedAssistanceFee,
+        assistanceFee: 0,
         currency: selectedOffer.currency,
         description: quoteDescription.trim(),
         expiresAt: null,
       });
-      setCreatedQuote(quote);
+      setAgentQuotes((currentQuotes) => [toAgentQuoteResponse(quote), ...currentQuotes.filter((currentQuote) => currentQuote.id !== quote.id)]);
+      setSelectedOffer(null);
     } catch {
       setQuoteError("La création de la proposition a échoué. Veuillez réessayer.");
     } finally {
@@ -234,31 +234,15 @@ export function BookingRequestPage() {
     }
   }
 
-  async function handleSendQuote() {
-    if (!createdQuote || sendingQuote) return;
-
-    setSendingQuote(true);
-    setSendQuoteError(null);
-
-    try {
-      setCreatedQuote(await sendQuote(bookingRequestId, createdQuote.id, CURRENT_AGENT_ID));
-    } catch {
-      setSendQuoteError("L’envoi de la proposition a échoué. Veuillez réessayer.");
-    } finally {
-      setSendingQuote(false);
-    }
-  }
-
   async function handleCreateBooking() {
-    const quote = acceptedQuote ?? (createdQuote?.status === "ACCEPTED" ? createdQuote : null);
-    if (!quote || creatingBooking) return;
+    if (!acceptedQuote || creatingBooking) return;
     if (!isBookableQuotePaid) return;
 
     setCreatingBooking(true);
     setBookingError(null);
 
     try {
-      setBooking(await createBooking(quote.id, CURRENT_AGENT_ID));
+      setBooking(await createBooking(acceptedQuote.id));
     } catch {
       setBookingError("La réservation n’a pas pu être créée. Veuillez réessayer.");
     } finally {
@@ -354,17 +338,11 @@ export function BookingRequestPage() {
 
   const { need, traveler, trip } = bookingRequest;
   const canClaim = bookingRequest.status === "REQUESTED" && bookingRequest.assignedAgentId === null;
-  const canSearchOffers = bookingRequest.status === "IN_PROGRESS" && bookingRequest.assignedAgentId === CURRENT_AGENT_ID;
+  const canSearchOffers = bookingRequest.status === "IN_PROGRESS" && bookingRequest.assignedAgentId !== null;
   // Le statut de paiement provient toujours du backend (TravelerQuote.paymentStatus,
   // aliment\u00e9 par le webhook Stripe v\u00e9rifi\u00e9) : le frontend ne d\u00e9cide jamais lui-m\u00eame
   // qu\u2019une proposition est pay\u00e9e.
   const isBookableQuotePaid = acceptedQuote?.paymentStatus === "PAID";
-  const parsedAssistanceFeePreview = Number(assistanceFee);
-  const totalClientPreview =
-    selectedOffer && Number.isFinite(parsedAssistanceFeePreview) && parsedAssistanceFeePreview >= 0
-      ? selectedOffer.price + parsedAssistanceFeePreview
-      : null;
-
   return (
     <div className="page-stack booking-request-page">
       <Link className="back-link" to="/agent">
@@ -605,10 +583,10 @@ export function BookingRequestPage() {
                   <button type="button" className={selected ? "selected-button" : "offer-button"} onClick={() => handleSelectOffer(offer)}>
                     {selected ? (
                       <>
-                        <Check size={16} /> Offre sélectionnée
+                        <Check size={16} /> Offre retenue
                       </>
                     ) : (
-                      "Sélectionner cette offre"
+                      "Retenir cette offre"
                     )}
                   </button>
                 </article>
@@ -618,27 +596,17 @@ export function BookingRequestPage() {
         </section>
       )}
 
-      {selectedOffer && !createdQuote && (
+      {selectedOffer && (
         <section className="quote-creation-card" aria-labelledby="quote-creation-title">
           <div className="detail-card-heading">
             <FileCheck2 size={20} />
-            <h2 id="quote-creation-title">Créer une proposition</h2>
+            <h2 id="quote-creation-title">Préparer cette offre</h2>
           </div>
           <form className="quote-form" onSubmit={handleCreateQuote}>
             <div className="quote-price-summary">
               <span>Prix fournisseur</span>
               <strong>{formatPrice(selectedOffer.price, selectedOffer.currency)}</strong>
             </div>
-            <label className="form-field">
-              <span>Frais d’assistance Odyssey ({selectedOffer.currency})</span>
-              <input type="number" min="0" step="0.01" value={assistanceFee} onChange={(event) => setAssistanceFee(event.target.value)} required />
-            </label>
-            {totalClientPreview !== null && (
-              <div className="quote-price-summary">
-                <span>Total client</span>
-                <strong>{formatPrice(totalClientPreview, selectedOffer.currency)}</strong>
-              </div>
-            )}
             <label className="form-field form-field-wide">
               <span>Description</span>
               <input type="text" value={quoteDescription} onChange={(event) => setQuoteDescription(event.target.value)} required />
@@ -650,64 +618,57 @@ export function BookingRequestPage() {
             )}
             <button type="submit" className="primary-button quote-submit" disabled={creatingQuote}>
               {creatingQuote ? <LoaderCircle className="rotating" size={18} /> : <FileCheck2 size={18} />}
-              {creatingQuote ? "Création en cours…" : "Créer la proposition"}
+              {creatingQuote ? "Enregistrement…" : "Enregistrer l’offre"}
             </button>
           </form>
         </section>
       )}
 
-      {createdQuote && (
-        <section className="quote-success-card" aria-labelledby="quote-success-title">
-          <div className="quote-success-heading">
-            <span className="quote-success-icon">
-              <Check size={20} />
-            </span>
+      {agentQuotes.length > 0 && (
+        <section className="agent-quotes-section" aria-labelledby="agent-quotes-title">
+          <div className="section-heading">
             <div>
-              <span className="eyebrow">Proposition #{createdQuote.id}</span>
-              <h2 id="quote-success-title">{createdQuote.status === "SENT" ? "Proposition envoyée au client" : "Proposition créée"}</h2>
-            </div>
-            <span className="quote-status">{createdQuote.status}</span>
-          </div>
-          <div className="quote-result-grid">
-            <div>
-              <span>Prix fournisseur</span>
-              <strong>{formatPrice(createdQuote.providerPrice, createdQuote.currency)}</strong>
-            </div>
-            <div>
-              <span>Frais d’assistance Odyssey</span>
-              <strong>{formatPrice(createdQuote.assistanceFee, createdQuote.currency)}</strong>
-            </div>
-            <div>
-              <span>Total client</span>
-              <strong>{formatPrice(createdQuote.totalAmount, createdQuote.currency)}</strong>
-            </div>
-            <div className="quote-description">
-              <span>Description</span>
-              <strong>{createdQuote.description}</strong>
+              <h2 id="agent-quotes-title">Propositions du dossier</h2>
+              <p>
+                {agentQuotes.length} proposition{agentQuotes.length > 1 ? "s" : ""}
+              </p>
             </div>
           </div>
-          {createdQuote.status === "DRAFT" && (
-            <div className="quote-send-actions">
-              {sendQuoteError && (
-                <p className="quote-error" role="alert">
-                  {sendQuoteError}
-                </p>
-              )}
-              <button type="button" className="primary-button" onClick={handleSendQuote} disabled={sendingQuote}>
-                {sendingQuote ? <LoaderCircle className="rotating" size={18} /> : <FileCheck2 size={18} />}
-                {sendingQuote ? "Envoi..." : "Envoyer au client"}
-              </button>
-            </div>
-          )}
-          {createdQuote.status === "SENT" && (
-            <p className="quote-sent-confirmation">
-              <Check size={18} /> Proposition envoyée au client
-            </p>
-          )}
+          <div className="agent-quotes-list">
+            {agentQuotes.map((quote) => (
+              <article className="quote-success-card" key={quote.id}>
+                <div className="quote-success-heading">
+                  <span className="quote-success-icon">
+                    <FileCheck2 size={20} />
+                  </span>
+                  <div>
+                    <span className="eyebrow">Proposition #{quote.id}</span>
+                    <h3>{quote.provider}</h3>
+                  </div>
+                  <span className="quote-status">{quote.status}</span>
+                </div>
+                <div className="quote-result-grid">
+                  <div>
+                    <span>Prix fournisseur</span>
+                    <strong>{formatPrice(quote.providerPrice, quote.currency)}</strong>
+                  </div>
+                  <div className="quote-description">
+                    <span>Description</span>
+                    <strong>{quote.description}</strong>
+                  </div>
+                </div>
+                {quote.status === "SENT" && (
+                  <p className="quote-sent-confirmation">
+                    <Check size={18} /> Proposition envoyée au client
+                  </p>
+                )}
+              </article>
+            ))}
+          </div>
         </section>
       )}
 
-      {(acceptedQuote || createdQuote?.status === "ACCEPTED") && (
+      {acceptedQuote && (
         <section className={`booking-workflow-card${booking?.status === "CONFIRMED" ? " confirmed" : ""}`} aria-labelledby="booking-workflow-title">
           <div className="booking-workflow-heading">
             <span className="booking-workflow-icon">

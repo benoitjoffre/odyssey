@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState } from "react";
-import { ArrowRight, BedDouble, Bus, CalendarDays, Car, Inbox, Plane, RefreshCw, Route } from "lucide-react";
+import { ArrowRight, BedDouble, Bus, CalendarDays, Car, Inbox, LoaderCircle, Plane, RefreshCw, Route, Send } from "lucide-react";
 import { Link } from "react-router-dom";
 import { openAgentNotificationStream } from "../../api/agentNotificationStream";
 import { getBookingRequests } from "../../api/bookingRequests";
-import { getBookingRequestQuotes } from "../../api/travelerQuotes";
-import { updateTripAssistanceFee } from "../../api/trips";
+import { getAgentBookingRequestQuotes } from "../../api/quotes";
+import { sendTripQuotes, updateTripAssistanceFee } from "../../api/trips";
 import { TripFinancialSummary } from "../../components/TripFinancialSummary";
-import { getLatestAcceptedQuote } from "../../helpers/travelerQuotes";
+import { getCurrentAgentQuote } from "../../helpers/agentQuotes";
 import type { BookingRequest, BookingRequestStatus, NeedType } from "../../types/bookingRequest";
-import type { TravelerQuote } from "../../types/travelerQuote";
+import type { AgentQuoteResponse } from "../../types/quote";
 
 const needPresentation: Record<NeedType, { label: string; icon: typeof Plane }> = {
   FLIGHT: { label: "Vol", icon: Plane },
@@ -23,6 +23,14 @@ const statusLabels: Record<BookingRequestStatus, string> = {
   IN_PROGRESS: "En cours",
   COMPLETED: "Terminée",
   CANCELLED: "Annulée",
+};
+
+const quoteStatusLabels: Record<string, string> = {
+  DRAFT: "Brouillon",
+  SENT: "Envoyé",
+  ACCEPTED: "Accepté",
+  REJECTED: "Refusé",
+  EXPIRED: "Expiré",
 };
 
 interface TripRequestGroup {
@@ -99,8 +107,10 @@ export function AgentBookingRequestsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reloadVersion, setReloadVersion] = useState(0);
-  const [quotesByRequestId, setQuotesByRequestId] = useState<Record<number, TravelerQuote[]>>({});
+  const [quotesByRequestId, setQuotesByRequestId] = useState<Record<number, AgentQuoteResponse[]>>({});
   const [tripFeeOverrides, setTripFeeOverrides] = useState<Record<number, number>>({});
+  const [sendingTripId, setSendingTripId] = useState<number | null>(null);
+  const [sendErrors, setSendErrors] = useState<Record<number, string>>({});
   const latestRequestId = useRef(0);
 
   useEffect(() => {
@@ -115,7 +125,15 @@ export function AgentBookingRequestsPage() {
       try {
         const data = await getBookingRequests(controller.signal);
         const quoteEntries = await Promise.all(
-          data.map(async (request) => [request.id, await getBookingRequestQuotes(request.id, controller.signal)] as const),
+          data.map(async (request) => {
+            if (request.assignedAgentId === null) return [request.id, []] as const;
+            try {
+              return [request.id, await getAgentBookingRequestQuotes(request.id, controller.signal)] as const;
+            } catch (quoteError) {
+              if (quoteError instanceof DOMException && quoteError.name === "AbortError") throw quoteError;
+              return [request.id, []] as const;
+            }
+          }),
         );
         if (!disposed && requestId === latestRequestId.current) {
           const requestsById = new Map(data.map((request) => [request.id, request]));
@@ -156,6 +174,24 @@ export function AgentBookingRequestsPage() {
   async function handleUpdateTripAssistanceFee(tripId: number, assistanceFee: number) {
     const updatedTrip = await updateTripAssistanceFee(tripId, assistanceFee);
     setTripFeeOverrides((current) => ({ ...current, [tripId]: updatedTrip.assistanceFee }));
+  }
+
+  async function handleSendTripQuotes(tripId: number) {
+    if (sendingTripId !== null) return;
+    setSendingTripId(tripId);
+    setSendErrors((current) => ({ ...current, [tripId]: "" }));
+
+    try {
+      await sendTripQuotes(tripId);
+      setReloadVersion((version) => version + 1);
+    } catch {
+      setSendErrors((current) => ({
+        ...current,
+        [tripId]: "Les offres n’ont pas pu être envoyées au voyageur.",
+      }));
+    } finally {
+      setSendingTripId(null);
+    }
   }
 
   return (
@@ -206,10 +242,11 @@ export function AgentBookingRequestsPage() {
       {!loading && !error && tripGroups.length > 0 && (
         <div className="agent-trip-request-list">
           {tripGroups.map((group) => {
-            const acceptedQuotes = group.requests
-              .map((request) => getLatestAcceptedQuote(quotesByRequestId[request.id]))
-              .filter((quote): quote is TravelerQuote => quote !== null);
+            const currentQuotes = group.requests
+              .map((request) => getCurrentAgentQuote(quotesByRequestId[request.id]))
+              .filter((quote): quote is AgentQuoteResponse => quote !== null);
             const assistanceFee = tripFeeOverrides[group.tripId] ?? group.assistanceFee;
+            const hasDraftQuote = currentQuotes.some((quote) => quote.status === "DRAFT");
 
             return (
               <section className="agent-trip-request-group" key={group.tripId} aria-labelledby={`trip-${group.tripId}-title`}>
@@ -236,7 +273,7 @@ export function AgentBookingRequestsPage() {
                   {group.requests.map((request) => {
                     const presentation = needPresentation[request.need.type];
                     const NeedIcon = presentation.icon;
-                    const acceptedQuote = getLatestAcceptedQuote(quotesByRequestId[request.id]);
+                    const currentQuote = getCurrentAgentQuote(quotesByRequestId[request.id]);
                     return (
                       <li key={request.id}>
                         <span className={`agent-request-type-icon ${request.need.type.toLowerCase()}`} aria-hidden="true">
@@ -249,9 +286,11 @@ export function AgentBookingRequestsPage() {
                         </div>
                         <div className="agent-request-price">
                           <span>Prix de l’offre</span>
-                          <strong>{acceptedQuote ? formatPrice(acceptedQuote.providerPrice, acceptedQuote.currency) : "Offre à définir"}</strong>
+                          <strong>{currentQuote ? formatPrice(currentQuote.providerPrice, currentQuote.currency) : "Offre à définir"}</strong>
                         </div>
-                        <span className={`request-status status-${request.status.toLowerCase()}`}>{statusLabels[request.status]}</span>
+                        <span className={`request-status status-${(currentQuote?.status ?? request.status).toLowerCase()}`}>
+                          {currentQuote ? (quoteStatusLabels[currentQuote.status] ?? currentQuote.status) : statusLabels[request.status]}
+                        </span>
                         <Link className="agent-request-link" to={`/agent/booking-requests/${request.id}`}>
                           Voir la demande
                           <ArrowRight size={16} aria-hidden="true" />
@@ -262,10 +301,26 @@ export function AgentBookingRequestsPage() {
                 </ul>
                 <TripFinancialSummary
                   assistanceFee={assistanceFee}
-                  providerOffers={acceptedQuotes}
+                  providerOffers={currentQuotes}
                   editable
                   onSaveAssistanceFee={(value) => handleUpdateTripAssistanceFee(group.tripId, value)}
                 />
+                <div className="trip-quote-send-actions">
+                  {sendErrors[group.tripId] && (
+                    <p className="action-error" role="alert">
+                      {sendErrors[group.tripId]}
+                    </p>
+                  )}
+                  <button
+                    type="button"
+                    className="primary-button"
+                    disabled={!hasDraftQuote || sendingTripId !== null}
+                    onClick={() => void handleSendTripQuotes(group.tripId)}
+                  >
+                    {sendingTripId === group.tripId ? <LoaderCircle className="rotating" size={18} /> : <Send size={18} />}
+                    {sendingTripId === group.tripId ? "Envoi…" : "Envoyer au voyageur"}
+                  </button>
+                </div>
               </section>
             );
           })}

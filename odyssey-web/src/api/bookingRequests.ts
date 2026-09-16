@@ -18,8 +18,8 @@ export function createBookingRequest(needId: number, notes: string | null): Prom
   });
 }
 
-export function claimBookingRequest(id: number, agentId: number): Promise<BookingRequest> {
-  return apiFetch<BookingRequest>(`/api/booking-requests/${id}/claim?agentId=${agentId}`, {
+export function claimBookingRequest(id: number): Promise<BookingRequest> {
+  return apiFetch<BookingRequest>(`/api/booking-requests/${id}/claim`, {
     method: "POST",
   });
 }

@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { createBookingRequest } from "../../api/bookingRequests";
-import { getBookingRequestQuotes } from "../../api/travelerQuotes";
+import { getTravelerQuotes } from "../../api/travelerQuotes";
 import { deleteTrip, getTripDetail } from "../../api/trips";
 import { TripFinancialSummary } from "../../components/TripFinancialSummary";
 import { TravelerNeedForm } from "../../components/TravelerNeedForm";
@@ -147,17 +147,18 @@ export function TravelerTripDetailPage() {
       setError(null);
 
       try {
-        const tripDetail = await getTripDetail(parsedTripId, controller.signal);
-
-        const acceptedQuoteEntries = await Promise.all(
-          tripDetail.needs.map(async (need) => {
-            if (!need.bookingRequestId) {
-              return [need.id, null] as const;
-            }
-
-            const quotes = await getBookingRequestQuotes(need.bookingRequestId, controller.signal);
-            return [need.id, getLatestAcceptedQuote(quotes)] as const;
-          }),
+        const [tripDetail, travelerQuotes] = await Promise.all([
+          getTripDetail(parsedTripId, controller.signal),
+          getTravelerQuotes(controller.signal),
+        ]);
+        const quotesByBookingRequestId = travelerQuotes.reduce<Map<number, TravelerQuote[]>>((quotesByRequest, quote) => {
+          const requestQuotes = quotesByRequest.get(quote.bookingRequestId) ?? [];
+          requestQuotes.push(quote);
+          quotesByRequest.set(quote.bookingRequestId, requestQuotes);
+          return quotesByRequest;
+        }, new Map());
+        const acceptedQuoteEntries = tripDetail.needs.map(
+          (need) => [need.id, need.bookingRequestId ? getLatestAcceptedQuote(quotesByBookingRequestId.get(need.bookingRequestId)) : null] as const,
         );
 
         setTrip(tripDetail);

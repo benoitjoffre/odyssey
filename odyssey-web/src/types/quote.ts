@@ -1,3 +1,6 @@
+import type { ProviderPaymentStatus } from "./booking";
+import type { PaymentStatus } from "./payment";
+
 export interface CreateQuoteRequest {
   provider: string;
   externalOfferId: string;
@@ -21,4 +24,10 @@ export interface QuoteResponse {
   status: string;
   createdAt: string;
   expiresAt: string | null;
+}
+
+export interface AgentQuoteResponse extends QuoteResponse {
+  paymentStatus: PaymentStatus | null;
+  providerPaymentUrl: string | null;
+  providerPaymentStatus: ProviderPaymentStatus;
 }
