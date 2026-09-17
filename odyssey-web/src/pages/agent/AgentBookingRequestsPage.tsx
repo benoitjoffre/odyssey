@@ -317,6 +317,7 @@ export function AgentBookingRequestsPage() {
                   <button
                     type="button"
                     className="primary-button"
+                    aria-label="Envoyer les offres au voyageur"
                     disabled={!hasDraftQuote || sendingTripId !== null}
                     onClick={() => void handleSendTripQuotes(group.tripId)}
                   >

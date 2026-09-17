@@ -202,12 +202,12 @@ export function TripFinancialSummary({
       {showPaymentStatus && (
         <div className="trip-payment-state">
           {/* Message après retour de Stripe */}
-          {paymentResult === "success" && paymentStatus === "PAID" && (
-            <div className="trip-payment-success" role="status">
-              <Check size={20} />
+          {paymentResult === "success" && paymentStatus === "PENDING" && (
+            <div className="trip-payment-pending" role="status">
+              <LoaderCircle className="rotating" size={20} />
               <div>
-                <strong>Paiement réussi</strong>
-                <p>Vos frais d’assistance Odyssey ont bien été payés. Notre équipe peut maintenant poursuivre vos réservations.</p>
+                <strong>Paiement en cours de confirmation</strong>
+                <p>Votre paiement a bien été transmis. Nous vérifions sa confirmation.</p>
               </div>
             </div>
           )}

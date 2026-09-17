@@ -342,9 +342,9 @@ export function BookingRequestPage() {
   const isTripAssistanceFeePaid = acceptedQuote?.paymentStatus === "PAID";
   return (
     <div className="page-stack booking-request-page">
-      <Link className="back-link" to="/agent">
+      <Link className="back-link" to="/agent/booking-requests">
         <ArrowLeft size={17} />
-        Retour au dashboard
+        Retour aux demandes
       </Link>
       <section className="page-heading compact">
         <div>

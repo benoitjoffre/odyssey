@@ -87,9 +87,9 @@ function AuthGuard({ children, requiredRole }: { children: ReactNode; requiredRo
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      void loginWithRedirect({ appState: { targetUrl: location.pathname } });
+      void loginWithRedirect({ appState: { targetUrl: `${location.pathname}${location.search}` } });
     }
-  }, [isAuthenticated, isLoading, location.pathname, loginWithRedirect]);
+  }, [isAuthenticated, isLoading, location.pathname, location.search, loginWithRedirect]);
 
   if (isLoading || (isAuthenticated && isUserLoading)) {
     return <div style={{ display: "grid", placeItems: "center", minHeight: "100vh", color: "#1d3c39", fontWeight: 600 }}>Chargement…</div>;

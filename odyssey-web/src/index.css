@@ -4139,3 +4139,12 @@ button.traveler-event-link {
     gap: 10px;
   }
 }
+
+.trip-quote-send-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 8px 8px;
+}
