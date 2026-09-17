@@ -11,6 +11,7 @@ public class Experience {
 
   private String title;
 
+  @Column(columnDefinition = "TEXT")
   private String description;
 
   private String destination;
