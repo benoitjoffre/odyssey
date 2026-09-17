@@ -16,5 +16,19 @@ services:
     container_name: odyssey-redis
     ports:
       - "6379:6379"
+  api:
+    build: .
+    container_name: odyssey-api
+    ports:
+      - "8080:8080"
+    environment:
+      DATABASE_URL: jdbc:postgresql://postgres:5432/odyssey
+      DATABASE_USERNAME: odyssey
+      DATABASE_PASSWORD: odyssey
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    depends_on:
+      - postgres
+      - redis
 volumes:
   odyssey_postgres_data:
