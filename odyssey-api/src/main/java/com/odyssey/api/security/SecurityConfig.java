@@ -25,11 +25,16 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.beans.factory.annotation.Value;
+import java.util.Arrays;
 
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
 public class SecurityConfig {
+
+    @Value("${app.cors.allowed-origins}")
+private String allowedOrigins;
 
     @PostConstruct
     public void init() {
@@ -46,6 +51,7 @@ public class SecurityConfig {
             .httpBasic(httpBasic -> httpBasic.disable())
             .formLogin(form -> form.disable())
             .authorizeHttpRequests(auth -> auth
+
                 .requestMatchers("/api/payments/webhook").permitAll()
                 .anyRequest().authenticated()
             )
@@ -103,7 +109,9 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
 
         configuration.setAllowedOrigins(
-            List.of("http://localhost:5173")
+            Arrays.stream(allowedOrigins.split(","))
+                .map(String::trim)
+                .toList()
         );
 
         configuration.setAllowedMethods(
