@@ -10,6 +10,7 @@ import com.odyssey.api.quote.Quote;
 import com.odyssey.api.quote.QuoteRepository;
 import com.odyssey.api.quote.QuoteStatus;
 
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -254,5 +255,19 @@ public class BookingService {
         return agentRepository
             .findByAuth0Subject(auth0Subject)
             .orElseThrow(() -> new ResourceNotFoundException("Agent not found"));
+    }
+
+    public BookingResponse getBookingByQuote(Long quoteId, String auth0Subject) {
+        var agent = getCurrentAgent(auth0Subject);
+
+        var booking = bookingRepository
+            .findByQuoteId(quoteId)
+            .orElseThrow(() -> new ResourceNotFoundException("Booking not found"));
+
+        if (!booking.getQuote().getBookingRequest().getAssignedAgent().getId().equals(agent.getId())) {
+            throw new IllegalArgumentException("This BookingRequest is assigned to another agent");
+        }
+
+        return toResponse(booking);
     }
 }

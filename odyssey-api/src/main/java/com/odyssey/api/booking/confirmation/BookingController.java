@@ -57,4 +57,15 @@ public class BookingController {
             jwt.getSubject()
         );
     }
+    @PreAuthorize("hasRole('AGENT')")
+    @GetMapping("/by-quote/{quoteId}")
+    public BookingResponse getBookingByQuote(
+        @PathVariable Long quoteId,
+        @AuthenticationPrincipal Jwt jwt
+    ) {
+        return bookingService.getBookingByQuote(
+            quoteId,
+            jwt.getSubject()
+        );
+    }
 }
