@@ -20,20 +20,14 @@ import {
   Car,
 } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
-import { confirmBooking, createBooking, updateBookingProviderDetails } from "../api/bookings";
+import { createBooking, getBookingByQuote } from "../api/bookings";
 import { claimBookingRequest, getBookingRequest, searchBookingRequestOffers } from "../api/bookingRequests";
 import { createQuote, getAgentBookingRequestQuotes } from "../api/quotes";
-import type { Booking, ProviderPaymentStatus } from "../types/booking";
+import type { Booking } from "../types/booking";
 import type { BookingRequest, BookingRequestStatus, NeedType } from "../types/bookingRequest";
 import { isAccommodationOffer, isTransferOffer, type ProviderOffer } from "../types/providerOffer";
 import type { AgentQuoteResponse, QuoteResponse } from "../types/quote";
-
-const providerPaymentStatusLabels: Record<ProviderPaymentStatus, string> = {
-  NOT_REQUIRED_YET: "Pas encore déterminé",
-  PAYMENT_REQUIRED: "Paiement fournisseur requis",
-  PAID_TO_PROVIDER: "Fournisseur payé",
-  UNKNOWN: "Inconnu",
-};
+import { AgentBookingModal } from "../components/AgentBookingModal";
 
 const statusLabels: Record<BookingRequestStatus, string> = {
   REQUESTED: "Demandée",
@@ -108,14 +102,10 @@ export function BookingRequestPage() {
   const [agentQuotes, setAgentQuotes] = useState<AgentQuoteResponse[]>([]);
   const [booking, setBooking] = useState<Booking | null>(null);
   const [creatingBooking, setCreatingBooking] = useState(false);
-  const [confirmingBooking, setConfirmingBooking] = useState(false);
   const [bookingError, setBookingError] = useState<string | null>(null);
-  const [providerReference, setProviderReference] = useState("");
-  const [providerPaymentUrl, setProviderPaymentUrl] = useState("");
-  const [providerPaymentStatus, setProviderPaymentStatus] = useState<ProviderPaymentStatus>("NOT_REQUIRED_YET");
-  const [savingProviderDetails, setSavingProviderDetails] = useState(false);
-  const [providerDetailsError, setProviderDetailsError] = useState<string | null>(null);
+
   const acceptedQuote = agentQuotes.find((quote) => quote.status === "ACCEPTED") ?? null;
+  const [bookingModalOpen, setBookingModalOpen] = useState(false);
 
   useEffect(() => {
     if (hasInvalidId) return;
@@ -133,7 +123,19 @@ export function BookingRequestPage() {
         if (request.assignedAgentId !== null) {
           try {
             const quotes = await getAgentBookingRequestQuotes(request.id, controller.signal);
-            setAgentQuotes(quotes.sort((first, second) => second.id - first.id));
+
+            const sortedQuotes = quotes.sort((first, second) => second.id - first.id);
+
+            setAgentQuotes(sortedQuotes);
+
+            const acceptedQuote = sortedQuotes.find((quote) => quote.status === "ACCEPTED");
+
+            if (acceptedQuote) {
+              const existingBooking = await getBookingByQuote(acceptedQuote.id);
+              setBooking(existingBooking);
+            } else {
+              setBooking(null);
+            }
           } catch (quotesError: unknown) {
             if (quotesError instanceof DOMException && quotesError.name === "AbortError") throw quotesError;
             setAgentQuotes([]);
@@ -161,9 +163,6 @@ export function BookingRequestPage() {
   const [providerDetailsBookingId, setProviderDetailsBookingId] = useState<number | null>(null);
   if (booking && providerDetailsBookingId !== booking.id) {
     setProviderDetailsBookingId(booking.id);
-    setProviderReference(booking.providerReference ?? "");
-    setProviderPaymentUrl(booking.providerPaymentUrl ?? "");
-    setProviderPaymentStatus(booking.providerPaymentStatus);
   }
 
   async function handleClaim() {
@@ -248,48 +247,9 @@ export function BookingRequestPage() {
     }
   }
 
-  async function handleConfirmBooking() {
-    if (!booking || confirmingBooking) return;
-
-    setConfirmingBooking(true);
-    setBookingError(null);
-
-    try {
-      const confirmedBooking = await confirmBooking(booking.id);
-      setBooking(confirmedBooking);
-      setReloadVersion((version) => version + 1);
-    } catch {
-      setBookingError("La réservation n’a pas pu être confirmée. Veuillez réessayer.");
-    } finally {
-      setConfirmingBooking(false);
-    }
-  }
-
-  async function handleSaveProviderDetails(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!booking || savingProviderDetails) return;
-
-    if (!providerReference.trim()) {
-      setProviderDetailsError("La référence fournisseur est obligatoire.");
-      return;
-    }
-
-    setSavingProviderDetails(true);
-    setProviderDetailsError(null);
-
-    try {
-      const updatedBooking = await updateBookingProviderDetails(booking.id, {
-        providerReference: providerReference.trim(),
-        providerPaymentUrl: providerPaymentUrl.trim(),
-        providerPaymentStatus,
-      });
-      setBooking(updatedBooking);
-    } catch {
-      setProviderDetailsError("L’enregistrement des informations fournisseur a échoué. Veuillez réessayer.");
-    } finally {
-      setSavingProviderDetails(false);
-    }
-  }
+  const handleBookingSaved = (updatedBooking: Booking) => {
+    setBooking(updatedBooking);
+  };
 
   if (hasInvalidId) {
     return (
@@ -689,50 +649,18 @@ export function BookingRequestPage() {
             </div>
           )}
 
-          {booking && (
-            <form className="provider-details-form" onSubmit={handleSaveProviderDetails}>
-              <div className="detail-card-heading">
-                <h3>Informations fournisseur</h3>
-              </div>
-              <label className="form-field">
-                <span>Référence fournisseur</span>
-                <input
-                  type="text"
-                  value={providerReference}
-                  onChange={(event) => setProviderReference(event.target.value)}
-                  placeholder="Obtenue par téléphone/email auprès du fournisseur"
-                  required
-                />
-              </label>
-              <label className="form-field form-field-wide">
-                <span>Lien de paiement fournisseur (optionnel)</span>
-                <input
-                  type="url"
-                  value={providerPaymentUrl}
-                  onChange={(event) => setProviderPaymentUrl(event.target.value)}
-                  placeholder="https://..."
-                />
-              </label>
-              <label className="form-field">
-                <span>Statut du paiement fournisseur</span>
-                <select value={providerPaymentStatus} onChange={(event) => setProviderPaymentStatus(event.target.value as ProviderPaymentStatus)}>
-                  {Object.entries(providerPaymentStatusLabels).map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              {providerDetailsError && (
-                <p className="booking-error" role="alert">
-                  {providerDetailsError}
-                </p>
-              )}
-              <button type="submit" className="secondary-button" disabled={savingProviderDetails}>
-                {savingProviderDetails ? <LoaderCircle className="rotating" size={16} /> : <Save size={16} />}
-                {savingProviderDetails ? "Enregistrement…" : "Enregistrer"}
-              </button>
-            </form>
+          {booking?.status === "PENDING" && (
+            <button type="button" className="primary-button" onClick={() => setBookingModalOpen(true)}>
+              <ClipboardCheck size={18} />
+              Finaliser la réservation
+            </button>
+          )}
+
+          {booking?.status === "CONFIRMED" && (
+            <button type="button" className="secondary-button" onClick={() => setBookingModalOpen(true)}>
+              <ClipboardCheck size={18} />
+              Voir la réservation
+            </button>
           )}
 
           {bookingError && (
@@ -755,20 +683,9 @@ export function BookingRequestPage() {
           {booking?.status === "PENDING" && !booking.providerReference && (
             <p className="booking-payment-pending">Renseignez la référence fournisseur avant de pouvoir confirmer.</p>
           )}
-
-          {booking?.status === "PENDING" && (
-            <button
-              type="button"
-              className="primary-button"
-              onClick={handleConfirmBooking}
-              disabled={confirmingBooking || !booking.providerReference}
-            >
-              {confirmingBooking ? <LoaderCircle className="rotating" size={18} /> : <Check size={18} />}
-              {confirmingBooking ? "Confirmation…" : "Confirmer auprès du fournisseur"}
-            </button>
-          )}
         </section>
       )}
+      {bookingModalOpen && booking && <AgentBookingModal booking={booking} onClose={() => setBookingModalOpen(false)} onSaved={handleBookingSaved} />}
     </div>
   );
 }

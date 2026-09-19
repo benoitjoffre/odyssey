@@ -9,6 +9,9 @@ import { TripFinancialSummary } from "../../components/TripFinancialSummary";
 import { getCurrentAgentQuote } from "../../helpers/agentQuotes";
 import type { BookingRequest, BookingRequestStatus, NeedType } from "../../types/bookingRequest";
 import type { AgentQuoteResponse } from "../../types/quote";
+import { createBooking, getBookingByQuote } from "../../api/bookings";
+import type { Booking, BookingStatus } from "../../types/booking";
+import { AgentBookingModal } from "../../components/AgentBookingModal";
 
 const needPresentation: Record<NeedType, { label: string; icon: typeof Plane }> = {
   FLIGHT: { label: "Vol", icon: Plane },
@@ -31,6 +34,13 @@ const quoteStatusLabels: Record<string, string> = {
   ACCEPTED: "Accepté",
   REJECTED: "Refusé",
   EXPIRED: "Expiré",
+};
+
+const bookingStatusLabels: Record<BookingStatus, string> = {
+  PENDING: "Réservation à finaliser",
+  CONFIRMED: "Réservation confirmée",
+  FAILED: "Réservation échouée",
+  CANCELLED: "Réservation annulée",
 };
 
 interface TripRequestGroup {
@@ -112,6 +122,10 @@ export function AgentBookingRequestsPage() {
   const [sendingTripId, setSendingTripId] = useState<number | null>(null);
   const [sendErrors, setSendErrors] = useState<Record<number, string>>({});
   const latestRequestId = useRef(0);
+  const [creatingBookingQuoteId, setCreatingBookingQuoteId] = useState<number | null>(null);
+  const [bookingErrors, setBookingErrors] = useState<Record<number, string>>({});
+  const [bookingsByQuoteId, setBookingsByQuoteId] = useState<Record<number, Booking | null>>({});
+  const [editingBookingId, setEditingBookingId] = useState<number | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -135,10 +149,20 @@ export function AgentBookingRequestsPage() {
             }
           }),
         );
+        const bookingEntries = await Promise.all(
+          quoteEntries
+            .flatMap(([, quotes]) => quotes)
+            .filter((quote) => quote.status === "ACCEPTED")
+            .map(async (quote) => {
+              const booking = await getBookingByQuote(quote.id);
+              return [quote.id, booking] as const;
+            }),
+        );
         if (!disposed && requestId === latestRequestId.current) {
           const requestsById = new Map(data.map((request) => [request.id, request]));
           setRequests([...requestsById.values()]);
           setQuotesByRequestId(Object.fromEntries(quoteEntries));
+          setBookingsByQuoteId(Object.fromEntries(bookingEntries));
         }
       } catch (requestError) {
         if (requestError instanceof DOMException && requestError.name === "AbortError") return;
@@ -193,6 +217,33 @@ export function AgentBookingRequestsPage() {
       setSendingTripId(null);
     }
   }
+
+  const handleCreateBooking = async (quoteId: number) => {
+    if (creatingBookingQuoteId !== null) return;
+    setCreatingBookingQuoteId(quoteId);
+    setBookingErrors((current) => ({ ...current, [quoteId]: "" }));
+
+    try {
+      await createBooking(quoteId);
+      setReloadVersion((version) => version + 1);
+    } catch {
+      setBookingErrors((current) => ({
+        ...current,
+        [quoteId]: "La réservation n’a pas pu être créée.",
+      }));
+    } finally {
+      setCreatingBookingQuoteId(null);
+    }
+  };
+
+  const handleBookingSaved = (updatedBooking: Booking) => {
+    setBookingsByQuoteId((current) => ({
+      ...current,
+      [updatedBooking.quoteId]: updatedBooking,
+    }));
+  };
+
+  const editingBooking = Object.values(bookingsByQuoteId).find((booking) => booking?.id === editingBookingId) ?? null;
 
   return (
     <div className="page-stack agent-requests-page">
@@ -275,6 +326,8 @@ export function AgentBookingRequestsPage() {
                     const presentation = needPresentation[request.need.type];
                     const NeedIcon = presentation.icon;
                     const currentQuote = getCurrentAgentQuote(quotesByRequestId[request.id]);
+                    const currentBooking = currentQuote ? (bookingsByQuoteId[currentQuote.id] ?? null) : null;
+                    const canCreateBooking = currentQuote?.status === "ACCEPTED" && paymentStatus === "PAID" && currentBooking === null;
                     return (
                       <li key={request.id}>
                         <span className={`agent-request-type-icon ${request.need.type.toLowerCase()}`} aria-hidden="true">
@@ -292,10 +345,40 @@ export function AgentBookingRequestsPage() {
                         <span className={`request-status status-${(currentQuote?.status ?? request.status).toLowerCase()}`}>
                           {currentQuote ? (quoteStatusLabels[currentQuote.status] ?? currentQuote.status) : statusLabels[request.status]}
                         </span>
-                        <Link className="agent-request-link" to={`/agent/booking-requests/${request.id}`}>
-                          Voir la demande
-                          <ArrowRight size={16} aria-hidden="true" />
-                        </Link>
+                        <div className="agent-request-actions">
+                          <span>
+                            {canCreateBooking && (
+                              <button
+                                type="button"
+                                className="primary-button"
+                                aria-label="Créer la réservation"
+                                disabled={creatingBookingQuoteId !== null}
+                                onClick={() => handleCreateBooking(currentQuote!.id)}
+                              >
+                                {creatingBookingQuoteId === currentQuote!.id ? "Création…" : "Créer la réservation"}
+                              </button>
+                            )}
+                            {currentBooking?.status === "PENDING" && (
+                              <button type="button" className="primary-button" onClick={() => setEditingBookingId(currentBooking.id)}>
+                                Finaliser la réservation
+                              </button>
+                            )}
+                            {currentBooking?.status === "CONFIRMED" && (
+                              <span className={`request-status booking-status-${currentBooking.status.toLowerCase()}`}>
+                                {bookingStatusLabels[currentBooking.status]}
+                              </span>
+                            )}
+                            {canCreateBooking && bookingErrors[currentQuote!.id] && (
+                              <p className="action-error" role="alert">
+                                {bookingErrors[currentQuote!.id]}
+                              </p>
+                            )}
+                          </span>
+                          <Link className="agent-request-link" to={`/agent/booking-requests/${request.id}`}>
+                            Voir la demande
+                            <ArrowRight size={16} aria-hidden="true" />
+                          </Link>
+                        </div>
                       </li>
                     );
                   })}
@@ -330,6 +413,7 @@ export function AgentBookingRequestsPage() {
           })}
         </div>
       )}
+      {editingBooking && <AgentBookingModal booking={editingBooking} onClose={() => setEditingBookingId(null)} onSaved={handleBookingSaved} />}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-export type BookingStatus = "PENDING" | "CONFIRMED";
+export type BookingStatus = "PENDING" | "CONFIRMED" | "FAILED" | "CANCELLED";
 
 export type ProviderPaymentStatus = "NOT_REQUIRED_YET" | "PAYMENT_REQUIRED" | "PAID_TO_PROVIDER" | "UNKNOWN";
 
