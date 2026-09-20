@@ -9,13 +9,6 @@ interface AgentBookingModalProps {
   onSaved: (booking: Booking) => void;
 }
 
-const paymentStatusLabels: Record<ProviderPaymentStatus, string> = {
-  NOT_REQUIRED_YET: "Pas encore déterminé",
-  PAYMENT_REQUIRED: "À payer directement au fournisseur",
-  PAID_TO_PROVIDER: "Payé au fournisseur",
-  UNKNOWN: "Statut inconnu",
-};
-
 const AgentBookingModal: React.FC<AgentBookingModalProps> = ({ booking, onClose, onSaved }) => {
   const [providerReference, setProviderReference] = useState(booking.providerReference ?? "");
 
@@ -105,7 +98,18 @@ const AgentBookingModal: React.FC<AgentBookingModalProps> = ({ booking, onClose,
 
               <div>
                 <dt>Paiement fournisseur</dt>
-                <dd>{paymentStatusLabels[booking.providerPaymentStatus]}</dd>
+                <dd>
+                  <select
+                    className="booking-form-field-select"
+                    value={providerPaymentStatus}
+                    onChange={(event) => setProviderPaymentStatus(event.target.value as ProviderPaymentStatus)}
+                  >
+                    <option value="NOT_REQUIRED_YET">Pas encore déterminé</option>
+                    <option value="PAYMENT_REQUIRED">À payer par le voyageur</option>
+                    <option value="PAID_TO_PROVIDER">Payé au fournisseur</option>
+                    <option value="UNKNOWN">Statut inconnu</option>
+                  </select>
+                </dd>
               </div>
             </dl>
 

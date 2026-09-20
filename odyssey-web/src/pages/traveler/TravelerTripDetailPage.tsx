@@ -1,29 +1,23 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import {
-  ArrowLeft,
-  BedDouble,
-  Bus,
-  CalendarDays,
-  Car,
-  Check,
-  Clock3,
-  Hotel,
-  LoaderCircle,
-  Luggage,
-  Plane,
-  RefreshCw,
-  Route,
-  Send,
-  Trash2,
-} from "lucide-react";
+import { ArrowLeft, BedDouble, Bus, CalendarDays, Car, Hotel, LoaderCircle, Luggage, Plane, RefreshCw, Route, Trash2 } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { createBookingRequest } from "../../api/bookingRequests";
 import { createTripCheckoutSession } from "../../api/payments";
-import { getTravelerQuotes } from "../../api/travelerQuotes";
+import { acceptTravelerQuote, getTravelerQuotes, rejectTravelerQuote } from "../../api/travelerQuotes";
 import { deleteTrip, getTripDetail } from "../../api/trips";
-import { TripFinancialSummary } from "../../components/TripFinancialSummary";
+import { TravelerNeedCard } from "../../components/TravelerNeedCard";
 import { TravelerNeedForm } from "../../components/TravelerNeedForm";
-import { getLatestAcceptedQuote } from "../../helpers/travelerQuotes";
+import { TravelerTripFinances, type SupplierServiceAmount } from "../../components/TravelerTripFinances";
+import { TripNextAction } from "../../components/TripNextAction";
+import { TripReadySummary } from "../../components/TripReadySummary";
+import { deriveTravelerNeedState } from "../../helpers/travelerNeedState";
+import {
+  deriveTravelerTripProgress,
+  deriveTravelerTripUxState,
+  type TravelerNeedStateEntry,
+  type TravelerTripUxState,
+} from "../../helpers/travelerTripState";
+import { getLatestAcceptedQuote, getLatestQuote } from "../../helpers/travelerQuotes";
 import type { OrganizableNeedType } from "../../types/need";
 import type { PaymentStatus } from "../../types/payment";
 import type { TripDetail, TripNeed, TripNeedType } from "../../types/trip";
@@ -53,33 +47,12 @@ const organizationChoices: Array<{ type: TripNeedType; label: string; available:
   { type: "BUS", label: "Bus", available: false },
 ];
 
-interface TravelerNeedState {
-  label: string;
-  tone: "confirmed" | "pending" | "progress" | "requested" | "idle";
-}
-
-function getTravelerNeedState(need: TripNeed): TravelerNeedState {
-  if (need.bookingStatus === "CONFIRMED") return { label: "Réservation confirmée", tone: "confirmed" };
-  if (need.bookingStatus === "PENDING") return { label: "Réservation en attente de confirmation", tone: "pending" };
-  if (need.bookingRequestStatus === "IN_PROGRESS") return { label: "Demande prise en charge", tone: "progress" };
-  if (need.bookingRequestStatus === "REQUESTED") return { label: "Demande envoyée", tone: "requested" };
-  return { label: "À organiser", tone: "idle" };
-}
-
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("fr-FR", {
     day: "numeric",
     month: "long",
     year: "numeric",
   }).format(new Date(`${value}T00:00:00`));
-}
-
-function formatPrice(price: number, currency: string) {
-  return new Intl.NumberFormat("fr-FR", {
-    style: "currency",
-    currency,
-    maximumFractionDigits: 2,
-  }).format(price);
 }
 
 export function TravelerTripDetailPage() {
@@ -89,6 +62,7 @@ export function TravelerTripDetailPage() {
   const hasInvalidTripId = !Number.isInteger(parsedTripId) || parsedTripId <= 0;
   const [trip, setTrip] = useState<TripDetail | null>(null);
   const [acceptedQuotesByNeedId, setAcceptedQuotesByNeedId] = useState<Record<number, TravelerQuote | null>>({});
+  const [latestQuotesByNeedId, setLatestQuotesByNeedId] = useState<Record<number, TravelerQuote | null>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [requestVersion, setRequestVersion] = useState(0);
@@ -101,8 +75,11 @@ export function TravelerTripDetailPage() {
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus | null>(null);
   const [startingCheckout, setStartingCheckout] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [pendingQuoteAction, setPendingQuoteAction] = useState<{ quoteId: number; action: "accept" | "reject" } | null>(null);
+  const [quoteActionErrors, setQuoteActionErrors] = useState<Record<number, string>>({});
   const sendingRequestRef = useRef(false);
   const deletingRef = useRef(false);
+  const pendingQuoteActionRef = useRef(false);
 
   async function handleCheckout() {
     if (!trip || startingCheckout) return;
@@ -158,6 +135,65 @@ export function TravelerTripDetailPage() {
     }
   }
 
+  async function handleQuoteAction(quote: TravelerQuote, action: "accept" | "reject") {
+    if (pendingQuoteActionRef.current) return;
+    pendingQuoteActionRef.current = true;
+    setPendingQuoteAction({ quoteId: quote.id, action });
+    setQuoteActionErrors((current) => {
+      const next = { ...current };
+      delete next[quote.id];
+      return next;
+    });
+
+    try {
+      if (action === "accept") {
+        await acceptTravelerQuote(quote.id);
+      } else {
+        await rejectTravelerQuote(quote.id);
+      }
+      setRequestVersion((version) => version + 1);
+    } catch {
+      setQuoteActionErrors((current) => ({
+        ...current,
+        [quote.id]: "Cette proposition n’a pas pu être mise à jour. Elle a peut-être déjà été traitée.",
+      }));
+    } finally {
+      pendingQuoteActionRef.current = false;
+      setPendingQuoteAction(null);
+    }
+  }
+
+  function scrollToFinancialSummary() {
+    document.getElementById("trip-financial-summary")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function scrollToNeed(needId: number) {
+    document.getElementById(`traveler-need-${needId}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function scrollToOrganizeSection() {
+    document.getElementById("organize-need-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function getNextActionCtaHandler(tripUxState: TravelerTripUxState): (() => void) | null {
+    if (tripUxState.kind !== "NEXT_ACTION") return null;
+
+    switch (tripUxState.action) {
+      case "PROPOSALS_READY":
+      case "SUPPLIER_PAYMENTS_REQUIRED":
+      case "NEEDS_TO_ORGANIZE": {
+        const targetNeedId = tripUxState.targetNeedId;
+        return targetNeedId !== null ? () => scrollToNeed(targetNeedId) : null;
+      }
+      case "ODYSSEY_PAYMENT_REQUIRED":
+        return scrollToFinancialSummary;
+      case "NO_ACTIVE_NEEDS":
+        return scrollToOrganizeSection;
+      default:
+        return null;
+    }
+  }
+
   useEffect(() => {
     if (hasInvalidTripId) return;
 
@@ -181,6 +217,9 @@ export function TravelerTripDetailPage() {
         const acceptedQuoteEntries = tripDetail.needs.map(
           (need) => [need.id, need.bookingRequestId ? getLatestAcceptedQuote(quotesByBookingRequestId.get(need.bookingRequestId)) : null] as const,
         );
+        const latestQuoteEntries = tripDetail.needs.map(
+          (need) => [need.id, need.bookingRequestId ? getLatestQuote(quotesByBookingRequestId.get(need.bookingRequestId)) : null] as const,
+        );
         const tripBookingRequestIds = new Set(tripDetail.needs.flatMap((need) => (need.bookingRequestId === null ? [] : [need.bookingRequestId])));
         const tripPaymentStatus = travelerQuotes.find(
           (quote) => tripBookingRequestIds.has(quote.bookingRequestId) && quote.paymentStatus !== null,
@@ -188,6 +227,7 @@ export function TravelerTripDetailPage() {
 
         setTrip(tripDetail);
         setAcceptedQuotesByNeedId(Object.fromEntries(acceptedQuoteEntries));
+        setLatestQuotesByNeedId(Object.fromEntries(latestQuoteEntries));
         setPaymentStatus(tripPaymentStatus ?? null);
       } catch (requestError: unknown) {
         if (requestError instanceof DOMException && requestError.name === "AbortError") return;
@@ -260,6 +300,43 @@ export function TravelerTripDetailPage() {
     );
   }
 
+  const needStates: TravelerNeedStateEntry[] = trip.needs.map((need) => ({
+    needId: need.id,
+    state: deriveTravelerNeedState(need, latestQuotesByNeedId[need.id] ?? null, paymentStatus),
+  }));
+  const needStateById = new Map(needStates.map((entry) => [entry.needId, entry.state]));
+  const progress = deriveTravelerTripProgress(needStates);
+  const tripUxState = deriveTravelerTripUxState(needStates, paymentStatus, trip.assistanceFee);
+  const nextActionCtaHandler = getNextActionCtaHandler(tripUxState);
+  const finalizedServices = trip.needs
+    .filter((need) => needStateById.get(need.id) === "BOOKING_CONFIRMED")
+    .map((need) => ({
+      needId: need.id,
+      icon: needIcons[need.type],
+      label: needLabels[need.type],
+      providerConfirmationId: need.providerConfirmationId,
+    }));
+  const supplierServices: SupplierServiceAmount[] = trip.needs
+    .filter((need) => needStateById.get(need.id) !== "CANCELLED")
+    .flatMap((need) => {
+      const acceptedQuote = acceptedQuotesByNeedId[need.id] ?? null;
+      if (!acceptedQuote) return [];
+      return [
+        {
+          needId: need.id,
+          icon: needIcons[need.type],
+          label: needLabels[need.type],
+          providerPrice: acceptedQuote.providerPrice,
+          currency: acceptedQuote.currency,
+          providerPaymentStatus: acceptedQuote.providerPaymentStatus,
+          providerPaymentUrl: acceptedQuote.providerPaymentUrl,
+        },
+      ];
+    });
+  // Mirrors the backend eligibility rule as-is (trip must be CONFIRMED before
+  // the Odyssey fee can be paid) instead of re-deriving it independently.
+  const tripEligibleForPayment = trip.status === "CONFIRMED";
+
   return (
     <div className="traveler-page">
       <Link className="back-link" to="/traveler/trips">
@@ -277,7 +354,23 @@ export function TravelerTripDetailPage() {
             <Luggage size={15} /> Voyage organisé directement
           </span>
         )}
+        {progress && (
+          <div className="trip-progress" role="status">
+            <div className="trip-progress-bar">
+              <div className="trip-progress-bar-fill" style={{ width: `${(progress.finalized / progress.total) * 100}%` }} />
+            </div>
+            <span className="trip-progress-label">
+              {progress.finalized} service{progress.total > 1 ? "s" : ""} sur {progress.total} finalisé{progress.total > 1 ? "s" : ""}
+            </span>
+          </div>
+        )}
       </section>
+
+      {tripUxState.kind === "TRIP_READY" ? (
+        <TripReadySummary services={finalizedServices} />
+      ) : (
+        <TripNextAction action={tripUxState.action} count={tripUxState.count} onCtaClick={nextActionCtaHandler} />
+      )}
 
       <section aria-labelledby="trip-needs-title">
         <div className="section-heading traveler-needs-heading">
@@ -296,67 +389,46 @@ export function TravelerTripDetailPage() {
         ) : (
           <div className="traveler-needs-grid">
             {trip.needs.map((need) => {
-              const state = getTravelerNeedState(need);
+              const derivedState = needStateById.get(need.id) ?? "TO_ORGANIZE";
+              const quote = latestQuotesByNeedId[need.id] ?? null;
               const acceptedQuote = acceptedQuotesByNeedId[need.id] ?? null;
               return (
-                <article className="traveler-need-card" key={need.id}>
-                  <div className="traveler-need-title">
-                    <span>{needIcons[need.type]}</span>
-                    <h3>{needLabels[need.type]}</h3>
-                  </div>
-                  <div className={`traveler-need-state ${state.tone}`}>
-                    {state.tone === "confirmed" && <Check size={17} />}
-                    {state.tone === "pending" && <Clock3 size={17} />}
-                    <strong>{state.label}</strong>
-                  </div>
-                  {need.notes && <p className="traveler-need-notes">{need.notes}</p>}
-                  {need.type === "TRANSFER" && need.transferCriteria && (
-                    <p className="traveler-need-transfer-summary">
-                      {need.transferCriteria.pickupLocation} → {need.transferCriteria.dropoffLocation}
-                      <br />
-                      {need.transferCriteria.travelers} {need.transferCriteria.travelers > 1 ? "voyageurs" : "voyageur"}
-                    </p>
-                  )}
-                  <div className="traveler-need-offer-price">
-                    <span>Offre retenue</span>
-                    <strong>{acceptedQuote ? formatPrice(acceptedQuote.providerPrice, acceptedQuote.currency) : "Offre à définir"}</strong>
-                  </div>
-                  {need.status === "DRAFT" && !need.bookingRequestStatus && (
-                    <div className="traveler-need-request-action">
-                      {requestErrors[need.id] && <p role="alert">{requestErrors[need.id]}</p>}
-                      <button type="button" className="primary-button" disabled={sendingNeedId !== null} onClick={() => void handleSendRequest(need)}>
-                        {sendingNeedId === need.id ? <LoaderCircle className="rotating" size={17} /> : <Send size={17} />}
-                        {sendingNeedId === need.id ? "Envoi en cours…" : "Envoyer ma demande"}
-                      </button>
-                    </div>
-                  )}
-                  {need.bookingStatus === "CONFIRMED" && need.providerConfirmationId && (
-                    <div className="traveler-booking-reference">
-                      <span>Référence de réservation</span>
-                      <strong>{need.providerConfirmationId}</strong>
-                    </div>
-                  )}
-                </article>
+                <TravelerNeedCard
+                  key={need.id}
+                  need={need}
+                  icon={needIcons[need.type]}
+                  label={needLabels[need.type]}
+                  derivedState={derivedState}
+                  quote={quote}
+                  acceptedQuote={acceptedQuote}
+                  onSendRequest={() => void handleSendRequest(need)}
+                  sendingRequest={sendingNeedId === need.id}
+                  sendRequestDisabled={sendingNeedId !== null}
+                  sendRequestError={requestErrors[need.id]}
+                  onAcceptQuote={(quoteToAccept) => void handleQuoteAction(quoteToAccept, "accept")}
+                  onRejectQuote={(quoteToReject) => void handleQuoteAction(quoteToReject, "reject")}
+                  quoteActionPending={quote && pendingQuoteAction?.quoteId === quote.id ? pendingQuoteAction.action : null}
+                  quoteActionsDisabled={pendingQuoteAction !== null}
+                  quoteActionError={quote ? quoteActionErrors[quote.id] : undefined}
+                  onScrollToPayment={scrollToFinancialSummary}
+                />
               );
             })}
           </div>
         )}
       </section>
 
-      <TripFinancialSummary
+      <TravelerTripFinances
         assistanceFee={trip.assistanceFee}
-        providerOffers={Object.values(acceptedQuotesByNeedId)
-          .filter((quote): quote is TravelerQuote => quote !== null)
-          .map(({ providerPrice, currency }) => ({ providerPrice, currency }))}
-        showTravelerExplanation
         paymentStatus={paymentStatus}
-        showPaymentStatus
+        tripEligibleForPayment={tripEligibleForPayment}
         checkoutLoading={startingCheckout}
         checkoutError={checkoutError}
         onCheckout={() => void handleCheckout()}
+        supplierServices={supplierServices}
       />
 
-      <section aria-labelledby="organize-trip-title">
+      <section id="organize-need-section" aria-labelledby="organize-trip-title">
         <div className="section-heading traveler-needs-heading">
           <div>
             <h2 id="organize-trip-title">Organiser mon voyage</h2>

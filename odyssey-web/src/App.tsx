@@ -114,7 +114,17 @@ function App() {
   const { getAccessTokenSilently } = useAuth0();
 
   useEffect(() => {
-    configureApiClient(() => getAccessTokenSilently());
+    configureApiClient(async () => {
+      // auth0-spa-js may resolve to `undefined` (e.g. when its internal
+      // session ceiling is reached) instead of throwing. The API client
+      // contract requires a real token, so treat a missing token as an
+      // explicit failure rather than silently forwarding `undefined`.
+      const token = await getAccessTokenSilently();
+      if (!token) {
+        throw new Error("getAccessTokenSilently() did not return a token");
+      }
+      return token;
+    });
 
     return () => {
       configureApiClient(null);

@@ -615,6 +615,142 @@ h2 {
   box-shadow: 0 8px 24px rgba(29, 69, 65, 0.06);
 }
 
+.trip-finances {
+  display: grid;
+  gap: 20px;
+  margin: 28px 0;
+  padding: 24px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(29, 69, 65, 0.06);
+}
+
+.trip-finances-blocks {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 20px;
+}
+
+.trip-finance-block {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  padding: 18px 20px;
+  background: #f7faf8;
+  border-radius: 8px;
+}
+
+.trip-finance-block h3 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 16px;
+}
+
+.trip-finance-block-description {
+  margin: 0 0 4px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.trip-finance-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.trip-finance-status--success {
+  color: #28643e;
+}
+.trip-finance-status--progress {
+  color: #075f57;
+}
+.trip-finance-status--error {
+  color: #8b3d35;
+}
+.trip-finance-status--muted {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.trip-finance-block .primary-button {
+  justify-self: start;
+}
+
+.trip-finance-supplier-list {
+  display: grid;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.trip-finance-supplier-item {
+  display: grid;
+  gap: 6px;
+  padding: 12px 0;
+}
+
+.trip-finance-supplier-item + .trip-finance-supplier-item {
+  border-top: 1px solid #e5ecea;
+}
+
+.trip-finance-supplier-item-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink);
+}
+
+.trip-finance-supplier-item-header strong {
+  flex: 1;
+}
+
+.trip-finance-supplier-item-price {
+  color: var(--ink);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.trip-finance-supplier-item-status {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.trip-finance-supplier-cta {
+  display: grid;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.trip-finance-supplier-cta .primary-button {
+  justify-self: start;
+}
+
+.trip-finance-supplier-subtotal {
+  margin: 4px 0 0;
+  padding-top: 10px;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 700;
+  border-top: 1px solid #e5ecea;
+}
+
+.trip-finances-explanation {
+  margin: 0;
+  padding: 14px 16px;
+  color: #45615d;
+  font-size: 13px;
+  line-height: 1.6;
+  background: #edf7f4;
+  border-left: 3px solid var(--primary);
+}
+
 .notification-heading-status {
   display: flex;
   align-items: center;
@@ -2003,6 +2139,188 @@ h2 {
   margin-bottom: 18px;
 }
 
+.trip-progress {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.trip-progress-bar {
+  width: 100%;
+  max-width: 220px;
+  height: 6px;
+  background: #e3e9e7;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.trip-progress-bar-fill {
+  height: 100%;
+  background: var(--primary);
+  border-radius: 999px;
+}
+
+.trip-progress-label {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.trip-next-action {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  margin: 24px 0;
+  padding: 20px 22px;
+  border-radius: 10px;
+}
+
+.trip-next-action-icon {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.trip-next-action-copy {
+  display: grid;
+  flex: 1;
+  gap: 4px;
+  min-width: 220px;
+}
+
+.trip-next-action-eyebrow {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.trip-next-action-copy strong {
+  color: var(--ink);
+  font-size: 17px;
+}
+
+.trip-next-action-copy p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.trip-next-action .primary-button {
+  white-space: nowrap;
+}
+
+.trip-next-action--action {
+  background: #fff1df;
+}
+.trip-next-action--action .trip-next-action-icon {
+  color: #8a4b0d;
+}
+
+.trip-next-action--progress {
+  background: #dff2ed;
+}
+.trip-next-action--progress .trip-next-action-icon {
+  color: #075f57;
+}
+
+.trip-next-action--neutral {
+  background: #eef1f0;
+}
+.trip-next-action--neutral .trip-next-action-icon {
+  color: #5c6362;
+}
+
+.trip-ready-summary {
+  margin: 24px 0;
+  padding: 22px 24px;
+  background: #e7f4eb;
+  border-radius: 10px;
+}
+
+.trip-ready-headline {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.trip-ready-icon {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  color: #28643e;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 999px;
+}
+
+.trip-ready-headline strong {
+  display: block;
+  margin-bottom: 4px;
+  color: #1d452a;
+  font-size: 18px;
+}
+
+.trip-ready-headline p {
+  margin: 0;
+  color: #2f5d3d;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.trip-ready-list {
+  display: grid;
+  gap: 10px;
+  margin: 18px 0 0;
+  padding: 16px 0 0;
+  list-style: none;
+  border-top: 1px solid rgba(40, 100, 62, 0.18);
+}
+
+.trip-ready-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #1d452a;
+  font-size: 14px;
+}
+
+.trip-ready-list-icon {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  color: #28643e;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 8px;
+}
+
+.trip-ready-list-label {
+  flex: 1;
+  font-weight: 600;
+}
+
+.trip-ready-list-status {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.trip-ready-list-reference {
+  color: #2f5d3d;
+  font-size: 12px;
+}
+
 .traveler-need-card {
   padding: 24px;
   background: var(--surface);
@@ -2011,8 +2329,7 @@ h2 {
   box-shadow: 0 8px 24px rgba(29, 69, 65, 0.06);
 }
 
-.traveler-need-title,
-.traveler-need-state {
+.traveler-need-title {
   display: flex;
   align-items: center;
 }
@@ -2032,34 +2349,87 @@ h2 {
   font-size: 18px;
 }
 
-.traveler-need-state {
-  gap: 7px;
-  width: fit-content;
+.traveler-need-status {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
   margin-top: 20px;
-  padding: 8px 10px;
-  font-size: 13px;
-  border-radius: 6px;
+  padding: 14px 16px;
+  border-radius: 8px;
 }
 
-.traveler-need-state.confirmed {
-  color: #28643e;
-  background: #e7f4eb;
+.traveler-need-status-icon {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.55);
 }
-.traveler-need-state.pending {
-  color: #8a4b0d;
-  background: #fff1df;
+
+.traveler-need-status-copy {
+  display: grid;
+  gap: 4px;
 }
-.traveler-need-state.progress {
-  color: #075f57;
+
+.traveler-need-status-copy strong {
+  color: var(--ink);
+  font-size: 14px;
+}
+
+.traveler-need-status-copy p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.traveler-need-status-secondary {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.traveler-need-status--neutral {
+  background: #eef1f0;
+}
+.traveler-need-status--neutral .traveler-need-status-icon {
+  color: #5c6362;
+}
+
+.traveler-need-status--progress {
   background: #dff2ed;
 }
-.traveler-need-state.requested {
-  color: #426662;
-  background: #edf4f2;
+.traveler-need-status--progress .traveler-need-status-icon {
+  color: #075f57;
 }
-.traveler-need-state.idle {
-  color: #5c6362;
-  background: #eef1f0;
+
+.traveler-need-status--action {
+  background: #fff1df;
+}
+.traveler-need-status--action .traveler-need-status-icon {
+  color: #8a4b0d;
+}
+
+.traveler-need-status--success {
+  background: #e7f4eb;
+}
+.traveler-need-status--success .traveler-need-status-icon {
+  color: #28643e;
+}
+
+.traveler-need-status--error {
+  background: #f9e5e2;
+}
+.traveler-need-status--error .traveler-need-status-icon {
+  color: #8b3d35;
+}
+
+.traveler-need-status--muted {
+  background: #eef0ef;
+}
+.traveler-need-status--muted .traveler-need-status-icon {
+  color: #6b6f70;
 }
 
 .traveler-need-notes {
@@ -4493,4 +4863,14 @@ button.traveler-event-link {
 .booking-status-cancelled {
   background: #fef2f2;
   color: #b91c1c;
+}
+
+.booking-form-field-select {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  color: #0f172a;
+  background-color: #ffffff;
 }
