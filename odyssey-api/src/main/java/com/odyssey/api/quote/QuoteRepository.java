@@ -14,6 +14,16 @@ public interface QuoteRepository extends JpaRepository<Quote, Long> {
 
     List<Quote> findByBookingRequestIdOrderByIdDesc(Long bookingRequestId);
 
+    /**
+     * The "current" Quote for a BookingRequest: the most recently created
+     * one (highest id / latest createdAt), regardless of its status.
+     * Historical Quotes (REJECTED, EXPIRED, or superseded by a later one)
+     * are never considered current. Used by
+     * {@code QuoteService.updateTripConfirmationIfReady} to decide Trip
+     * confirmation without being blocked by obsolete Quote history.
+     */
+    Optional<Quote> findFirstByBookingRequestIdOrderByIdDesc(Long bookingRequestId);
+
     List<Quote> findByBookingRequestNeedTripIdAndStatusOrderByIdAsc(
         Long tripId,
         QuoteStatus status

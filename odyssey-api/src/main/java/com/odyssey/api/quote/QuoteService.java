@@ -324,6 +324,8 @@ public class QuoteService {
 
         Quote savedQuote = quoteRepository.save(quote);
 
+        updateTripConfirmationIfReady(bookingRequest.getNeed().getTrip());
+
         Long agentId = bookingRequest
                 .getAssignedAgent()
                 .getId();
@@ -363,18 +365,7 @@ public class QuoteService {
 
         Quote savedQuote = quoteRepository.save(quote);
 
-        Trip trip = quote
-        .getBookingRequest()
-        .getNeed()
-        .getTrip();
-
-        List<Quote> tripQuotes = quoteRepository.findByBookingRequestNeedTripId(trip.getId());
-
-        boolean allAccepted = !tripQuotes.isEmpty() && tripQuotes.stream().allMatch(q -> q.getStatus() == QuoteStatus.ACCEPTED);
-
-        if (allAccepted) {
-            trip.setStatus(TripStatus.CONFIRMED);
-        }
+        updateTripConfirmationIfReady(quote.getBookingRequest().getNeed().getTrip());
 
         Long travelerId = quote.getBookingRequest()
                 .getNeed()
@@ -487,6 +478,49 @@ public class QuoteService {
                 )
         );
         return toTravelerResponse(savedQuote);
+    }
+
+    /**
+     * Single source of truth for deciding whether a Trip is ready to
+     * become {@link TripStatus#CONFIRMED}, called by BOTH
+     * {@code acceptQuote} overloads so the rule can never diverge between
+     * them.
+     *
+     * <p>A Trip becomes CONFIRMED when every active (non-CANCELLED)
+     * {@link BookingRequest} of the Trip has a "current" Quote (the Quote
+     * with the highest id for that BookingRequest — see
+     * {@link QuoteRepository#findFirstByBookingRequestIdOrderByIdDesc})
+     * and that current Quote is {@link QuoteStatus#ACCEPTED}. Historical
+     * Quotes (REJECTED, EXPIRED, or superseded by a newer one on the same
+     * BookingRequest) are never inspected and can never block
+     * confirmation — only the latest Quote per BookingRequest matters.</p>
+     *
+     * <p>Never downgrades an already CONFIRMED Trip.</p>
+     */
+    private void updateTripConfirmationIfReady(Trip trip) {
+        if (trip.getStatus() == TripStatus.CONFIRMED) {
+            return;
+        }
+
+        List<BookingRequest> activeBookingRequests = bookingRequestRepository
+                .findByNeedTripId(trip.getId())
+                .stream()
+                .filter(bookingRequest -> bookingRequest.getStatus() != BookingRequestStatus.CANCELLED)
+                .toList();
+
+        boolean allActiveBookingRequestsHaveAnAcceptedCurrentQuote = !activeBookingRequests.isEmpty()
+                && activeBookingRequests.stream().allMatch(this::hasAcceptedCurrentQuote);
+
+        if (allActiveBookingRequestsHaveAnAcceptedCurrentQuote) {
+            trip.setStatus(TripStatus.CONFIRMED);
+        }
+    }
+
+    private boolean hasAcceptedCurrentQuote(BookingRequest bookingRequest) {
+        return quoteRepository
+                .findFirstByBookingRequestIdOrderByIdDesc(bookingRequest.getId())
+                .map(currentQuote -> currentQuote.getStatus() == QuoteStatus.ACCEPTED)
+                .orElse(false);
     }
 
     private Traveler getCurrentTraveler(String auth0Subject) {

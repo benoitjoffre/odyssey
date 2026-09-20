@@ -16,6 +16,7 @@ import com.odyssey.api.traveler.Traveler;
 import com.odyssey.api.traveler.TravelerRepository;
 import com.odyssey.api.trip.Trip;
 import com.odyssey.api.trip.TripRepository;
+import com.odyssey.api.trip.TripStatus;
 import com.odyssey.api.outbox.OutboxEvent;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -435,6 +436,272 @@ class QuoteServiceTest {
         ArgumentCaptor<OutboxEvent> outboxCaptor = ArgumentCaptor.forClass(OutboxEvent.class);
         verify(outboxEventRepository).save(outboxCaptor.capture());
         assertEquals("QUOTE_ACCEPTED", outboxCaptor.getValue().getEventType());
+    }
+
+    // --- Trip confirmation (E2E-01) --------------------------------------
+    //
+    // A Trip becomes CONFIRMED only when every active BookingRequest of the
+    // Trip has a "current" Quote (highest id for that BookingRequest) whose
+    // status is ACCEPTED. Historical Quotes (REJECTED/EXPIRED/superseded)
+    // must never block confirmation.
+
+    private BookingRequest bookingRequestOn(Trip trip, Long bookingRequestId) {
+        BookingRequest bookingRequest = new BookingRequest();
+        ReflectionTestUtils.setField(bookingRequest, "id", bookingRequestId);
+        bookingRequest.setStatus(BookingRequestStatus.IN_PROGRESS);
+        bookingRequest.setAssignedAgent(agent(5L));
+        Need need = new Need();
+        need.setTrip(trip);
+        bookingRequest.setNeed(need);
+        return bookingRequest;
+    }
+
+    private Trip tripOwnedBy(Traveler traveler) {
+        Trip trip = new Trip();
+        ReflectionTestUtils.setField(trip, "id", TRIP_ID);
+        trip.setStatus(TripStatus.DRAFT);
+        trip.setTraveler(traveler);
+        return trip;
+    }
+
+    @Test
+    void tripBecomesConfirmedWhenAllCurrentQuotesAreAccepted() {
+        String auth0Subject = "auth0|traveler-1";
+        Traveler traveler = new Traveler();
+        ReflectionTestUtils.setField(traveler, "id", 1L);
+        when(travelerRepository.findByAuth0Subject(auth0Subject)).thenReturn(Optional.of(traveler));
+
+        Trip trip = tripOwnedBy(traveler);
+        BookingRequest flightRequest = bookingRequestOn(trip, 201L);
+        BookingRequest hotelRequest = bookingRequestOn(trip, 202L);
+
+        Quote flightQuote = pricedQuote(1L, flightRequest, QuoteStatus.ACCEPTED);
+        Quote hotelQuote = pricedQuote(2L, hotelRequest, QuoteStatus.SENT);
+
+        when(quoteRepository.findById(2L)).thenReturn(Optional.of(hotelQuote));
+        when(quoteRepository.save(hotelQuote)).thenReturn(hotelQuote);
+        when(bookingRequestRepository.findByNeedTripId(TRIP_ID))
+            .thenReturn(List.of(flightRequest, hotelRequest));
+        when(quoteRepository.findFirstByBookingRequestIdOrderByIdDesc(201L))
+            .thenReturn(Optional.of(flightQuote));
+        when(quoteRepository.findFirstByBookingRequestIdOrderByIdDesc(202L))
+            .thenReturn(Optional.of(hotelQuote));
+
+        quoteService.acceptQuote(2L, auth0Subject);
+
+        assertEquals(TripStatus.CONFIRMED, trip.getStatus());
+    }
+
+    @Test
+    void tripBecomesConfirmedWhenHistoricalRejectedQuoteIsSupersededByAcceptedQuote() {
+        // Reproduces E2E-01: TRANSFER Quote #30 REJECTED, then Quote #31
+        // (higher id) SENT and now ACCEPTED. FLIGHT/HOTEL already ACCEPTED.
+        String auth0Subject = "auth0|traveler-1";
+        Traveler traveler = new Traveler();
+        ReflectionTestUtils.setField(traveler, "id", 1L);
+        when(travelerRepository.findByAuth0Subject(auth0Subject)).thenReturn(Optional.of(traveler));
+
+        Trip trip = tripOwnedBy(traveler);
+        BookingRequest flightRequest = bookingRequestOn(trip, 301L);
+        BookingRequest hotelRequest = bookingRequestOn(trip, 302L);
+        BookingRequest transferRequest = bookingRequestOn(trip, 303L);
+
+        Quote flightQuote = pricedQuote(10L, flightRequest, QuoteStatus.ACCEPTED);
+        Quote hotelQuote = pricedQuote(20L, hotelRequest, QuoteStatus.ACCEPTED);
+        // Historical Quote, intentionally never stubbed on
+        // findFirstByBookingRequestIdOrderByIdDesc: it must play no role at
+        // all in the confirmation decision.
+        Quote newTransferQuote = pricedQuote(31L, transferRequest, QuoteStatus.SENT);
+
+        when(quoteRepository.findById(31L)).thenReturn(Optional.of(newTransferQuote));
+        when(quoteRepository.save(newTransferQuote)).thenReturn(newTransferQuote);
+        when(bookingRequestRepository.findByNeedTripId(TRIP_ID))
+            .thenReturn(List.of(flightRequest, hotelRequest, transferRequest));
+        when(quoteRepository.findFirstByBookingRequestIdOrderByIdDesc(301L))
+            .thenReturn(Optional.of(flightQuote));
+        when(quoteRepository.findFirstByBookingRequestIdOrderByIdDesc(302L))
+            .thenReturn(Optional.of(hotelQuote));
+        when(quoteRepository.findFirstByBookingRequestIdOrderByIdDesc(303L))
+            .thenReturn(Optional.of(newTransferQuote));
+
+        quoteService.acceptQuote(31L, auth0Subject);
+
+        assertEquals(TripStatus.CONFIRMED, trip.getStatus());
+        verify(quoteRepository, never()).findByBookingRequestNeedTripId(any());
+    }
+
+    @Test
+    void tripBecomesConfirmedWhenHistoricalExpiredQuoteIsSupersededByAcceptedQuote() {
+        String auth0Subject = "auth0|traveler-1";
+        Traveler traveler = new Traveler();
+        ReflectionTestUtils.setField(traveler, "id", 1L);
+        when(travelerRepository.findByAuth0Subject(auth0Subject)).thenReturn(Optional.of(traveler));
+
+        Trip trip = tripOwnedBy(traveler);
+        BookingRequest flightRequest = bookingRequestOn(trip, 401L);
+        BookingRequest transferRequest = bookingRequestOn(trip, 402L);
+
+        Quote flightQuote = pricedQuote(40L, flightRequest, QuoteStatus.ACCEPTED);
+        // Historical EXPIRED Quote #50 intentionally never stubbed as the
+        // current one: only Quote #51 (higher id) must be considered.
+        Quote newTransferQuote = pricedQuote(51L, transferRequest, QuoteStatus.SENT);
+
+        when(quoteRepository.findById(51L)).thenReturn(Optional.of(newTransferQuote));
+        when(quoteRepository.save(newTransferQuote)).thenReturn(newTransferQuote);
+        when(bookingRequestRepository.findByNeedTripId(TRIP_ID))
+            .thenReturn(List.of(flightRequest, transferRequest));
+        when(quoteRepository.findFirstByBookingRequestIdOrderByIdDesc(401L))
+            .thenReturn(Optional.of(flightQuote));
+        when(quoteRepository.findFirstByBookingRequestIdOrderByIdDesc(402L))
+            .thenReturn(Optional.of(newTransferQuote));
+
+        quoteService.acceptQuote(51L, auth0Subject);
+
+        assertEquals(TripStatus.CONFIRMED, trip.getStatus());
+    }
+
+    @Test
+    void tripNotConfirmedWhenAnotherBookingRequestsCurrentQuoteIsStillSent() {
+        String auth0Subject = "auth0|traveler-1";
+        Traveler traveler = new Traveler();
+        ReflectionTestUtils.setField(traveler, "id", 1L);
+        when(travelerRepository.findByAuth0Subject(auth0Subject)).thenReturn(Optional.of(traveler));
+
+        Trip trip = tripOwnedBy(traveler);
+        BookingRequest hotelRequest = bookingRequestOn(trip, 501L);
+        BookingRequest transferRequest = bookingRequestOn(trip, 502L);
+
+        Quote hotelQuote = pricedQuote(60L, hotelRequest, QuoteStatus.SENT);
+        Quote transferQuote = pricedQuote(61L, transferRequest, QuoteStatus.SENT);
+
+        when(quoteRepository.findById(60L)).thenReturn(Optional.of(hotelQuote));
+        when(quoteRepository.save(hotelQuote)).thenReturn(hotelQuote);
+        when(bookingRequestRepository.findByNeedTripId(TRIP_ID))
+            .thenReturn(List.of(hotelRequest, transferRequest));
+        when(quoteRepository.findFirstByBookingRequestIdOrderByIdDesc(501L))
+            .thenReturn(Optional.of(hotelQuote));
+        when(quoteRepository.findFirstByBookingRequestIdOrderByIdDesc(502L))
+            .thenReturn(Optional.of(transferQuote)); // still SENT, not accepted
+
+        quoteService.acceptQuote(60L, auth0Subject);
+
+        assertEquals(QuoteStatus.ACCEPTED, hotelQuote.getStatus());
+        assertEquals(TripStatus.DRAFT, trip.getStatus());
+    }
+
+    @Test
+    void tripNotConfirmedWhenAnotherBookingRequestsCurrentQuoteIsStillDraft() {
+        String auth0Subject = "auth0|traveler-1";
+        Traveler traveler = new Traveler();
+        ReflectionTestUtils.setField(traveler, "id", 1L);
+        when(travelerRepository.findByAuth0Subject(auth0Subject)).thenReturn(Optional.of(traveler));
+
+        Trip trip = tripOwnedBy(traveler);
+        BookingRequest hotelRequest = bookingRequestOn(trip, 601L);
+        BookingRequest transferRequest = bookingRequestOn(trip, 602L);
+
+        Quote hotelQuote = pricedQuote(70L, hotelRequest, QuoteStatus.SENT);
+        Quote draftTransferQuote = pricedQuote(71L, transferRequest, QuoteStatus.DRAFT);
+
+        when(quoteRepository.findById(70L)).thenReturn(Optional.of(hotelQuote));
+        when(quoteRepository.save(hotelQuote)).thenReturn(hotelQuote);
+        when(bookingRequestRepository.findByNeedTripId(TRIP_ID))
+            .thenReturn(List.of(hotelRequest, transferRequest));
+        when(quoteRepository.findFirstByBookingRequestIdOrderByIdDesc(601L))
+            .thenReturn(Optional.of(hotelQuote));
+        when(quoteRepository.findFirstByBookingRequestIdOrderByIdDesc(602L))
+            .thenReturn(Optional.of(draftTransferQuote));
+
+        quoteService.acceptQuote(70L, auth0Subject);
+
+        assertEquals(TripStatus.DRAFT, trip.getStatus());
+    }
+
+    @Test
+    void tripNotConfirmedWhenABookingRequestHasNoQuoteAtAll() {
+        String auth0Subject = "auth0|traveler-1";
+        Traveler traveler = new Traveler();
+        ReflectionTestUtils.setField(traveler, "id", 1L);
+        when(travelerRepository.findByAuth0Subject(auth0Subject)).thenReturn(Optional.of(traveler));
+
+        Trip trip = tripOwnedBy(traveler);
+        BookingRequest hotelRequest = bookingRequestOn(trip, 701L);
+        BookingRequest transferRequest = bookingRequestOn(trip, 702L);
+
+        Quote hotelQuote = pricedQuote(80L, hotelRequest, QuoteStatus.SENT);
+
+        when(quoteRepository.findById(80L)).thenReturn(Optional.of(hotelQuote));
+        when(quoteRepository.save(hotelQuote)).thenReturn(hotelQuote);
+        when(bookingRequestRepository.findByNeedTripId(TRIP_ID))
+            .thenReturn(List.of(hotelRequest, transferRequest));
+        when(quoteRepository.findFirstByBookingRequestIdOrderByIdDesc(701L))
+            .thenReturn(Optional.of(hotelQuote));
+        when(quoteRepository.findFirstByBookingRequestIdOrderByIdDesc(702L))
+            .thenReturn(Optional.empty()); // TRANSFER has no Quote yet
+
+        quoteService.acceptQuote(80L, auth0Subject);
+
+        assertEquals(TripStatus.DRAFT, trip.getStatus());
+    }
+
+    @Test
+    void tripConfirmationOnlyConsidersHighestIdQuotePerBookingRequest() {
+        // Mixed history on ONE BookingRequest: ACCEPTED (#1) then REJECTED
+        // (#2) then ACCEPTED again (#3, the highest id). Only #3 matters.
+        String auth0Subject = "auth0|traveler-1";
+        Traveler traveler = new Traveler();
+        ReflectionTestUtils.setField(traveler, "id", 1L);
+        when(travelerRepository.findByAuth0Subject(auth0Subject)).thenReturn(Optional.of(traveler));
+
+        Trip trip = tripOwnedBy(traveler);
+        BookingRequest flightRequest = bookingRequestOn(trip, 801L);
+        BookingRequest hotelRequest = bookingRequestOn(trip, 802L);
+
+        Quote flightCurrentQuote = pricedQuote(93L, flightRequest, QuoteStatus.ACCEPTED);
+        Quote hotelQuote = pricedQuote(94L, hotelRequest, QuoteStatus.SENT);
+
+        when(quoteRepository.findById(94L)).thenReturn(Optional.of(hotelQuote));
+        when(quoteRepository.save(hotelQuote)).thenReturn(hotelQuote);
+        when(bookingRequestRepository.findByNeedTripId(TRIP_ID))
+            .thenReturn(List.of(flightRequest, hotelRequest));
+        when(quoteRepository.findFirstByBookingRequestIdOrderByIdDesc(801L))
+            .thenReturn(Optional.of(flightCurrentQuote));
+        when(quoteRepository.findFirstByBookingRequestIdOrderByIdDesc(802L))
+            .thenReturn(Optional.of(hotelQuote));
+
+        quoteService.acceptQuote(94L, auth0Subject);
+
+        assertEquals(TripStatus.CONFIRMED, trip.getStatus());
+    }
+
+    @Test
+    void bothAcceptQuoteOverloadsApplySameTripConfirmationLogic() {
+        // Same scenario as tripBecomesConfirmedWhenAllCurrentQuotesAreAccepted
+        // but going through the (quoteId, travelerId) overload used by
+        // internal/integration callers, proving both entry points share the
+        // exact same Trip confirmation rule.
+        Traveler traveler = new Traveler();
+        ReflectionTestUtils.setField(traveler, "id", 1L);
+
+        Trip trip = tripOwnedBy(traveler);
+        BookingRequest flightRequest = bookingRequestOn(trip, 901L);
+        BookingRequest hotelRequest = bookingRequestOn(trip, 902L);
+
+        Quote flightQuote = pricedQuote(95L, flightRequest, QuoteStatus.ACCEPTED);
+        Quote hotelQuote = pricedQuote(96L, hotelRequest, QuoteStatus.SENT);
+
+        when(quoteRepository.findById(96L)).thenReturn(Optional.of(hotelQuote));
+        when(quoteRepository.save(hotelQuote)).thenReturn(hotelQuote);
+        when(bookingRequestRepository.findByNeedTripId(TRIP_ID))
+            .thenReturn(List.of(flightRequest, hotelRequest));
+        when(quoteRepository.findFirstByBookingRequestIdOrderByIdDesc(901L))
+            .thenReturn(Optional.of(flightQuote));
+        when(quoteRepository.findFirstByBookingRequestIdOrderByIdDesc(902L))
+            .thenReturn(Optional.of(hotelQuote));
+
+        quoteService.acceptQuote(96L, 1L);
+
+        assertEquals(TripStatus.CONFIRMED, trip.getStatus());
     }
 
     @Test
