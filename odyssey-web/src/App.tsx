@@ -1,11 +1,11 @@
 import { useAuth0 } from "@auth0/auth0-react";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
-import { getCurrentUser } from "./api/currentUser";
 import { configureApiClient } from "./api/client";
 import { AgentLayout } from "./components/AgentLayout";
 import { TravelerLayout } from "./components/TravelerLayout";
-import type { CurrentUser } from "./types/currentUser";
+import { CurrentUserProvider } from "./auth/CurrentUserProvider";
+import { useCurrentUser } from "./auth/useCurrentUser";
 import { AgentDashboardPage } from "./pages/AgentDashboardPage";
 import { AgentEventCreatePage } from "./pages/agent/AgentEventCreatePage";
 import { AgentEventsPage } from "./pages/agent/AgentEventsPage";
@@ -17,6 +17,7 @@ import { ComingSoonPage } from "./pages/ComingSoonPage";
 import { HomePage } from "./pages/HomePage";
 import { TravelerDiscoverPage } from "./pages/traveler/TravelerDiscoverPage";
 import { TravelerEventDetailPage } from "./pages/traveler/TravelerEventDetailPage";
+import { TravelerOnboardingPage } from "./pages/traveler/TravelerOnboardingPage";
 import { TravelerQuotesPage } from "./pages/traveler/TravelerQuotesPage";
 import { TravelerTripDetailPage } from "./pages/traveler/TravelerTripDetailPage";
 import { TravelerTripCreatePage } from "./pages/traveler/TravelerTripCreatePage";
@@ -26,57 +27,6 @@ function getDashboardPathFromRoles(roles: string[]): string {
   if (roles.includes("AGENT")) return "/agent";
   if (roles.includes("TRAVELER")) return "/traveler";
   return "/";
-}
-
-function useCurrentUser() {
-  const { isAuthenticated, isLoading } = useAuth0();
-  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
-  const [loading, setLoading] = useState(() => isAuthenticated);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!isAuthenticated) {
-      return;
-    }
-
-    let active = true;
-    const controller = new AbortController();
-
-    const loadUser = async () => {
-      setLoading(true);
-      setError(null);
-
-      try {
-        const user = await getCurrentUser(controller.signal);
-        if (!active) return;
-        setCurrentUser(user);
-      } catch (requestError: unknown) {
-        if (!active) return;
-        if (requestError instanceof DOMException && requestError.name === "AbortError") {
-          return;
-        }
-        setCurrentUser(null);
-        setError("Impossible de charger le profil utilisateur.");
-      } finally {
-        if (active && !controller.signal.aborted) {
-          setLoading(false);
-        }
-      }
-    };
-
-    void loadUser();
-
-    return () => {
-      active = false;
-      controller.abort();
-    };
-  }, [isAuthenticated]);
-
-  return {
-    currentUser,
-    isLoading: isLoading || loading || (isAuthenticated && currentUser === null && error === null),
-    error,
-  };
 }
 
 function AuthGuard({ children, requiredRole }: { children: ReactNode; requiredRole?: "TRAVELER" | "AGENT" }) {
@@ -107,6 +57,18 @@ function AuthGuard({ children, requiredRole }: { children: ReactNode; requiredRo
     return <Navigate to={getDashboardPathFromRoles(roles)} replace />;
   }
 
+  if (requiredRole === "TRAVELER" && roles.includes("TRAVELER")) {
+    const onboardingCompleted = currentUser?.onboardingCompleted;
+
+    if (onboardingCompleted === false && location.pathname !== "/onboarding") {
+      return <Navigate to="/onboarding" replace />;
+    }
+
+    if (onboardingCompleted === true && location.pathname === "/onboarding") {
+      return <Navigate to={getDashboardPathFromRoles(roles)} replace />;
+    }
+  }
+
   return <>{children}</>;
 }
 
@@ -132,46 +94,57 @@ function App() {
   }, [getAccessTokenSilently]);
 
   return (
-    <Routes>
-      <Route path="/" element={<HomePage />} />
+    <CurrentUserProvider>
+      <Routes>
+        <Route path="/" element={<HomePage />} />
 
-      <Route
-        path="/agent"
-        element={
-          <AuthGuard requiredRole="AGENT">
-            <AgentLayout />
-          </AuthGuard>
-        }
-      >
-        <Route index element={<AgentDashboardPage />} />
-        <Route path="booking-requests" element={<AgentBookingRequestsPage />} />
-        <Route path="booking-requests/:id" element={<BookingRequestPage />} />
-        <Route path="quotes" element={<ComingSoonPage title="Propositions" />} />
-        <Route path="experiences" element={<AgentExperiencesPage />} />
-        <Route path="experiences/new" element={<AgentExperienceCreatePage />} />
-        <Route path="events" element={<AgentEventsPage />} />
-        <Route path="events/new" element={<AgentEventCreatePage />} />
-      </Route>
+        <Route
+          path="/agent"
+          element={
+            <AuthGuard requiredRole="AGENT">
+              <AgentLayout />
+            </AuthGuard>
+          }
+        >
+          <Route index element={<AgentDashboardPage />} />
+          <Route path="booking-requests" element={<AgentBookingRequestsPage />} />
+          <Route path="booking-requests/:id" element={<BookingRequestPage />} />
+          <Route path="quotes" element={<ComingSoonPage title="Propositions" />} />
+          <Route path="experiences" element={<AgentExperiencesPage />} />
+          <Route path="experiences/new" element={<AgentExperienceCreatePage />} />
+          <Route path="events" element={<AgentEventsPage />} />
+          <Route path="events/new" element={<AgentEventCreatePage />} />
+        </Route>
 
-      <Route
-        path="/traveler"
-        element={
-          <AuthGuard requiredRole="TRAVELER">
-            <TravelerLayout />
-          </AuthGuard>
-        }
-      >
-        <Route index element={<Navigate to="discover" replace />} />
-        <Route path="discover" element={<TravelerDiscoverPage />} />
-        <Route path="events/:eventId" element={<TravelerEventDetailPage />} />
-        <Route path="trips" element={<TravelerTripsPage />} />
-        <Route path="trips/new" element={<TravelerTripCreatePage />} />
-        <Route path="trips/:tripId" element={<TravelerTripDetailPage />} />
-        <Route path="quotes" element={<TravelerQuotesPage />} />
-      </Route>
+        <Route
+          path="/onboarding"
+          element={
+            <AuthGuard requiredRole="TRAVELER">
+              <TravelerOnboardingPage />
+            </AuthGuard>
+          }
+        />
 
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        <Route
+          path="/traveler"
+          element={
+            <AuthGuard requiredRole="TRAVELER">
+              <TravelerLayout />
+            </AuthGuard>
+          }
+        >
+          <Route index element={<Navigate to="discover" replace />} />
+          <Route path="discover" element={<TravelerDiscoverPage />} />
+          <Route path="events/:eventId" element={<TravelerEventDetailPage />} />
+          <Route path="trips" element={<TravelerTripsPage />} />
+          <Route path="trips/new" element={<TravelerTripCreatePage />} />
+          <Route path="trips/:tripId" element={<TravelerTripDetailPage />} />
+          <Route path="quotes" element={<TravelerQuotesPage />} />
+        </Route>
+
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </CurrentUserProvider>
   );
 }
 

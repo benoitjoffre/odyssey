@@ -3353,6 +3353,11 @@ button.traveler-event-link {
   gap: 18px;
 }
 
+.traveler-onboarding-page {
+  max-width: 640px;
+  margin: 0 auto;
+}
+
 .traveler-trips-heading {
   display: flex;
   align-items: flex-end;
