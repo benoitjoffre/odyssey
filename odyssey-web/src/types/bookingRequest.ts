@@ -41,6 +41,9 @@ export interface BookingRequest {
   traveler: {
     id: number;
     firstName: string;
+    lastName: string;
     email: string;
+    phoneNumber: string | null;
+    whatsappNumber: string | null;
   };
 }

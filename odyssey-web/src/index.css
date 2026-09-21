@@ -1293,6 +1293,14 @@ h2 {
   opacity: 0.7;
 }
 
+.agent-trip-whatsapp-button {
+  align-self: flex-start;
+  margin-top: 10px;
+  min-height: 34px;
+  padding: 0 14px;
+  font-size: 13px;
+}
+
 .assignment-message {
   gap: 7px;
   margin: 0;

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ArrowRight, BedDouble, Bus, CalendarDays, Car, Inbox, LoaderCircle, Plane, RefreshCw, Route, Send } from "lucide-react";
+import { ArrowRight, BedDouble, Bus, CalendarDays, Car, Inbox, LoaderCircle, MessageCircle, Plane, RefreshCw, Route, Send } from "lucide-react";
 import { Link } from "react-router-dom";
 import { openAgentNotificationStream } from "../../api/agentNotificationStream";
 import { getBookingRequests } from "../../api/bookingRequests";
@@ -50,6 +50,8 @@ interface TripRequestGroup {
   endDate: string;
   travelerName: string;
   travelerEmail: string;
+  travelerPhone: string | null;
+  travelerWhatsapp: string | null;
   assistanceFee?: number;
   requests: BookingRequest[];
 }
@@ -74,12 +76,19 @@ function groupRequestsByTrip(requests: BookingRequest[]) {
         endDate: request.trip.endDate,
         travelerName: request.traveler.firstName,
         travelerEmail: request.traveler.email,
+        travelerPhone: request.traveler.phoneNumber,
+        travelerWhatsapp: request.traveler.whatsappNumber,
         assistanceFee: request.trip.assistanceFee,
         requests: [request],
       });
     });
 
   return [...groups.values()];
+}
+
+function buildWhatsappLink(whatsappNumber: string) {
+  const digitsOnly = whatsappNumber.replace(/\D/g, "");
+  return `https://wa.me/${digitsOnly}`;
 }
 
 function formatTripDates(startDate: string, endDate: string) {
@@ -309,6 +318,24 @@ export function AgentBookingRequestsPage() {
                     <p>
                       {group.travelerName} · {group.travelerEmail}
                     </p>
+                    {(group.travelerPhone || group.travelerWhatsapp) && (
+                      <p className="agent-trip-traveler-contact">
+                        {group.travelerPhone && <span>Tél. {group.travelerPhone}</span>}
+                        {group.travelerPhone && group.travelerWhatsapp && " · "}
+                        {group.travelerWhatsapp && <span>WhatsApp {group.travelerWhatsapp}</span>}
+                      </p>
+                    )}
+                    {group.travelerWhatsapp && (
+                      <a
+                        className="secondary-button agent-trip-whatsapp-button"
+                        href={buildWhatsappLink(group.travelerWhatsapp)}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        <MessageCircle size={16} aria-hidden="true" />
+                        Contacter sur WhatsApp
+                      </a>
+                    )}
                   </div>
                   <div className="agent-trip-request-meta">
                     <span>
