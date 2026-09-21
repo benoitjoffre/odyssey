@@ -35,11 +35,13 @@ public class BookingRequestController {
             .createBookingRequest(request);
     }
 
+    @PreAuthorize("hasRole('AGENT')")
     @GetMapping
     public List<BookingRequestResponse> getBookingRequests() {
         return bookingRequestService.getBookingRequests();
     }
 
+    @PreAuthorize("hasRole('AGENT')")
     @GetMapping("/{id}")
     public BookingRequestResponse getBookingRequest(
         @PathVariable Long id

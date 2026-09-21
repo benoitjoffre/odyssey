@@ -197,7 +197,10 @@ public class BookingRequestService {
             new TravelerSummaryResponse(
                 traveler.getId(),
                 traveler.getFirstName(),
-                traveler.getEmail()
+                traveler.getLastName(),
+                traveler.getEmail(),
+                traveler.getPhoneNumber(),
+                traveler.getWhatsappNumber()
             );
 
         // BookingRequest

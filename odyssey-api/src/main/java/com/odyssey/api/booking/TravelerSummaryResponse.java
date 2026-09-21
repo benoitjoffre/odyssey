@@ -3,5 +3,8 @@ package com.odyssey.api.booking;
 public record TravelerSummaryResponse(
     Long id,
     String firstName,
-    String email
+    String lastName,
+    String email,
+    String phoneNumber,
+    String whatsappNumber
 ) {}

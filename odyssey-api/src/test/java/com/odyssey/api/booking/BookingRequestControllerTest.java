@@ -66,4 +66,35 @@ class BookingRequestControllerTest {
             method.getAnnotation(PreAuthorize.class).value()
         );
     }
+
+    @Test
+    void getBookingRequestsIsAgentOnly() throws Exception {
+        controller.getBookingRequests();
+
+        verify(bookingRequestService).getBookingRequests();
+
+        Method method = BookingRequestController.class.getMethod(
+            "getBookingRequests"
+        );
+        assertEquals(
+            "hasRole('AGENT')",
+            method.getAnnotation(PreAuthorize.class).value()
+        );
+    }
+
+    @Test
+    void getBookingRequestIsAgentOnly() throws Exception {
+        controller.getBookingRequest(10L);
+
+        verify(bookingRequestService).getBookingRequest(10L);
+
+        Method method = BookingRequestController.class.getMethod(
+            "getBookingRequest",
+            Long.class
+        );
+        assertEquals(
+            "hasRole('AGENT')",
+            method.getAnnotation(PreAuthorize.class).value()
+        );
+    }
 }
