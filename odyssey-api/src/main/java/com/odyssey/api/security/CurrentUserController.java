@@ -21,7 +21,9 @@ public class CurrentUserController {
     ) {
         currentUserService.provisionUser(jwt);
         return new CurrentUserResponse(
-            jwt.getClaimAsStringList("https://odyssey.app/roles")
+            jwt.getClaimAsStringList("https://odyssey.app/roles"),
+            currentUserService.getTravelerOnboardingStatus(jwt.getSubject())
+
         );
     }
 }

@@ -201,6 +201,53 @@ class CurrentUserServiceTest {
         verify(travelerRepository, never()).save(any());
     }
 
+    @Test
+    void getTravelerOnboardingStatusReturnsFalseWhenOnboardingNotCompleted() {
+        Traveler traveler = new Traveler(
+            "Alice",
+            "Martin",
+            "traveler@example.com"
+        );
+        traveler.setAuth0Subject("auth0|traveler-1");
+        traveler.setOnboardingCompleted(false);
+        when(travelerRepository.findByAuth0Subject("auth0|traveler-1"))
+            .thenReturn(Optional.of(traveler));
+
+        Boolean status =
+            currentUserService.getTravelerOnboardingStatus("auth0|traveler-1");
+
+        assertEquals(Boolean.FALSE, status);
+    }
+
+    @Test
+    void getTravelerOnboardingStatusReturnsTrueWhenOnboardingCompleted() {
+        Traveler traveler = new Traveler(
+            "Alice",
+            "Martin",
+            "traveler@example.com"
+        );
+        traveler.setAuth0Subject("auth0|traveler-1");
+        traveler.setOnboardingCompleted(true);
+        when(travelerRepository.findByAuth0Subject("auth0|traveler-1"))
+            .thenReturn(Optional.of(traveler));
+
+        Boolean status =
+            currentUserService.getTravelerOnboardingStatus("auth0|traveler-1");
+
+        assertEquals(Boolean.TRUE, status);
+    }
+
+    @Test
+    void getTravelerOnboardingStatusReturnsNullWhenUserHasNoTraveler() {
+        when(travelerRepository.findByAuth0Subject("auth0|agent-1"))
+            .thenReturn(Optional.empty());
+
+        Boolean status =
+            currentUserService.getTravelerOnboardingStatus("auth0|agent-1");
+
+        assertNull(status);
+    }
+
     private Jwt jwt(
         String subject,
         String email,

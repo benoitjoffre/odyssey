@@ -16,6 +16,15 @@ public class Traveler {
 
     private String lastName;
 
+    private String phoneNumber;
+
+    private String whatsappNumber;
+
+    private String preferredLanguage;
+    
+    @Column(nullable = false)
+    private boolean onboardingCompleted = false;
+
     @Email
     @NotBlank
     @Column(unique = true)
@@ -49,6 +58,23 @@ public class Traveler {
         return email;
     }
 
+    public String getPhoneNumber() {
+        return phoneNumber;
+    }
+
+    public String getWhatsappNumber() {
+        return whatsappNumber;
+    }
+
+    public String getPreferredLanguage() {
+        return preferredLanguage;
+    }
+
+    
+    public boolean isOnboardingCompleted() {
+        return onboardingCompleted;
+    }
+
     public String getAuth0Subject() {
         return auth0Subject;
     }
@@ -63,6 +89,22 @@ public class Traveler {
 
     public void setEmail(String email) {
         this.email = email;
+    }
+
+    public void setPhoneNumber(String phoneNumber) {
+        this.phoneNumber = phoneNumber;
+    }
+
+    public void setWhatsappNumber(String whatsappNumber) {
+        this.whatsappNumber = whatsappNumber;
+    }
+
+    public void setPreferredLanguage(String preferredLanguage) {
+        this.preferredLanguage = preferredLanguage;
+    }
+
+    public void setOnboardingCompleted(boolean onboardingCompleted) {
+        this.onboardingCompleted = onboardingCompleted;
     }
 
     public void setAuth0Subject(String auth0Subject) {

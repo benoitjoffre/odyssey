@@ -15,4 +15,19 @@ public class TravelerService {
     public List<Traveler> getTravelers() {
       return travelerRepository.findAll();
     }
+
+    public Traveler completeOnboarding(
+    String auth0Subject,
+    TravelerOnboardingRequest request
+) {
+        Traveler traveler = travelerRepository.findByAuth0Subject(auth0Subject)
+                .orElseThrow(() -> new IllegalArgumentException("Traveler not found"));
+        traveler.setFirstName(request.firstName());
+        traveler.setLastName(request.lastName());
+        traveler.setPhoneNumber(request.phoneNumber());
+        traveler.setWhatsappNumber(request.whatsappNumber());
+        traveler.setPreferredLanguage(request.preferredLanguage());
+        traveler.setOnboardingCompleted(true);
+        return travelerRepository.save(traveler);
+    }
 }

@@ -129,4 +129,11 @@ public class CurrentUserService {
         travelerRepository.save(traveler);
     }
 
+
+    public Boolean getTravelerOnboardingStatus(String auth0Subject) {
+        return travelerRepository.findByAuth0Subject(auth0Subject)
+            .map(Traveler::isOnboardingCompleted)
+            .orElse(null);
+    }
+
 }
