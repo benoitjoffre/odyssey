@@ -33,14 +33,12 @@ public class CurrentUserService {
 
     public void provisionUser(Jwt jwt) {
         String auth0Subject = jwt.getSubject();
-        String email = jwt.getClaimAsString("https://odyssey.app/email");
-        List<String> roles = jwt.getClaimAsStringList("https://odyssey.app/roles");
+        String email = resolveEmailClaim(jwt);
+        List<String> roles = EffectiveRolesResolver.resolve(
+            jwt.getClaimAsStringList("https://odyssey.app/roles")
+        );
         String firstName = jwt.getClaimAsString("https://odyssey.app/given_name");
         String lastName = jwt.getClaimAsString("https://odyssey.app/family_name");
-
-        if (roles == null) {
-            return;
-        }
 
         if (roles.contains("AGENT")) {
             provisionAgent(auth0Subject, email, firstName, lastName);
@@ -134,6 +132,15 @@ public class CurrentUserService {
         return travelerRepository.findByAuth0Subject(auth0Subject)
             .map(Traveler::isOnboardingCompleted)
             .orElse(null);
+    }
+
+    private String resolveEmailClaim(Jwt jwt) {
+        String customEmail = jwt.getClaimAsString("https://odyssey.app/email");
+        if (hasText(customEmail)) {
+            return customEmail;
+        }
+
+        return jwt.getClaimAsString("email");
     }
 
 }

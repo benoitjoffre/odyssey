@@ -9,13 +9,21 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.time.Instant;
 import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
+import org.mockito.ArgumentCaptor;
 import org.mockito.junit.jupiter.MockitoExtension;
+
+import com.odyssey.api.event.TravelerOnboardingCompletedEvent;
+import com.odyssey.api.outbox.OutboxEvent;
+import com.odyssey.api.outbox.OutboxEventRepository;
+import com.odyssey.api.outbox.OutboxStatus;
+import tools.jackson.databind.ObjectMapper;
 
 @ExtendWith(MockitoExtension.class)
 class TravelerServiceTest {
@@ -25,11 +33,21 @@ class TravelerServiceTest {
     @Mock
     private TravelerRepository travelerRepository;
 
+    @Mock
+    private OutboxEventRepository outboxEventRepository;
+
+    @Mock
+    private ObjectMapper objectMapper;
+
     private TravelerService travelerService;
 
     @BeforeEach
     void setUp() {
-        travelerService = new TravelerService(travelerRepository);
+        travelerService = new TravelerService(
+            travelerRepository,
+            outboxEventRepository,
+            objectMapper
+        );
     }
 
     @Test
@@ -50,6 +68,10 @@ class TravelerServiceTest {
         when(travelerRepository.findByAuth0Subject(AUTH0_SUBJECT))
             .thenReturn(Optional.of(traveler));
         when(travelerRepository.save(traveler)).thenReturn(traveler);
+        when(objectMapper.writeValueAsString(any(TravelerOnboardingCompletedEvent.class)))
+            .thenReturn("{\"travelerId\":1}");
+        when(outboxEventRepository.save(any(OutboxEvent.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
 
         Traveler result = travelerService.completeOnboarding(
             AUTH0_SUBJECT,
@@ -64,6 +86,16 @@ class TravelerServiceTest {
         assertEquals("fr", result.getPreferredLanguage());
         assertTrue(result.isOnboardingCompleted());
         verify(travelerRepository).save(traveler);
+
+        ArgumentCaptor<OutboxEvent> outboxEventCaptor =
+            ArgumentCaptor.forClass(OutboxEvent.class);
+        verify(outboxEventRepository).save(outboxEventCaptor.capture());
+
+        OutboxEvent outboxEvent = outboxEventCaptor.getValue();
+        assertEquals("TRAVELER_ONBOARDING_COMPLETED", outboxEvent.getEventType());
+        assertEquals("{\"travelerId\":1}", outboxEvent.getPayload());
+        assertEquals(OutboxStatus.PENDING, outboxEvent.getStatus());
+        assertTrue(outboxEvent.getCreatedAt().isBefore(Instant.now().plusSeconds(1)));
     }
 
     @Test

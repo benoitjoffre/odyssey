@@ -1,4 +1,3 @@
-import { useAuth0 } from "@auth0/auth0-react";
 import { useEffect, useState, type ComponentType } from "react";
 import {
   ArrowDown,
@@ -60,15 +59,10 @@ const journeySteps = [
 ];
 
 export function HomePage() {
-  const { isAuthenticated } = useAuth0();
   const [experiences, setExperiences] = useState<Experience[]>([]);
 
   useEffect(() => {
     document.title = "Odyssey | Voyagez pour ce que vous aimez";
-
-    if (!isAuthenticated) {
-      return;
-    }
 
     const controller = new AbortController();
 
@@ -83,7 +77,7 @@ export function HomePage() {
       });
 
     return () => controller.abort();
-  }, [isAuthenticated]);
+  }, []);
 
   return (
     <div className="public-home">

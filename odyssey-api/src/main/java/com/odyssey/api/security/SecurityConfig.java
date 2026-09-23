@@ -8,6 +8,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 
@@ -53,6 +54,7 @@ private String allowedOrigins;
             .authorizeHttpRequests(auth -> auth
 
                 .requestMatchers("/api/payments/webhook").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/experiences", "/api/experiences/**").permitAll()
                 .anyRequest().authenticated()
             )
             .oauth2ResourceServer(oauth2 ->
@@ -90,11 +92,9 @@ private String allowedOrigins;
         new JwtAuthenticationConverter();
 
         converter.setJwtGrantedAuthoritiesConverter(jwt -> {
-            var roles = jwt.getClaimAsStringList("https://odyssey.app/roles");
-
-            if (roles == null) {
-                return List.of();
-            }
+            var roles = EffectiveRolesResolver.resolve(
+                jwt.getClaimAsStringList("https://odyssey.app/roles")
+            );
 
             return roles.stream()
                 .map(role -> new SimpleGrantedAuthority("ROLE_" + role))

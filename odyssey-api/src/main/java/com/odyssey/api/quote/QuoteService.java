@@ -44,7 +44,7 @@ public class QuoteService {
     private final OutboxEventRepository outboxEventRepository;
     private final PaymentRepository paymentRepository;
     private final BookingRepository bookingRepository;
-        private final TripRepository tripRepository;
+    private final TripRepository tripRepository;
     private final ObjectMapper objectMapper;
 
     public QuoteService(

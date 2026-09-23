@@ -2,6 +2,7 @@ package com.odyssey.api.outbox;
 
 import com.odyssey.api.event.BookingRequestedEvent;
 import com.odyssey.api.event.QuoteRejectedEvent;
+import com.odyssey.api.event.TravelerOnboardingCompletedEvent;
 import com.odyssey.api.event.TripQuotesSentEvent;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -171,6 +172,22 @@ class OutboxProcessorTest {
 
         verify(applicationEventPublisher).publishEvent(
             new QuoteRejectedEvent(1L, 10L, 20L, 30L)
+        );
+    }
+
+    @Test
+    void publishesTravelerOnboardingCompletedEvent() {
+        OutboxEvent event = pendingEvent(
+            6L,
+            "TRAVELER_ONBOARDING_COMPLETED",
+            new TravelerOnboardingCompletedEvent(42L)
+        );
+        arrangeClaimedEvent(event);
+
+        outboxProcessor.processPendingEvents();
+
+        verify(applicationEventPublisher).publishEvent(
+            new TravelerOnboardingCompletedEvent(42L)
         );
     }
 }

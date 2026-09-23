@@ -33,17 +33,23 @@ public class ClientEmailEventListener {
     private final AgentRepository agentRepository;
     private final QuoteRepository quoteRepository;
     private final TripRepository tripRepository;
+    private final EmailService emailService;
+    private final OdysseyEmailRenderer emailRenderer;
 
     public ClientEmailEventListener(
         TravelerRepository travelerRepository,
         AgentRepository agentRepository,
         QuoteRepository quoteRepository,
-        TripRepository tripRepository
+        TripRepository tripRepository,
+        EmailService emailService,
+        OdysseyEmailRenderer emailRenderer
     ) {
         this.travelerRepository = travelerRepository;
         this.agentRepository = agentRepository;
         this.quoteRepository = quoteRepository;
         this.tripRepository = tripRepository;
+        this.emailService = emailService;
+        this.emailRenderer = emailRenderer;
     }
 
     @EventListener
@@ -106,12 +112,18 @@ public class ClientEmailEventListener {
                 new ResourceNotFoundException("Traveler not found")
             );
 
-        System.out.println(
-            "EMAIL CLIENT → " +
-            traveler.getEmail() +
-            " : Votre demande #" +
-            event.bookingRequestId() +
-            " a bien été reçue et va être traitée par un agent."
+        emailService.sendEmail(
+            emailRenderer.travelerBookingRequested(
+                traveler.getEmail(),
+                traveler.getPreferredLanguage(),
+                traveler.getFirstName(),
+                event.bookingRequestId()
+            )
+        );
+
+        logger.info(
+            "Traveler email queued for booking request {}",
+            event.bookingRequestId()
         );
     }
 
@@ -129,14 +141,19 @@ public class ClientEmailEventListener {
                 new ResourceNotFoundException("Agent not found")
             );
 
-        System.out.println(
-            "EMAIL CLIENT → " +
-            traveler.getEmail() +
-            " : Votre demande #" +
-            event.bookingRequestId() +
-            " est maintenant prise en charge par " +
-            agent.getFirstName() +
-            "."
+        emailService.sendEmail(
+            emailRenderer.travelerBookingAssigned(
+                traveler.getEmail(),
+                traveler.getPreferredLanguage(),
+                traveler.getFirstName(),
+                event.bookingRequestId(),
+                agent.getFirstName()
+            )
+        );
+
+        logger.info(
+            "Traveler email queued for booking assignment {}",
+            event.bookingRequestId()
         );
     }
 
@@ -150,17 +167,19 @@ public class ClientEmailEventListener {
             .findById(event.quoteId())
             .orElseThrow();
 
-        System.out.println(
-            "EMAIL CLIENT → " + traveler.getEmail()
-            + " : Bonjour " + traveler.getFirstName()
-            + ", une nouvelle proposition est disponible pour votre demande #"
-            + event.bookingRequestId()
-            + ". Prix : "
-            + quote.getTotalAmount()
-            + " "
-            + quote.getCurrency()
-            + ". " + quote.getDescription()
+        emailService.sendEmail(
+            emailRenderer.travelerQuoteSent(
+                traveler.getEmail(),
+                traveler.getPreferredLanguage(),
+                traveler.getFirstName(),
+                event.bookingRequestId(),
+                quote.getTotalAmount(),
+                quote.getCurrency(),
+                quote.getDescription()
+            )
         );
+
+        logger.info("Traveler email queued for quote {}", event.quoteId());
     }
 
     private void handleTripQuotesSent(TripQuotesSentEvent event) {
@@ -176,11 +195,43 @@ public class ClientEmailEventListener {
             event.tripId(),
             event.quoteIds().size()
         );
-        System.out.println(
-            "EMAIL CLIENT → " + traveler.getEmail()
-                + " : De nouvelles offres sont disponibles pour votre voyage "
-                + trip.getTitle()
-                + "."
+        emailService.sendEmail(
+            emailRenderer.travelerTripQuotesSent(
+                traveler.getEmail(),
+                traveler.getPreferredLanguage(),
+                traveler.getFirstName(),
+                trip.getTitle(),
+                event.quoteIds().size(),
+                trip.getId()
+            )
+        );
+
+        logger.info(
+            "Traveler email sent for trip {} with {} quote(s)",
+            trip.getId(),
+            event.quoteIds().size()
+        );
+    }
+
+    @EventListener
+    public void onTravelerOnboardingCompleted(
+        TravelerOnboardingCompletedEvent event
+    ) {
+        Traveler traveler = travelerRepository
+            .findById(event.travelerId())
+            .orElseThrow(() -> new ResourceNotFoundException("Traveler not found"));
+
+        emailService.sendEmail(
+            emailRenderer.travelerOnboardingCompleted(
+                traveler.getEmail(),
+                traveler.getPreferredLanguage(),
+                traveler.getFirstName()
+            )
+        );
+
+        logger.info(
+            "Traveler email sent for onboarding completion {}",
+            event.travelerId()
         );
     }
 }

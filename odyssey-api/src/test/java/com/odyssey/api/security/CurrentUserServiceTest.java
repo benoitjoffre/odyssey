@@ -29,6 +29,7 @@ class CurrentUserServiceTest {
 
     private static final String ROLES_CLAIM = "https://odyssey.app/roles";
     private static final String EMAIL_CLAIM = "https://odyssey.app/email";
+    private static final String STANDARD_EMAIL_CLAIM = "email";
     private static final String FIRST_NAME_CLAIM = "https://odyssey.app/given_name";
     private static final String LAST_NAME_CLAIM = "https://odyssey.app/family_name";
 
@@ -71,6 +72,77 @@ class CurrentUserServiceTest {
         assertEquals("traveler@example.com", traveler.getEmail());
         assertEquals("Alice", traveler.getFirstName());
         assertEquals("Martin", traveler.getLastName());
+        verify(agentRepository, never()).save(any());
+    }
+
+    @Test
+    void provisionsNewTravelerWhenRolesAreMissing() {
+        Jwt jwt = jwt(
+            "auth0|traveler-missing-role",
+            "traveler.missing.role@example.com",
+            null,
+            "Lina",
+            "Durand"
+        );
+        when(travelerRepository.findByAuth0Subject("auth0|traveler-missing-role"))
+            .thenReturn(Optional.empty());
+        when(travelerRepository.findByEmail("traveler.missing.role@example.com"))
+            .thenReturn(Optional.empty());
+
+        currentUserService.provisionUser(jwt);
+
+        ArgumentCaptor<Traveler> captor = ArgumentCaptor.forClass(Traveler.class);
+        verify(travelerRepository).save(captor.capture());
+        Traveler traveler = captor.getValue();
+        assertEquals("auth0|traveler-missing-role", traveler.getAuth0Subject());
+        assertEquals("traveler.missing.role@example.com", traveler.getEmail());
+        assertEquals("Lina", traveler.getFirstName());
+        assertEquals("Durand", traveler.getLastName());
+        verify(agentRepository, never()).save(any());
+    }
+
+    @Test
+    void provisionsNewTravelerWhenCustomEmailClaimIsMissingButStandardEmailExists() {
+        Jwt jwt = jwtWithEmails(
+            "auth0|traveler-standard-email",
+            null,
+            "traveler.standard@example.com",
+            null,
+            "Nora",
+            "Petit"
+        );
+        when(travelerRepository.findByAuth0Subject("auth0|traveler-standard-email"))
+            .thenReturn(Optional.empty());
+        when(travelerRepository.findByEmail("traveler.standard@example.com"))
+            .thenReturn(Optional.empty());
+
+        currentUserService.provisionUser(jwt);
+
+        ArgumentCaptor<Traveler> captor = ArgumentCaptor.forClass(Traveler.class);
+        verify(travelerRepository).save(captor.capture());
+        Traveler traveler = captor.getValue();
+        assertEquals("auth0|traveler-standard-email", traveler.getAuth0Subject());
+        assertEquals("traveler.standard@example.com", traveler.getEmail());
+        assertEquals("Nora", traveler.getFirstName());
+        assertEquals("Petit", traveler.getLastName());
+    }
+
+    @Test
+    void doesNotProvisionTravelerWhenBothEmailClaimsAreMissing() {
+        Jwt jwt = jwtWithEmails(
+            "auth0|traveler-no-email",
+            null,
+            null,
+            null,
+            "No",
+            "Email"
+        );
+
+        currentUserService.provisionUser(jwt);
+
+        verify(travelerRepository, never()).findByAuth0Subject(any());
+        verify(travelerRepository, never()).findByEmail(any());
+        verify(travelerRepository, never()).save(any());
         verify(agentRepository, never()).save(any());
     }
 
@@ -255,11 +327,38 @@ class CurrentUserServiceTest {
         String firstName,
         String lastName
     ) {
+        return jwtWithEmails(
+            subject,
+            email,
+            null,
+            roles,
+            firstName,
+            lastName
+        );
+    }
+
+    private Jwt jwtWithEmails(
+        String subject,
+        String customEmail,
+        String standardEmail,
+        List<String> roles,
+        String firstName,
+        String lastName
+    ) {
         Jwt.Builder builder = Jwt.withTokenValue("token")
             .header("alg", "none")
-            .subject(subject)
-            .claim(EMAIL_CLAIM, email)
-            .claim(ROLES_CLAIM, roles);
+            .subject(subject);
+
+        if (customEmail != null) {
+            builder.claim(EMAIL_CLAIM, customEmail);
+        }
+        if (standardEmail != null) {
+            builder.claim(STANDARD_EMAIL_CLAIM, standardEmail);
+        }
+
+        if (roles != null) {
+            builder.claim(ROLES_CLAIM, roles);
+        }
 
         if (firstName != null) {
             builder.claim(FIRST_NAME_CLAIM, firstName);
