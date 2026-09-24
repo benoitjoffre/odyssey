@@ -10,6 +10,7 @@ import com.odyssey.api.payment.stripe.StripeProperties;
 import com.odyssey.api.payment.stripe.StripeWebhookEvent;
 import com.odyssey.api.traveler.Traveler;
 import com.odyssey.api.traveler.TravelerRepository;
+import com.odyssey.api.trip.TripAssistanceFeeEligibility;
 import com.odyssey.api.trip.Trip;
 import com.odyssey.api.trip.TripRepository;
 import com.odyssey.api.trip.TripStatus;
@@ -25,6 +26,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import tools.jackson.databind.ObjectMapper;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -55,6 +57,9 @@ class PaymentServiceTest {
     private PaymentRepository paymentRepository;
 
     @Mock
+    private TripAssistanceFeeEligibility tripAssistanceFeeEligibility;
+
+    @Mock
     private OutboxEventRepository outboxEventRepository;
 
     @Mock
@@ -80,7 +85,8 @@ class PaymentServiceTest {
             outboxEventRepository,
             stripeGateway,
             stripeProperties,
-            new ObjectMapper()
+            new ObjectMapper(),
+            tripAssistanceFeeEligibility
         );
     }
 
@@ -96,11 +102,16 @@ class PaymentServiceTest {
         return trip;
     }
 
+    private void stubTripAsCheckoutEligible() {
+        when(tripAssistanceFeeEligibility.isAssistanceFeePayable(any(Trip.class))).thenReturn(true);
+    }
+
     @Test
     void createCheckoutSessionCreatesPendingPaymentAndReturnsCheckoutUrl() {
 
         Trip trip = confirmedTrip();
         when(tripRepository.findByIdForUpdate(TRIP_ID)).thenReturn(Optional.of(trip));
+        stubTripAsCheckoutEligible();
         when(paymentRepository.findFirstByTripIdOrderByCreatedAtDesc(TRIP_ID))
             .thenReturn(Optional.empty());
         when(paymentRepository.save(any(Payment.class)))
@@ -138,6 +149,7 @@ class PaymentServiceTest {
         Trip trip = confirmedTrip();
         trip.setStatus(TripStatus.DRAFT);
         when(tripRepository.findByIdForUpdate(TRIP_ID)).thenReturn(Optional.of(trip));
+        when(tripAssistanceFeeEligibility.isAssistanceFeePayable(trip)).thenReturn(false);
 
         assertThrows(
             IllegalArgumentException.class,
@@ -151,6 +163,7 @@ class PaymentServiceTest {
 
         Trip trip = confirmedTrip();
         when(tripRepository.findByIdForUpdate(TRIP_ID)).thenReturn(Optional.of(trip));
+        stubTripAsCheckoutEligible();
 
         Payment paidPayment = new Payment();
         paidPayment.setStatus(PaymentStatus.PAID);
@@ -182,6 +195,7 @@ class PaymentServiceTest {
 
         Trip trip = confirmedTrip();
         when(tripRepository.findByIdForUpdate(TRIP_ID)).thenReturn(Optional.of(trip));
+        stubTripAsCheckoutEligible();
 
         Payment existingPayment = new Payment();
         ReflectionTestUtils.setField(existingPayment, "id", 55L);
@@ -220,6 +234,7 @@ class PaymentServiceTest {
 
         Trip trip = confirmedTrip();
         when(tripRepository.findByIdForUpdate(TRIP_ID)).thenReturn(Optional.of(trip));
+        stubTripAsCheckoutEligible();
 
         Payment failedPayment = new Payment();
         ReflectionTestUtils.setField(failedPayment, "id", 77L);
@@ -253,6 +268,7 @@ class PaymentServiceTest {
 
         Trip trip = confirmedTrip();
         when(tripRepository.findByIdForUpdate(TRIP_ID)).thenReturn(Optional.of(trip));
+        stubTripAsCheckoutEligible();
         when(paymentRepository.findFirstByTripIdOrderByCreatedAtDesc(TRIP_ID))
             .thenReturn(Optional.empty());
         when(paymentRepository.save(any(Payment.class)))
@@ -287,6 +303,7 @@ class PaymentServiceTest {
         // caller.
         Trip trip = confirmedTrip();
         when(tripRepository.findByIdForUpdate(TRIP_ID)).thenReturn(Optional.of(trip));
+        stubTripAsCheckoutEligible();
         when(paymentRepository.findFirstByTripIdOrderByCreatedAtDesc(TRIP_ID))
             .thenReturn(Optional.empty());
         when(paymentRepository.save(any(Payment.class)))
@@ -297,6 +314,113 @@ class PaymentServiceTest {
             () -> paymentService.createCheckoutSession(TRIP_ID, TRAVELER_ID)
         );
         assertEquals("A payment for this trip is already being processed", exception.getMessage());
+        verify(stripeGateway, never()).createCheckoutSession(any());
+    }
+
+    @Test
+    void createCheckoutSessionRejectsWhenActiveBookingRequestHasNoBooking() {
+
+        Trip trip = confirmedTrip();
+        when(tripRepository.findByIdForUpdate(TRIP_ID)).thenReturn(Optional.of(trip));
+        when(tripAssistanceFeeEligibility.isAssistanceFeePayable(trip)).thenReturn(false);
+
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> paymentService.createCheckoutSession(TRIP_ID, TRAVELER_ID)
+        );
+        verify(stripeGateway, never()).createCheckoutSession(any());
+    }
+
+    @Test
+    void createCheckoutSessionRejectsWhenBookingIsPendingEvenIfProviderPaid() {
+
+        Trip trip = confirmedTrip();
+        when(tripRepository.findByIdForUpdate(TRIP_ID)).thenReturn(Optional.of(trip));
+        when(tripAssistanceFeeEligibility.isAssistanceFeePayable(trip)).thenReturn(false);
+
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> paymentService.createCheckoutSession(TRIP_ID, TRAVELER_ID)
+        );
+        verify(stripeGateway, never()).createCheckoutSession(any());
+    }
+
+    @Test
+    void createCheckoutSessionRejectsWhenBookingIsConfirmedButProviderPaymentIsRequired() {
+
+        Trip trip = confirmedTrip();
+        when(tripRepository.findByIdForUpdate(TRIP_ID)).thenReturn(Optional.of(trip));
+        when(tripAssistanceFeeEligibility.isAssistanceFeePayable(trip)).thenReturn(false);
+
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> paymentService.createCheckoutSession(TRIP_ID, TRAVELER_ID)
+        );
+        verify(stripeGateway, never()).createCheckoutSession(any());
+    }
+
+    @Test
+    void createCheckoutSessionAllowsWhenAllActiveBookingsAreConfirmedAndPaidToProvider() {
+
+        Trip trip = confirmedTrip();
+        when(tripRepository.findByIdForUpdate(TRIP_ID)).thenReturn(Optional.of(trip));
+        when(tripAssistanceFeeEligibility.isAssistanceFeePayable(trip)).thenReturn(true);
+
+        when(paymentRepository.findFirstByTripIdOrderByCreatedAtDesc(TRIP_ID))
+            .thenReturn(Optional.empty());
+        when(paymentRepository.save(any(Payment.class)))
+            .thenAnswer(invocation -> {
+                Payment payment = invocation.getArgument(0);
+                if (payment.getId() == null) {
+                    ReflectionTestUtils.setField(payment, "id", 111L);
+                }
+                return payment;
+            });
+        when(stripeGateway.createCheckoutSession(any(StripeCheckoutSessionRequest.class)))
+            .thenReturn(new StripeCheckoutSession("cs_test_111", "https://checkout.stripe.com/ok"));
+
+        CheckoutSessionResponse response = paymentService.createCheckoutSession(TRIP_ID, TRAVELER_ID);
+
+        assertEquals(111L, response.paymentId());
+        assertEquals("https://checkout.stripe.com/ok", response.checkoutUrl());
+    }
+
+    @Test
+    void createCheckoutSessionIgnoresCancelledBookingRequests() {
+
+        Trip trip = confirmedTrip();
+        when(tripRepository.findByIdForUpdate(TRIP_ID)).thenReturn(Optional.of(trip));
+        when(tripAssistanceFeeEligibility.isAssistanceFeePayable(trip)).thenReturn(true);
+
+        when(paymentRepository.findFirstByTripIdOrderByCreatedAtDesc(TRIP_ID))
+            .thenReturn(Optional.empty());
+        when(paymentRepository.save(any(Payment.class)))
+            .thenAnswer(invocation -> {
+                Payment payment = invocation.getArgument(0);
+                if (payment.getId() == null) {
+                    ReflectionTestUtils.setField(payment, "id", 222L);
+                }
+                return payment;
+            });
+        when(stripeGateway.createCheckoutSession(any(StripeCheckoutSessionRequest.class)))
+            .thenReturn(new StripeCheckoutSession("cs_test_222", "https://checkout.stripe.com/ok-cancelled"));
+
+        CheckoutSessionResponse response = paymentService.createCheckoutSession(TRIP_ID, TRAVELER_ID);
+
+        assertEquals(222L, response.paymentId());
+    }
+
+    @Test
+    void createCheckoutSessionRejectsWhenOneOfMultipleActiveBookingRequestsIsNotReady() {
+
+        Trip trip = confirmedTrip();
+        when(tripRepository.findByIdForUpdate(TRIP_ID)).thenReturn(Optional.of(trip));
+        when(tripAssistanceFeeEligibility.isAssistanceFeePayable(trip)).thenReturn(false);
+
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> paymentService.createCheckoutSession(TRIP_ID, TRAVELER_ID)
+        );
         verify(stripeGateway, never()).createCheckoutSession(any());
     }
 

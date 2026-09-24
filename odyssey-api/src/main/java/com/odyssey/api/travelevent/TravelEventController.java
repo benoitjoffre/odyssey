@@ -1,6 +1,7 @@
 package com.odyssey.api.travelevent;
 
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -32,5 +33,11 @@ public class TravelEventController {
     @GetMapping("/{id}")
     public TravelEventResponse getById(@PathVariable Long id) {
         return travelEventService.getById(id);
+    }
+
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@PathVariable Long id) {
+        travelEventService.delete(id);
     }
 }

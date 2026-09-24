@@ -6,6 +6,8 @@ import com.odyssey.api.agent.AgentStatus;
 import com.odyssey.api.booking.BookingRequestResponse;
 import com.odyssey.api.booking.BookingRequestService;
 import com.odyssey.api.booking.CreateBookingRequest;
+import com.odyssey.api.booking.confirmation.Booking;
+import com.odyssey.api.booking.confirmation.BookingRepository;
 import com.odyssey.api.need.Need;
 import com.odyssey.api.need.NeedRepository;
 import com.odyssey.api.need.NeedStatus;
@@ -13,7 +15,11 @@ import com.odyssey.api.need.NeedType;
 import com.odyssey.api.payment.stripe.StripeCheckoutSession;
 import com.odyssey.api.payment.stripe.StripeCheckoutSessionRequest;
 import com.odyssey.api.payment.stripe.StripeGateway;
+import com.odyssey.api.booking.confirmation.BookingStatus;
+import com.odyssey.api.booking.confirmation.ProviderPaymentStatus;
 import com.odyssey.api.quote.CreateQuoteRequest;
+import com.odyssey.api.quote.Quote;
+import com.odyssey.api.quote.QuoteRepository;
 import com.odyssey.api.quote.QuoteResponse;
 import com.odyssey.api.quote.QuoteService;
 import com.odyssey.api.traveler.Traveler;
@@ -76,6 +82,12 @@ class PaymentServiceCheckoutConcurrencyTest {
 
     @Autowired
     private QuoteService quoteService;
+
+    @Autowired
+    private BookingRepository bookingRepository;
+
+    @Autowired
+    private QuoteRepository quoteRepository;
 
     @Autowired
     private NeedRepository needRepository;
@@ -184,6 +196,17 @@ class PaymentServiceCheckoutConcurrencyTest {
         );
         quoteService.sendQuote(quote.id(), agent.getId());
         quoteService.acceptQuote(quote.id(), traveler.getId());
+
+        Quote persistedQuote = quoteRepository.findById(quote.id()).orElseThrow();
+        Booking booking = new Booking();
+        booking.setQuote(persistedQuote);
+        booking.setStatus(BookingStatus.CONFIRMED);
+        booking.setProviderPaymentStatus(ProviderPaymentStatus.PAID_TO_PROVIDER);
+        booking.setProviderReference("PNR-CONCURRENCY");
+        booking.setProviderConfirmationId("CONF-CONCURRENCY");
+        booking.setCreatedAt(java.time.Instant.now());
+        booking.setConfirmedAt(java.time.Instant.now());
+        bookingRepository.save(booking);
 
         int concurrentRequests = 8;
         ExecutorService executor = Executors.newFixedThreadPool(concurrentRequests);

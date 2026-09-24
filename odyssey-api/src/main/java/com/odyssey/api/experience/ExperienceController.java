@@ -1,6 +1,7 @@
 package com.odyssey.api.experience;
 
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -38,5 +39,11 @@ public class ExperienceController {
         @Valid @RequestBody CreateExperienceRequest request
     ) {
         return experienceService.updateExperience(id, request);
+    }
+
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteExperience(@PathVariable Long id) {
+        experienceService.deleteExperience(id);
     }
 }

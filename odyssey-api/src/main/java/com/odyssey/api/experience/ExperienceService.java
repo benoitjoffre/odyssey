@@ -4,6 +4,7 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 
 import com.odyssey.api.exception.ResourceNotFoundException;
+import com.odyssey.api.travelevent.TravelEventRepository;
 
 
 
@@ -17,12 +18,19 @@ import java.time.Duration;
 public class ExperienceService {
 
   private final ExperienceRepository experienceRepository;
+  private final TravelEventRepository travelEventRepository;
   private final StringRedisTemplate redisTemplate;
   private final ObjectMapper objectMapper;
   private static final long CACHE_TTL_SECONDS = 30;
 
-  public ExperienceService(ExperienceRepository experienceRepository, StringRedisTemplate redisTemplate, ObjectMapper objectMapper) {
+  public ExperienceService(
+    ExperienceRepository experienceRepository,
+    TravelEventRepository travelEventRepository,
+    StringRedisTemplate redisTemplate,
+    ObjectMapper objectMapper
+  ) {
     this.experienceRepository = experienceRepository;
+    this.travelEventRepository = travelEventRepository;
     this.redisTemplate = redisTemplate;
     this.objectMapper = objectMapper;
   }
@@ -113,4 +121,21 @@ public ExperienceResponse createExperience(CreateExperienceRequest request) {
 
     return toResponse(savedExperience);
 }
+
+  public void deleteExperience(Long id) {
+    Experience experience = experienceRepository
+        .findById(id)
+        .orElseThrow(() ->
+            new ResourceNotFoundException("Experience not found")
+        );
+
+    if (travelEventRepository.existsByExperienceId(id)) {
+      throw new IllegalArgumentException(
+          "Experience cannot be deleted while travel events are linked to it"
+      );
+    }
+
+    experienceRepository.delete(experience);
+    redisTemplate.delete("experience:" + id);
+  }
 }

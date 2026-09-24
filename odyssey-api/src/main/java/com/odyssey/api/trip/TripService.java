@@ -8,6 +8,9 @@ import com.odyssey.api.booking.BookingRequestRepository;
 import com.odyssey.api.booking.confirmation.BookingRepository;
 import com.odyssey.api.exception.ResourceNotFoundException;
 import com.odyssey.api.need.NeedRepository;
+import com.odyssey.api.payment.Payment;
+import com.odyssey.api.payment.PaymentRepository;
+import com.odyssey.api.payment.PaymentStatus;
 import com.odyssey.api.booking.confirmation.Booking;
 import com.odyssey.api.booking.BookingRequest;
 
@@ -28,6 +31,8 @@ public class TripService {
     private final BookingRequestRepository bookingRequestRepository;
     private final BookingRepository bookingRepository;
     private final TravelEventRepository travelEventRepository;
+    private final TripAssistanceFeeEligibility tripAssistanceFeeEligibility;
+    private final PaymentRepository paymentRepository;
 
     private TripResponse toResponse(Trip trip) {
     return new TripResponse(
@@ -50,7 +55,9 @@ public class TripService {
         NeedRepository needRepository,
         BookingRequestRepository bookingRequestRepository,
         BookingRepository bookingRepository,
-        TravelEventRepository travelEventRepository
+        TravelEventRepository travelEventRepository,
+        TripAssistanceFeeEligibility tripAssistanceFeeEligibility,
+        PaymentRepository paymentRepository
     ) {
         this.tripRepository = tripRepository;
         this.travelerRepository = travelerRepository;
@@ -58,6 +65,8 @@ public class TripService {
         this.bookingRequestRepository = bookingRequestRepository;
         this.bookingRepository = bookingRepository;
         this.travelEventRepository = travelEventRepository;
+        this.tripAssistanceFeeEligibility = tripAssistanceFeeEligibility;
+        this.paymentRepository = paymentRepository;
     }
 
     public TripResponse createTrip(CreateTripRequest request, String auth0Subject) {
@@ -206,6 +215,11 @@ public class TripService {
                 })
                 .toList();
 
+        PaymentStatus paymentStatus = paymentRepository
+            .findFirstByTripIdOrderByCreatedAtDesc(id)
+            .map(Payment::getStatus)
+            .orElse(null);
+
         return new TripDetailResponse(
             trip.getId(),
             trip.getTitle(),
@@ -217,7 +231,9 @@ public class TripService {
             trip.getTravelEvent() != null
                 ? trip.getTravelEvent().getId()
                 : null,
-            trip.getAssistanceFee()
+            trip.getAssistanceFee(),
+            tripAssistanceFeeEligibility.isAssistanceFeePayable(trip),
+            paymentStatus
         );
     }
 

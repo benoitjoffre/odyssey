@@ -13,7 +13,7 @@ import com.odyssey.api.payment.stripe.StripeWebhookEvent;
 
 import com.odyssey.api.trip.Trip;
 import com.odyssey.api.trip.TripRepository;
-import com.odyssey.api.trip.TripStatus;
+import com.odyssey.api.trip.TripAssistanceFeeEligibility;
 import com.odyssey.api.traveler.Traveler;
 import com.odyssey.api.traveler.TravelerRepository;
 
@@ -54,6 +54,7 @@ public class PaymentService {
     private final StripeGateway stripeGateway;
     private final StripeProperties stripeProperties;
     private final ObjectMapper objectMapper;
+    private final TripAssistanceFeeEligibility tripAssistanceFeeEligibility;
 
     public PaymentService(
         TripRepository tripRepository,
@@ -62,7 +63,8 @@ public class PaymentService {
         OutboxEventRepository outboxEventRepository,
         StripeGateway stripeGateway,
         StripeProperties stripeProperties,
-        ObjectMapper objectMapper
+        ObjectMapper objectMapper,
+        TripAssistanceFeeEligibility tripAssistanceFeeEligibility
     ) {
         this.tripRepository = tripRepository;
         this.travelerRepository = travelerRepository;
@@ -71,6 +73,7 @@ public class PaymentService {
         this.stripeGateway = stripeGateway;
         this.stripeProperties = stripeProperties;
         this.objectMapper = objectMapper;
+        this.tripAssistanceFeeEligibility = tripAssistanceFeeEligibility;
     }
 
     /**
@@ -128,9 +131,9 @@ public class PaymentService {
             );
         }
 
-        if (trip.getStatus() != TripStatus.CONFIRMED) {
+        if (!tripAssistanceFeeEligibility.isAssistanceFeePayable(trip)) {
             throw new IllegalArgumentException(
-                "Only a CONFIRMED trip can be paid"
+                "Trip assistance fee can only be paid when all active bookings are CONFIRMED and PAID_TO_PROVIDER"
             );
         }
 
@@ -434,4 +437,5 @@ public class PaymentService {
             .movePointRight(2)
             .longValueExact();
     }
+
 }

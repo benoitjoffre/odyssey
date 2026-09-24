@@ -1,5 +1,7 @@
 package com.odyssey.api.trip;
 
+import com.odyssey.api.payment.PaymentStatus;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -13,5 +15,7 @@ public record TripDetailResponse(
     Long travelerId,
     List<TripNeedResponse> needs,
     Long travelEventId,
-    BigDecimal assistanceFee
+    BigDecimal assistanceFee,
+    boolean assistanceFeePayable,
+    PaymentStatus paymentStatus
 ) {}

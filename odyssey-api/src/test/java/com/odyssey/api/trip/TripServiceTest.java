@@ -22,6 +22,9 @@ import com.odyssey.api.booking.BookingRequestRepository;
 import com.odyssey.api.booking.confirmation.BookingRepository;
 import com.odyssey.api.exception.ResourceNotFoundException;
 import com.odyssey.api.need.NeedRepository;
+import com.odyssey.api.payment.Payment;
+import com.odyssey.api.payment.PaymentRepository;
+import com.odyssey.api.payment.PaymentStatus;
 import com.odyssey.api.traveler.Traveler;
 import com.odyssey.api.traveler.TravelerRepository;
 import com.odyssey.api.travelevent.TravelEventRepository;
@@ -37,6 +40,8 @@ class TripServiceTest {
     @Mock private BookingRequestRepository bookingRequestRepository;
     @Mock private BookingRepository bookingRepository;
     @Mock private TravelEventRepository travelEventRepository;
+    @Mock private TripAssistanceFeeEligibility tripAssistanceFeeEligibility;
+    @Mock private PaymentRepository paymentRepository;
 
     private TripService tripService;
     private Traveler travelerA;
@@ -50,7 +55,9 @@ class TripServiceTest {
             needRepository,
             bookingRequestRepository,
             bookingRepository,
-            travelEventRepository
+            travelEventRepository,
+            tripAssistanceFeeEligibility,
+            paymentRepository
         );
         travelerA = traveler(1L, "Alice", "A");
         tripA = trip(10L, travelerA);
@@ -114,6 +121,8 @@ class TripServiceTest {
         when(tripRepository.findByIdAndTravelerId(10L, 1L))
             .thenReturn(Optional.of(tripA));
         when(needRepository.findByTripId(10L)).thenReturn(List.of());
+        when(tripAssistanceFeeEligibility.isAssistanceFeePayable(tripA)).thenReturn(false);
+        when(paymentRepository.findFirstByTripIdOrderByCreatedAtDesc(10L)).thenReturn(Optional.empty());
 
         TripDetailResponse response = tripService.getTripDetail(
             10L,
@@ -122,6 +131,42 @@ class TripServiceTest {
 
         assertEquals(10L, response.id());
         assertEquals(1L, response.travelerId());
+        assertEquals(false, response.assistanceFeePayable());
+        assertEquals(null, response.paymentStatus());
+    }
+
+    @Test
+    void tripDetailReturnsPendingWhenTripPaymentIsPending() {
+        mockTravelerA();
+        when(tripRepository.findByIdAndTravelerId(10L, 1L))
+            .thenReturn(Optional.of(tripA));
+        when(needRepository.findByTripId(10L)).thenReturn(List.of());
+        when(tripAssistanceFeeEligibility.isAssistanceFeePayable(tripA)).thenReturn(false);
+
+        Payment payment = new Payment();
+        payment.setStatus(PaymentStatus.PENDING);
+        when(paymentRepository.findFirstByTripIdOrderByCreatedAtDesc(10L)).thenReturn(Optional.of(payment));
+
+        TripDetailResponse response = tripService.getTripDetail(10L, TRAVELER_A_SUBJECT);
+
+        assertEquals(PaymentStatus.PENDING, response.paymentStatus());
+    }
+
+    @Test
+    void tripDetailReturnsPaidWhenTripPaymentIsPaid() {
+        mockTravelerA();
+        when(tripRepository.findByIdAndTravelerId(10L, 1L))
+            .thenReturn(Optional.of(tripA));
+        when(needRepository.findByTripId(10L)).thenReturn(List.of());
+        when(tripAssistanceFeeEligibility.isAssistanceFeePayable(tripA)).thenReturn(true);
+
+        Payment payment = new Payment();
+        payment.setStatus(PaymentStatus.PAID);
+        when(paymentRepository.findFirstByTripIdOrderByCreatedAtDesc(10L)).thenReturn(Optional.of(payment));
+
+        TripDetailResponse response = tripService.getTripDetail(10L, TRAVELER_A_SUBJECT);
+
+        assertEquals(PaymentStatus.PAID, response.paymentStatus());
     }
 
     @Test

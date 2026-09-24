@@ -15,6 +15,7 @@ public interface TripRepository extends JpaRepository<Trip, Long> {
 
     List<Trip> findByTravelerIdOrderByStartDateDesc(Long travelerId);
     Optional<Trip> findByIdAndTravelerId(Long id, Long travelerId);
+    boolean existsByTravelEventId(Long travelEventId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select t from Trip t where t.id = :id")

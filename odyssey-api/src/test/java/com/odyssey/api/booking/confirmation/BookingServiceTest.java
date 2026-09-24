@@ -6,8 +6,6 @@ import com.odyssey.api.booking.BookingRequest;
 import com.odyssey.api.booking.BookingRequestStatus;
 import com.odyssey.api.exception.ResourceNotFoundException;
 import com.odyssey.api.need.Need;
-import com.odyssey.api.payment.PaymentRepository;
-import com.odyssey.api.payment.PaymentStatus;
 import com.odyssey.api.quote.Quote;
 import com.odyssey.api.quote.QuoteRepository;
 import com.odyssey.api.quote.QuoteStatus;
@@ -36,12 +34,10 @@ class BookingServiceTest {
 	private static final Long AGENT_ID = 7L;
 	private static final Long QUOTE_ID = 42L;
 	private static final Long BOOKING_ID = 500L;
-	private static final Long TRIP_ID = 10L;
 	private static final String AUTH0_SUBJECT = "auth0|agent-a";
 
 	@Mock private BookingRepository bookingRepository;
 	@Mock private QuoteRepository quoteRepository;
-	@Mock private PaymentRepository paymentRepository;
 	@Mock private FakeBookingProvider bookingProvider;
 	@Mock private AgentRepository agentRepository;
 
@@ -52,7 +48,6 @@ class BookingServiceTest {
 		bookingService = new BookingService(
 			bookingRepository,
 			quoteRepository,
-			paymentRepository,
 			bookingProvider,
 			agentRepository
 		);
@@ -65,8 +60,6 @@ class BookingServiceTest {
 		when(agentRepository.findByAuth0Subject(AUTH0_SUBJECT))
 			.thenReturn(Optional.of(agent));
 		when(quoteRepository.findById(QUOTE_ID)).thenReturn(Optional.of(quote));
-		when(paymentRepository.existsByTripIdAndStatus(TRIP_ID, PaymentStatus.PAID))
-			.thenReturn(true);
 		when(bookingRepository.existsByQuoteId(QUOTE_ID)).thenReturn(false);
 		when(bookingRepository.save(any(Booking.class)))
 			.thenAnswer(invocation -> {
@@ -96,11 +89,29 @@ class BookingServiceTest {
 	}
 
 	@Test
-	void createBookingRejectsUnpaidTripAssistanceFee() {
+	void createBookingAllowsAcceptedQuoteWithoutOdysseyPayment() {
 		Quote quote = acceptedQuoteAssignedTo(AGENT_ID);
 		when(quoteRepository.findById(QUOTE_ID)).thenReturn(Optional.of(quote));
-		when(paymentRepository.existsByTripIdAndStatus(TRIP_ID, PaymentStatus.PAID))
-			.thenReturn(false);
+		when(bookingRepository.existsByQuoteId(QUOTE_ID)).thenReturn(false);
+		when(bookingRepository.save(any(Booking.class)))
+			.thenAnswer(invocation -> {
+				Booking booking = invocation.getArgument(0);
+				ReflectionTestUtils.setField(booking, "id", BOOKING_ID);
+				return booking;
+			});
+
+		BookingResponse response = bookingService.createBooking(QUOTE_ID, AGENT_ID);
+
+		assertEquals(BOOKING_ID, response.id());
+		assertEquals(BookingStatus.PENDING, response.status());
+		assertEquals(ProviderPaymentStatus.NOT_REQUIRED_YET, response.providerPaymentStatus());
+	}
+
+	@Test
+	void createBookingRejectsQuoteThatIsNotAccepted() {
+		Quote quote = acceptedQuoteAssignedTo(AGENT_ID);
+		quote.setStatus(QuoteStatus.SENT);
+		when(quoteRepository.findById(QUOTE_ID)).thenReturn(Optional.of(quote));
 
 		assertThrows(
 			IllegalArgumentException.class,
@@ -113,8 +124,6 @@ class BookingServiceTest {
 	void createBookingRejectsAnotherAgent() {
 		Quote quote = acceptedQuoteAssignedTo(AGENT_ID);
 		when(quoteRepository.findById(QUOTE_ID)).thenReturn(Optional.of(quote));
-		when(paymentRepository.existsByTripIdAndStatus(TRIP_ID, PaymentStatus.PAID))
-			.thenReturn(true);
 
 		assertThrows(
 			IllegalArgumentException.class,
@@ -191,11 +200,8 @@ class BookingServiceTest {
 	}
 
 	private Quote acceptedQuoteAssignedTo(Long agentId) {
-		Trip trip = new Trip();
-		ReflectionTestUtils.setField(trip, "id", TRIP_ID);
-
 		Need need = new Need();
-		need.setTrip(trip);
+		need.setTrip(new Trip());
 
 		BookingRequest bookingRequest = new BookingRequest();
 		ReflectionTestUtils.setField(bookingRequest, "id", 9L);

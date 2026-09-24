@@ -4,8 +4,6 @@ import com.odyssey.api.agent.Agent;
 import com.odyssey.api.agent.AgentRepository;
 import com.odyssey.api.booking.BookingRequestStatus;
 import com.odyssey.api.exception.ResourceNotFoundException;
-import com.odyssey.api.payment.PaymentRepository;
-import com.odyssey.api.payment.PaymentStatus;
 import com.odyssey.api.quote.Quote;
 import com.odyssey.api.quote.QuoteRepository;
 import com.odyssey.api.quote.QuoteStatus;
@@ -21,20 +19,17 @@ public class BookingService {
 
     private final BookingRepository bookingRepository;
     private final QuoteRepository quoteRepository;
-    private final PaymentRepository paymentRepository;
     private final FakeBookingProvider bookingProvider;
     private final AgentRepository agentRepository;
 
     public BookingService(
         BookingRepository bookingRepository,
         QuoteRepository quoteRepository,
-        PaymentRepository paymentRepository,
         FakeBookingProvider bookingProvider,
         AgentRepository agentRepository
     ) {
         this.bookingRepository = bookingRepository;
         this.quoteRepository = quoteRepository;
-        this.paymentRepository = paymentRepository;
         this.bookingProvider = bookingProvider;
         this.agentRepository = agentRepository;
     }
@@ -61,21 +56,6 @@ public class BookingService {
         if (quote.getStatus() != QuoteStatus.ACCEPTED) {
             throw new IllegalArgumentException(
                 "Only an ACCEPTED quote can be booked"
-            );
-        }
-
-        Long tripId = quote
-            .getBookingRequest()
-            .getNeed()
-            .getTrip()
-            .getId();
-
-        // Accepting a Quote does not mean that Odyssey's assistance fee has
-        // been paid. The supplier Booking must not be created until the Trip's
-        // assistance fee has been confirmed as PAID by a verified Stripe webhook.
-        if (!paymentRepository.existsByTripIdAndStatus(tripId, PaymentStatus.PAID)) {
-            throw new IllegalArgumentException(
-                "The Trip assistance fee must be paid before a booking can be created"
             );
         }
 

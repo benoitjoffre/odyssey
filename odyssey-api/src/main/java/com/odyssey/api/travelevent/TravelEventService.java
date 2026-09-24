@@ -3,6 +3,7 @@ package com.odyssey.api.travelevent;
 import com.odyssey.api.exception.ResourceNotFoundException;
 import com.odyssey.api.experience.Experience;
 import com.odyssey.api.experience.ExperienceRepository;
+import com.odyssey.api.trip.TripRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -12,13 +13,16 @@ public class TravelEventService {
 
     private final TravelEventRepository travelEventRepository;
     private final ExperienceRepository experienceRepository;
+    private final TripRepository tripRepository;
 
     public TravelEventService(
         TravelEventRepository travelEventRepository,
-        ExperienceRepository experienceRepository
+        ExperienceRepository experienceRepository,
+        TripRepository tripRepository
     ) {
         this.travelEventRepository = travelEventRepository;
         this.experienceRepository = experienceRepository;
+        this.tripRepository = tripRepository;
     }
 
     public TravelEventResponse create(CreateTravelEventRequest request) {
@@ -62,6 +66,22 @@ public class TravelEventService {
             .orElseThrow(() ->
                 new ResourceNotFoundException("Travel event not found")
             );
+    }
+
+    public void delete(Long id) {
+        TravelEvent event = travelEventRepository
+            .findById(id)
+            .orElseThrow(() ->
+                new ResourceNotFoundException("Travel event not found")
+            );
+
+        if (tripRepository.existsByTravelEventId(id)) {
+            throw new IllegalArgumentException(
+                "Travel event cannot be deleted while trips are linked to it"
+            );
+        }
+
+        travelEventRepository.delete(event);
     }
 
     private TravelEventResponse toResponse(TravelEvent event) {

@@ -8,4 +8,6 @@ public interface TravelEventRepository
         extends JpaRepository<TravelEvent, Long> {
 
     List<TravelEvent> findByExperienceId(Long experienceId);
+
+    boolean existsByExperienceId(Long experienceId);
 }
