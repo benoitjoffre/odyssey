@@ -58,10 +58,10 @@ const travelerNeedStateContent: Record<TravelerNeedUxState, TravelerNeedStateCon
     title: "Proposition refusée",
     message: "Vous avez refusé cette offre. Votre agent va rechercher une nouvelle solution.",
   },
-  PROPOSAL_ACCEPTED_WAITING_ODYSSEY_PAYMENT: {
-    tone: "action",
+  PROPOSAL_ACCEPTED_AGENT_PROCESSING: {
+    tone: "progress",
     title: "Proposition acceptée",
-    message: "Votre choix est enregistré. Les frais d'accompagnement Odyssey doivent maintenant être réglés avant la réservation.",
+    message: "Votre conseiller prépare maintenant votre réservation auprès du fournisseur.",
   },
   AGENT_FINALIZING: {
     tone: "progress",
@@ -136,7 +136,6 @@ export interface TravelerNeedCardProps {
   quoteActionPending: "accept" | "reject" | null;
   quoteActionsDisabled: boolean;
   quoteActionError?: string;
-  onScrollToPayment: () => void;
 }
 
 export function TravelerNeedCard({
@@ -155,12 +154,13 @@ export function TravelerNeedCard({
   quoteActionPending,
   quoteActionsDisabled,
   quoteActionError,
-  onScrollToPayment,
 }: TravelerNeedCardProps) {
   const content = travelerNeedStateContent[derivedState];
   const showsSupplierPaymentCta =
     (derivedState === "SUPPLIER_PAYMENT_REQUIRED" || derivedState === "BOOKING_CONFIRMED_SUPPLIER_PAYMENT_REQUIRED") &&
     Boolean(quote?.providerPaymentUrl);
+  const showsSupplierPaymentLinkPendingMessage =
+    (derivedState === "SUPPLIER_PAYMENT_REQUIRED" || derivedState === "BOOKING_CONFIRMED_SUPPLIER_PAYMENT_REQUIRED") && !quote?.providerPaymentUrl;
   const showsBookingReference =
     (derivedState === "BOOKING_CONFIRMED" || derivedState === "BOOKING_CONFIRMED_SUPPLIER_PAYMENT_REQUIRED") && Boolean(need.providerConfirmationId);
 
@@ -238,14 +238,6 @@ export function TravelerNeedCard({
         </div>
       )}
 
-      {derivedState === "PROPOSAL_ACCEPTED_WAITING_ODYSSEY_PAYMENT" && (
-        <div className="traveler-need-request-action">
-          <button type="button" className="secondary-button" onClick={onScrollToPayment}>
-            Voir le paiement Odyssey à régler
-          </button>
-        </div>
-      )}
-
       {showsSupplierPaymentCta && quote?.providerPaymentUrl && (
         <div className="traveler-need-request-action">
           <a className="primary-button" href={quote.providerPaymentUrl} target="_blank" rel="noopener noreferrer">
@@ -253,6 +245,12 @@ export function TravelerNeedCard({
           </a>
           <p className="traveler-provider-payment-hint">{SUPPLIER_PAYMENT_DISCLAIMER}</p>
         </div>
+      )}
+
+      {showsSupplierPaymentLinkPendingMessage && (
+        <p className="traveler-provider-payment-hint">
+          Le paiement auprès du fournisseur est nécessaire. Votre conseiller prépare actuellement le lien de paiement.
+        </p>
       )}
 
       {showsBookingReference && (

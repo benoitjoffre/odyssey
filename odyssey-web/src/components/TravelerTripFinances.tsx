@@ -18,7 +18,7 @@ export interface TravelerTripFinancesProps {
   assistanceFee: number;
   /** Odyssey assistance fee payment status, or null when no payment has been started yet. */
   paymentStatus: PaymentStatus | null;
-  /** Mirrors the backend rule (currently: trip.status === "CONFIRMED"). Never re-derived independently. */
+  /** Mirrors backend TripDetail.assistanceFeePayable. Never re-derived independently. */
   tripEligibleForPayment: boolean;
   checkoutLoading: boolean;
   checkoutError: string | null;
@@ -89,10 +89,12 @@ export function TravelerTripFinances({
               <p className="trip-finance-status trip-finance-status--error">
                 <AlertTriangle size={16} aria-hidden="true" /> Le paiement n'a pas abouti
               </p>
-              <button type="button" className="primary-button" disabled={checkoutLoading} onClick={onCheckout}>
-                {checkoutLoading ? <LoaderCircle className="rotating" size={16} /> : <CreditCard size={16} />}
-                {checkoutLoading ? "Redirection vers Stripe…" : "Réessayer le paiement"}
-              </button>
+              {tripEligibleForPayment && (
+                <button type="button" className="primary-button" disabled={checkoutLoading} onClick={onCheckout}>
+                  {checkoutLoading ? <LoaderCircle className="rotating" size={16} /> : <CreditCard size={16} />}
+                  {checkoutLoading ? "Redirection vers Stripe…" : "Réessayer le paiement"}
+                </button>
+              )}
             </>
           ) : tripEligibleForPayment ? (
             <button type="button" className="primary-button" disabled={checkoutLoading} onClick={onCheckout}>
@@ -101,7 +103,7 @@ export function TravelerTripFinances({
             </button>
           ) : (
             <p className="trip-finance-status trip-finance-status--muted">
-              Vous pourrez régler vos frais Odyssey après avoir accepté les propositions nécessaires à votre voyage.
+              Vous pourrez régler vos frais d'accompagnement Odyssey lorsque vos réservations auprès des fournisseurs seront finalisées.
             </p>
           )}
 

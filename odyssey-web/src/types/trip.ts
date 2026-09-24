@@ -1,4 +1,5 @@
 import type { TransferCriteria } from "./bookingRequest";
+import type { PaymentStatus } from "./payment";
 
 export type TripStatus = "DRAFT" | "CONFIRMED" | "CANCELLED";
 
@@ -34,6 +35,8 @@ export interface TripNeed {
 
 export interface TripDetail extends Trip {
   needs: TripNeed[];
+  assistanceFeePayable: boolean;
+  paymentStatus: PaymentStatus | null;
 }
 
 export interface CreateTripRequest {

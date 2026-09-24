@@ -11,6 +11,7 @@ export type TravelerTripNextActionKind =
   | "PROPOSALS_READY"
   | "SUPPLIER_PAYMENTS_REQUIRED"
   | "ODYSSEY_PAYMENT_REQUIRED"
+  | "ODYSSEY_PAYMENT_PENDING"
   | "NEEDS_TO_ORGANIZE"
   | "BOOKING_FAILED"
   | "AGENT_WORKING"
@@ -60,16 +61,16 @@ export function deriveTravelerTripProgress(needStates: TravelerNeedStateEntry[])
  * Deterministic priority (first non-empty match wins):
  * 1. A proposal is ready to review
  * 2. A supplier payment is required (including on an already-confirmed booking)
- * 3. The Odyssey assistance fee is owed (only when there is actually something to pay)
- * 4. A service still needs to be sent to an agent
- * 5. A booking failed (calm, informational — no CTA)
- * 6. The agent is working and nothing is required from the traveler
- * 7. There are no active Needs at all
- * 8. Every active Need is fully finalized → TRIP_READY
+ * 3. A service still needs to be sent to an agent
+ * 4. A booking failed (calm, informational — no CTA)
+ * 5. The agent is working and nothing is required from the traveler
+ * 6. There are no active Needs at all
+ * 7. Every active Need is fully finalized, then global Odyssey payment rules apply
  */
 export function deriveTravelerTripUxState(
   needStates: TravelerNeedStateEntry[],
   odysseyPaymentStatus: PaymentStatus | null,
+  assistanceFeePayable: boolean,
   assistanceFee: number,
 ): TravelerTripUxState {
   const activeNeeds = needStates.filter((entry) => entry.state !== "CANCELLED");
@@ -93,15 +94,6 @@ export function deriveTravelerTripUxState(
     };
   }
 
-  // A Need only reaches PROPOSAL_ACCEPTED_WAITING_ODYSSEY_PAYMENT when the Trip's
-  // fee has not been paid yet (see deriveTravelerNeedState). Still, only surface it
-  // as the trip's next action when there is actually something to pay.
-  const odysseyPaymentOwed =
-    assistanceFee > 0 && odysseyPaymentStatus !== "PAID" ? needsInStates(activeNeeds, ["PROPOSAL_ACCEPTED_WAITING_ODYSSEY_PAYMENT"]) : [];
-  if (odysseyPaymentOwed.length > 0) {
-    return { kind: "NEXT_ACTION", action: "ODYSSEY_PAYMENT_REQUIRED", count: odysseyPaymentOwed.length, targetNeedId: null };
-  }
-
   const toOrganize = needsInStates(activeNeeds, ["TO_ORGANIZE"]);
   if (toOrganize.length > 0) {
     return { kind: "NEXT_ACTION", action: "NEEDS_TO_ORGANIZE", count: toOrganize.length, targetNeedId: toOrganize[0].needId };
@@ -118,11 +110,11 @@ export function deriveTravelerTripUxState(
   const stillWorking = needsInStates(activeNeeds, [
     "REQUEST_SENT",
     "SEARCH_IN_PROGRESS",
+    "PROPOSAL_ACCEPTED_AGENT_PROCESSING",
     "AGENT_FINALIZING",
     "SUPPLIER_PAYMENT_DONE_WAITING_CONFIRMATION",
     "PROPOSAL_EXPIRED",
     "PROPOSAL_REJECTED",
-    "PROPOSAL_ACCEPTED_WAITING_ODYSSEY_PAYMENT",
   ]);
   if (stillWorking.length > 0) {
     return { kind: "NEXT_ACTION", action: "AGENT_WORKING", count: stillWorking.length, targetNeedId: null };
@@ -130,7 +122,23 @@ export function deriveTravelerTripUxState(
 
   const allFinalized = activeNeeds.every((entry) => entry.state === "BOOKING_CONFIRMED");
   if (allFinalized) {
-    return { kind: "TRIP_READY" };
+    if (assistanceFee === 0) {
+      return { kind: "TRIP_READY" };
+    }
+
+    if (odysseyPaymentStatus === "PAID") {
+      return { kind: "TRIP_READY" };
+    }
+
+    if (odysseyPaymentStatus === "PENDING") {
+      return { kind: "NEXT_ACTION", action: "ODYSSEY_PAYMENT_PENDING", count: 0, targetNeedId: null };
+    }
+
+    if (assistanceFeePayable) {
+      return { kind: "NEXT_ACTION", action: "ODYSSEY_PAYMENT_REQUIRED", count: 0, targetNeedId: null };
+    }
+
+    return { kind: "NEXT_ACTION", action: "AGENT_WORKING", count: 0, targetNeedId: null };
   }
 
   // Defensive fallback: every reachable TravelerNeedUxState is covered above,

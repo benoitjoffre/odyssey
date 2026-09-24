@@ -1,4 +1,3 @@
-import type { PaymentStatus } from "../types/payment";
 import type { TripNeed } from "../types/trip";
 import type { TravelerQuote } from "../types/travelerQuote";
 
@@ -15,7 +14,7 @@ export type TravelerNeedUxState =
   | "PROPOSAL_READY"
   | "PROPOSAL_EXPIRED"
   | "PROPOSAL_REJECTED"
-  | "PROPOSAL_ACCEPTED_WAITING_ODYSSEY_PAYMENT"
+  | "PROPOSAL_ACCEPTED_AGENT_PROCESSING"
   | "AGENT_FINALIZING"
   | "SUPPLIER_PAYMENT_REQUIRED"
   | "SUPPLIER_PAYMENT_DONE_WAITING_CONFIRMATION"
@@ -29,7 +28,6 @@ export type TravelerNeedUxState =
  * - the Need itself (its own status plus the mirrored BookingRequest/Booking statuses)
  * - the latest traveler-visible Quote for that Need's BookingRequest, if any (any
  *   quote status — not just ACCEPTED)
- * - the Trip's Odyssey assistance fee payment status
  *
  * Precedence (first match wins), from most terminal/important to least:
  * 1. Cancelled (need, request or booking)
@@ -39,17 +37,13 @@ export type TravelerNeedUxState =
  *    require a supplier payment (e.g. pay-on-confirmation providers), which
  *    must NOT be reported as fully settled
  * 4. Booking pending — refined by the quote's supplier payment status
- * 5. Quote accepted, no booking yet — refined by the Trip's Odyssey payment status
+ * 5. Quote accepted, no booking yet — agent is preparing supplier booking
  * 6. A quote was sent — refined by the quote's own status (sent/expired/rejected)
  * 7. Request claimed by an agent, still searching
  * 8. Request sent, not yet claimed
  * 9. Nothing sent yet
  */
-export function deriveTravelerNeedState(
-  need: TripNeed,
-  quote: TravelerQuote | null,
-  odysseyPaymentStatus: PaymentStatus | null,
-): TravelerNeedUxState {
+export function deriveTravelerNeedState(need: TripNeed, quote: TravelerQuote | null): TravelerNeedUxState {
   if (need.status === "CANCELLED" || need.bookingRequestStatus === "CANCELLED" || need.bookingStatus === "CANCELLED") {
     return "CANCELLED";
   }
@@ -72,7 +66,7 @@ export function deriveTravelerNeedState(
   }
 
   if (need.bookingRequestStatus === "CONFIRMED") {
-    return odysseyPaymentStatus === "PAID" ? "AGENT_FINALIZING" : "PROPOSAL_ACCEPTED_WAITING_ODYSSEY_PAYMENT";
+    return "PROPOSAL_ACCEPTED_AGENT_PROCESSING";
   }
 
   if (need.bookingRequestStatus === "QUOTED") {

@@ -232,7 +232,6 @@ export function BookingRequestPage() {
 
   async function handleCreateBooking() {
     if (!acceptedQuote || creatingBooking) return;
-    if (!isTripAssistanceFeePaid) return;
 
     setCreatingBooking(true);
     setBookingError(null);
@@ -296,9 +295,6 @@ export function BookingRequestPage() {
   const { need, traveler, trip } = bookingRequest;
   const canClaim = bookingRequest.status === "REQUESTED" && bookingRequest.assignedAgentId === null;
   const canSearchOffers = bookingRequest.status === "IN_PROGRESS" && bookingRequest.assignedAgentId !== null;
-  // AgentQuoteResponse conserve ce champ de compatibilité, mais il représente
-  // désormais le paiement unique du Trip auquel appartient la proposition.
-  const isTripAssistanceFeePaid = acceptedQuote?.paymentStatus === "PAID";
   return (
     <div className="page-stack booking-request-page">
       <Link className="back-link" to="/agent/booking-requests">
@@ -668,11 +664,7 @@ export function BookingRequestPage() {
             </p>
           )}
 
-          {!booking && !isTripAssistanceFeePaid && (
-            <p className="booking-payment-pending">En attente du paiement du client avant de pouvoir créer la réservation.</p>
-          )}
-
-          {!booking && isTripAssistanceFeePaid && (
+          {!booking && (
             <button type="button" className="primary-button" onClick={handleCreateBooking} disabled={creatingBooking}>
               {creatingBooking ? <LoaderCircle className="rotating" size={18} /> : <ClipboardCheck size={18} />}
               {creatingBooking ? "Création de la réservation…" : "Créer la réservation"}

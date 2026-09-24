@@ -12,3 +12,9 @@ export function createExperience(request: CreateExperienceRequest): Promise<Expe
     body: JSON.stringify(request),
   });
 }
+
+export function deleteExperience(experienceId: number): Promise<void> {
+  return apiFetch<void>(`/api/experiences/${experienceId}`, {
+    method: "DELETE",
+  });
+}

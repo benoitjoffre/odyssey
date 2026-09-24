@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { CalendarDays, Inbox, MapPin, Plus, RefreshCw, Sparkles } from "lucide-react";
+import { CalendarDays, Inbox, LoaderCircle, MapPin, Plus, RefreshCw, Sparkles, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { getExperiences } from "../../api/experiences";
-import { getTravelEvents } from "../../api/travelEvents";
+import { deleteTravelEvent, getTravelEvents } from "../../api/travelEvents";
 import type { TravelEvent } from "../../types/travelEvent";
 
 function formatDate(value: string) {
@@ -14,6 +14,8 @@ export function AgentEventsPage() {
   const [experienceNames, setExperienceNames] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
   const [requestVersion, setRequestVersion] = useState(0);
 
   useEffect(() => {
@@ -35,6 +37,25 @@ export function AgentEventsPage() {
     void loadEvents();
     return () => controller.abort();
   }, [requestVersion]);
+
+  async function handleDeleteEvent(travelEvent: TravelEvent) {
+    if (deletingId !== null) return;
+
+    const confirmed = window.confirm(`Supprimer l'événement \"${travelEvent.name}\" ?`);
+    if (!confirmed) return;
+
+    setDeletingId(travelEvent.id);
+    setDeleteError(null);
+
+    try {
+      await deleteTravelEvent(travelEvent.id);
+      setEvents((current) => current.filter((item) => item.id !== travelEvent.id));
+    } catch {
+      setDeleteError("Suppression impossible. Vérifiez qu'aucun voyage n'est lié à cet événement.");
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   return (
     <div className="page-stack">
@@ -90,9 +111,18 @@ export function AgentEventsPage() {
                 <MapPin size={17} />
                 <span>{travelEvent.location}</span>
               </div>
+              <button type="button" className="secondary-button" disabled={deletingId !== null} onClick={() => void handleDeleteEvent(travelEvent)}>
+                {deletingId === travelEvent.id ? <LoaderCircle className="rotating" size={16} /> : <Trash2 size={16} />}
+                {deletingId === travelEvent.id ? "Suppression…" : "Supprimer"}
+              </button>
             </article>
           ))}
         </section>
+      )}
+      {deleteError && (
+        <p className="agent-admin-form-error" role="alert">
+          {deleteError}
+        </p>
       )}
     </div>
   );

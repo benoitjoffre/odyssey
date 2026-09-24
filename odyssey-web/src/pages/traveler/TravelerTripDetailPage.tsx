@@ -220,15 +220,11 @@ export function TravelerTripDetailPage() {
         const latestQuoteEntries = tripDetail.needs.map(
           (need) => [need.id, need.bookingRequestId ? getLatestQuote(quotesByBookingRequestId.get(need.bookingRequestId)) : null] as const,
         );
-        const tripBookingRequestIds = new Set(tripDetail.needs.flatMap((need) => (need.bookingRequestId === null ? [] : [need.bookingRequestId])));
-        const tripPaymentStatus = travelerQuotes.find(
-          (quote) => tripBookingRequestIds.has(quote.bookingRequestId) && quote.paymentStatus !== null,
-        )?.paymentStatus;
 
         setTrip(tripDetail);
         setAcceptedQuotesByNeedId(Object.fromEntries(acceptedQuoteEntries));
         setLatestQuotesByNeedId(Object.fromEntries(latestQuoteEntries));
-        setPaymentStatus(tripPaymentStatus ?? null);
+        setPaymentStatus(tripDetail.paymentStatus);
       } catch (requestError: unknown) {
         if (requestError instanceof DOMException && requestError.name === "AbortError") return;
         setError("Ce voyage est introuvable ou momentanément indisponible.");
@@ -241,6 +237,9 @@ export function TravelerTripDetailPage() {
     return () => controller.abort();
   }, [hasInvalidTripId, parsedTripId, requestVersion]);
 
+  const paymentStatusRef = useRef<PaymentStatus | null>(null);
+
+  // Polling for payment status updates after returning from Stripe
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const paymentResult = params.get("payment");
@@ -251,14 +250,25 @@ export function TravelerTripDetailPage() {
     if (paymentResult === "cancelled") return;
 
     let attempts = 0;
+    const maxAttempts = 20;
+    const intervalDuration = 1500;
+
     const interval = window.setInterval(() => {
       attempts += 1;
+
+      if (paymentStatusRef.current === "PAID" || attempts >= maxAttempts) {
+        window.clearInterval(interval);
+        return;
+      }
       setRequestVersion((version) => version + 1);
-      if (attempts >= 4) window.clearInterval(interval);
-    }, 1500);
+    }, intervalDuration);
 
     return () => window.clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    paymentStatusRef.current = paymentStatus;
+  }, [paymentStatus]);
 
   if (hasInvalidTripId) {
     return (
@@ -302,11 +312,11 @@ export function TravelerTripDetailPage() {
 
   const needStates: TravelerNeedStateEntry[] = trip.needs.map((need) => ({
     needId: need.id,
-    state: deriveTravelerNeedState(need, latestQuotesByNeedId[need.id] ?? null, paymentStatus),
+    state: deriveTravelerNeedState(need, latestQuotesByNeedId[need.id] ?? null),
   }));
   const needStateById = new Map(needStates.map((entry) => [entry.needId, entry.state]));
   const progress = deriveTravelerTripProgress(needStates);
-  const tripUxState = deriveTravelerTripUxState(needStates, paymentStatus, trip.assistanceFee);
+  const tripUxState = deriveTravelerTripUxState(needStates, paymentStatus, trip.assistanceFeePayable, trip.assistanceFee);
   const nextActionCtaHandler = getNextActionCtaHandler(tripUxState);
   const finalizedServices = trip.needs
     .filter((need) => needStateById.get(need.id) === "BOOKING_CONFIRMED")
@@ -333,9 +343,8 @@ export function TravelerTripDetailPage() {
         },
       ];
     });
-  // Mirrors the backend eligibility rule as-is (trip must be CONFIRMED before
-  // the Odyssey fee can be paid) instead of re-deriving it independently.
-  const tripEligibleForPayment = trip.status === "CONFIRMED";
+  // UX-only flag returned by backend from the single eligibility source of truth.
+  const tripEligibleForPayment = trip.assistanceFeePayable;
 
   return (
     <div className="traveler-page">
@@ -410,7 +419,6 @@ export function TravelerTripDetailPage() {
                   quoteActionPending={quote && pendingQuoteAction?.quoteId === quote.id ? pendingQuoteAction.action : null}
                   quoteActionsDisabled={pendingQuoteAction !== null}
                   quoteActionError={quote ? quoteActionErrors[quote.id] : undefined}
-                  onScrollToPayment={scrollToFinancialSummary}
                 />
               );
             })}

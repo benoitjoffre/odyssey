@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { ArrowRight, CalendarDays, Inbox, MapPin, Plus, RefreshCw, Sparkles } from "lucide-react";
+import { ArrowRight, CalendarDays, Inbox, LoaderCircle, MapPin, Plus, RefreshCw, Sparkles, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { getExperiences } from "../../api/experiences";
+import { deleteExperience, getExperiences } from "../../api/experiences";
 import { experienceCategoryLabels } from "../../helpers/experienceCategories";
 import type { Experience } from "../../types/experience";
 
@@ -9,6 +9,8 @@ export function AgentExperiencesPage() {
   const [experiences, setExperiences] = useState<Experience[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
   const [requestVersion, setRequestVersion] = useState(0);
 
   useEffect(() => {
@@ -28,6 +30,25 @@ export function AgentExperiencesPage() {
     void loadExperiences();
     return () => controller.abort();
   }, [requestVersion]);
+
+  async function handleDeleteExperience(experience: Experience) {
+    if (deletingId !== null) return;
+
+    const confirmed = window.confirm(`Supprimer l'expérience \"${experience.title}\" ?`);
+    if (!confirmed) return;
+
+    setDeletingId(experience.id);
+    setDeleteError(null);
+
+    try {
+      await deleteExperience(experience.id);
+      setExperiences((current) => current.filter((item) => item.id !== experience.id));
+    } catch {
+      setDeleteError("Suppression impossible. Vérifiez qu'aucun événement n'est lié à cette expérience.");
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   return (
     <div className="page-stack">
@@ -87,9 +108,23 @@ export function AgentExperiencesPage() {
               <Link className="card-link" to="/agent/events/new" state={{ experienceId: experience.id }}>
                 Programmer un événement <ArrowRight size={17} />
               </Link>
+              <button
+                type="button"
+                className="secondary-button"
+                disabled={deletingId !== null}
+                onClick={() => void handleDeleteExperience(experience)}
+              >
+                {deletingId === experience.id ? <LoaderCircle className="rotating" size={16} /> : <Trash2 size={16} />}
+                {deletingId === experience.id ? "Suppression…" : "Supprimer"}
+              </button>
             </article>
           ))}
         </section>
+      )}
+      {deleteError && (
+        <p className="agent-admin-form-error" role="alert">
+          {deleteError}
+        </p>
       )}
     </div>
   );

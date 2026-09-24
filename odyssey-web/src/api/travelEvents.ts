@@ -16,3 +16,9 @@ export function createTravelEvent(request: CreateTravelEventRequest): Promise<Tr
     body: JSON.stringify(request),
   });
 }
+
+export function deleteTravelEvent(eventId: number): Promise<void> {
+  return apiFetch<void>(`/api/travel-events/${eventId}`, {
+    method: "DELETE",
+  });
+}

@@ -38,9 +38,15 @@ function getNextActionContent(action: TravelerTripNextActionKind, count: number)
     case "ODYSSEY_PAYMENT_REQUIRED":
       return {
         tone: "action",
-        title: "Réglez vos frais d'accompagnement Odyssey",
-        message: "Ce règlement est nécessaire avant de finaliser votre réservation.",
+        title: "Régler les frais d’accompagnement",
+        message: "Vos réservations sont finalisées. Vous pouvez maintenant régler les frais d’accompagnement Odyssey.",
         ctaLabel: "Voir le paiement Odyssey",
+      };
+    case "ODYSSEY_PAYMENT_PENDING":
+      return {
+        tone: "progress",
+        title: "Paiement Odyssey en cours",
+        message: "Votre paiement des frais d’accompagnement a été initié. Vous pouvez le reprendre depuis la section paiement ci-dessous.",
       };
     case "NEEDS_TO_ORGANIZE":
       return {

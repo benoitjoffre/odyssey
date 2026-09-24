@@ -354,7 +354,7 @@ export function AgentBookingRequestsPage() {
                     const NeedIcon = presentation.icon;
                     const currentQuote = getCurrentAgentQuote(quotesByRequestId[request.id]);
                     const currentBooking = currentQuote ? (bookingsByQuoteId[currentQuote.id] ?? null) : null;
-                    const canCreateBooking = currentQuote?.status === "ACCEPTED" && paymentStatus === "PAID" && currentBooking === null;
+                    const canCreateBooking = currentQuote?.status === "ACCEPTED" && currentBooking === null;
                     return (
                       <li key={request.id}>
                         <span className={`agent-request-type-icon ${request.need.type.toLowerCase()}`} aria-hidden="true">
