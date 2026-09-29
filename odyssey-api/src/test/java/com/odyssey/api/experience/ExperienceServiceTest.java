@@ -3,6 +3,7 @@ package com.odyssey.api.experience;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -95,5 +96,20 @@ class ExperienceServiceTest {
         when(experienceRepository.findById(42L)).thenReturn(Optional.empty());
 
         assertThrows(ResourceNotFoundException.class, () -> experienceService.deleteExperience(42L));
+    }
+
+    @Test
+    void deleteExperienceContinuesWhenRedisDeleteFails() {
+        Experience experience = new Experience();
+        when(experienceRepository.findById(42L)).thenReturn(Optional.of(experience));
+        when(travelEventRepository.findByExperienceId(42L)).thenReturn(List.of());
+        doThrow(new RuntimeException("redis down"))
+            .when(redisTemplate)
+            .delete("experience:42");
+
+        experienceService.deleteExperience(42L);
+
+        verify(experienceRepository).delete(experience);
+        verify(redisTemplate).delete("experience:42");
     }
 }

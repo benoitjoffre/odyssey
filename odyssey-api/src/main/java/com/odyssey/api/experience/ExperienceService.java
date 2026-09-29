@@ -1,6 +1,8 @@
 package com.odyssey.api.experience;
 
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,6 +21,9 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import java.time.Duration;
 @Service
 public class ExperienceService {
+
+  private static final Logger logger =
+      LoggerFactory.getLogger(ExperienceService.class);
 
   private final ExperienceRepository experienceRepository;
   private final TravelEventRepository travelEventRepository;
@@ -75,18 +80,23 @@ public ExperienceResponse createExperience(CreateExperienceRequest request) {
 
     String key = "experience:" + id;
 
-    String cachedValue = redisTemplate.opsForValue().get(key);
+    String cachedValue = null;
+    try {
+      cachedValue = redisTemplate.opsForValue().get(key);
+    } catch (RuntimeException exception) {
+      logger.warn("Redis read failed for key {}. Falling back to database.", key, exception);
+    }
 
     if (cachedValue != null) {
-      System.out.println("REDIS CACHE HIT - Experience " + id);
+      logger.debug("Redis cache hit for experience {}", id);
       try {
         return objectMapper.readValue(cachedValue, ExperienceResponse.class);
       } catch (JacksonException e) {
-        throw new RuntimeException("Failed to deserialize cached value", e);
+        logger.warn("Invalid cached payload for key {}. Falling back to database.", key, e);
       }
     }
 
-    System.out.println("REDIS CACHE MISS - Experience " + id);
+    logger.debug("Redis cache miss for experience {}", id);
 
     Experience experience = experienceRepository
         .findById(id)
@@ -97,8 +107,11 @@ public ExperienceResponse createExperience(CreateExperienceRequest request) {
     ExperienceResponse response = toResponse(experience);
     try {
       String json = objectMapper.writeValueAsString(response);
-      
-      redisTemplate.opsForValue().set(key, json, Duration.ofSeconds(CACHE_TTL_SECONDS));
+      try {
+        redisTemplate.opsForValue().set(key, json, Duration.ofSeconds(CACHE_TTL_SECONDS));
+      } catch (RuntimeException exception) {
+        logger.warn("Redis write failed for key {}. Continuing without cache.", key, exception);
+      }
     } catch (JacksonException e) {
       throw new RuntimeException("Failed to serialize response for caching", e);
     }
@@ -123,7 +136,12 @@ public ExperienceResponse createExperience(CreateExperienceRequest request) {
 
     Experience savedExperience = experienceRepository.save(experience);
 
-    redisTemplate.delete("experience:" + id);
+    String key = "experience:" + id;
+    try {
+      redisTemplate.delete(key);
+    } catch (RuntimeException exception) {
+      logger.warn("Redis delete failed for key {}. Continuing after update.", key, exception);
+    }
 
     return toResponse(savedExperience);
 }
@@ -146,6 +164,11 @@ public ExperienceResponse createExperience(CreateExperienceRequest request) {
     }
 
     experienceRepository.delete(experience);
-    redisTemplate.delete("experience:" + id);
+    String key = "experience:" + id;
+    try {
+      redisTemplate.delete(key);
+    } catch (RuntimeException exception) {
+      logger.warn("Redis delete failed for key {}. Continuing after delete.", key, exception);
+    }
   }
 }
