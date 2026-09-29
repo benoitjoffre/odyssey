@@ -5,6 +5,7 @@ import com.odyssey.api.experience.Experience;
 import com.odyssey.api.experience.ExperienceRepository;
 import com.odyssey.api.trip.TripRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -68,6 +69,7 @@ public class TravelEventService {
             );
     }
 
+    @Transactional
     public void delete(Long id) {
         TravelEvent event = travelEventRepository
             .findById(id)
@@ -75,11 +77,7 @@ public class TravelEventService {
                 new ResourceNotFoundException("Travel event not found")
             );
 
-        if (tripRepository.existsByTravelEventId(id)) {
-            throw new IllegalArgumentException(
-                "Travel event cannot be deleted while trips are linked to it"
-            );
-        }
+        tripRepository.clearTravelEventByTravelEventId(id);
 
         travelEventRepository.delete(event);
     }

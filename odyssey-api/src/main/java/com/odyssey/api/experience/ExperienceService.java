@@ -2,9 +2,12 @@ package com.odyssey.api.experience;
 
 import java.util.List;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.odyssey.api.exception.ResourceNotFoundException;
+import com.odyssey.api.travelevent.TravelEvent;
 import com.odyssey.api.travelevent.TravelEventRepository;
+import com.odyssey.api.trip.TripRepository;
 
 
 
@@ -19,6 +22,7 @@ public class ExperienceService {
 
   private final ExperienceRepository experienceRepository;
   private final TravelEventRepository travelEventRepository;
+  private final TripRepository tripRepository;
   private final StringRedisTemplate redisTemplate;
   private final ObjectMapper objectMapper;
   private static final long CACHE_TTL_SECONDS = 30;
@@ -26,11 +30,13 @@ public class ExperienceService {
   public ExperienceService(
     ExperienceRepository experienceRepository,
     TravelEventRepository travelEventRepository,
+    TripRepository tripRepository,
     StringRedisTemplate redisTemplate,
     ObjectMapper objectMapper
   ) {
     this.experienceRepository = experienceRepository;
     this.travelEventRepository = travelEventRepository;
+    this.tripRepository = tripRepository;
     this.redisTemplate = redisTemplate;
     this.objectMapper = objectMapper;
   }
@@ -122,6 +128,7 @@ public ExperienceResponse createExperience(CreateExperienceRequest request) {
     return toResponse(savedExperience);
 }
 
+  @Transactional
   public void deleteExperience(Long id) {
     Experience experience = experienceRepository
         .findById(id)
@@ -129,10 +136,13 @@ public ExperienceResponse createExperience(CreateExperienceRequest request) {
             new ResourceNotFoundException("Experience not found")
         );
 
-    if (travelEventRepository.existsByExperienceId(id)) {
-      throw new IllegalArgumentException(
-          "Experience cannot be deleted while travel events are linked to it"
-      );
+    List<TravelEvent> events = travelEventRepository.findByExperienceId(id);
+    if (!events.isEmpty()) {
+      List<Long> eventIds = events.stream()
+          .map(TravelEvent::getId)
+          .toList();
+      tripRepository.clearTravelEventByTravelEventIds(eventIds);
+      travelEventRepository.deleteAll(events);
     }
 
     experienceRepository.delete(experience);
