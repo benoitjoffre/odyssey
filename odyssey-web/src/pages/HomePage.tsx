@@ -6,6 +6,7 @@ import { getExperiences } from "../api/experiences";
 import { ExperienceCard } from "../components/experience/ExperienceCard";
 import type { Experience } from "../types/experience";
 import odysseyLogo from "../assets/odyssey-bird.png";
+import tortuesImage from "../assets/tortues.png";
 const categoryCards = [
   { category: "CULTURE", label: "Culture & patrimoine", accent: "green" },
   { category: "FOOD", label: "Gastronomie & saveurs", accent: "yellow" },
@@ -217,7 +218,7 @@ export function HomePage() {
 
         <section className="public-editorial">
           <div className="public-editorial__media" aria-hidden="true">
-            <img className="public-editorial__image" src="/src/assets/tortues.png" alt="" />
+            <img className="public-editorial__image" src={tortuesImage} alt="" />
           </div>
 
           <div className="public-editorial__content">
