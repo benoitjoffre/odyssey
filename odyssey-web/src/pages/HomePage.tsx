@@ -1,74 +1,69 @@
-import { useEffect, useState, type ComponentType } from "react";
-import {
-  ArrowDown,
-  ArrowRight,
-  Bike,
-  CalendarDays,
-  ChefHat,
-  Compass,
-  Footprints,
-  MapPin,
-  Mountain,
-  Music2,
-  Plane,
-  Sparkles,
-  Trees,
-  UsersRound,
-  Waves,
-} from "lucide-react";
-import { Link } from "react-router-dom";
+import { useAuth0 } from "@auth0/auth0-react";
+import { ArrowRight, Compass, Heart, MapPin, Search, ShieldCheck, Sparkles, Trees, UtensilsCrossed, Waves } from "lucide-react";
+import { type FormEvent, useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { getExperiences } from "../api/experiences";
-import { experienceCategoryLabels } from "../helpers/experienceCategories";
+import { ExperienceCard } from "../components/experience/ExperienceCard";
 import type { Experience } from "../types/experience";
 
-interface Inspiration {
-  label: string;
-  detail: string;
-  icon: ComponentType<{ size?: number; strokeWidth?: number }>;
-  tone: string;
-}
+const categoryCards = [
+  { category: "CULTURE", label: "Culture & patrimoine", accent: "green" },
+  { category: "FOOD", label: "Gastronomie & saveurs", accent: "yellow" },
+  { category: "NATURE", label: "Nature & aventure", accent: "green-soft" },
+  { category: "DANCE", label: "Musique & traditions", accent: "blue-soft" },
+  { category: "BEACH", label: "Détente & bien-être", accent: "blue" },
+  { category: "ADVENTURE", label: "Découverte & rencontres", accent: "amber" },
+] as const;
 
-const inspirations: Inspiration[] = [
-  { label: "Danse", detail: "Bouger au rythme d’ailleurs", icon: Music2, tone: "coral" },
-  { label: "Surf", detail: "Suivre les plus belles vagues", icon: Waves, tone: "ocean" },
-  { label: "Nature", detail: "Retrouver les grands espaces", icon: Trees, tone: "forest" },
-  { label: "Gastronomie", detail: "Goûter un territoire", icon: ChefHat, tone: "saffron" },
-  { label: "Culture", detail: "Rencontrer une autre histoire", icon: UsersRound, tone: "clay" },
-  { label: "Aventure", detail: "Sortir des sentiers connus", icon: Mountain, tone: "stone" },
-];
-
-const journeySteps = [
+const whyItems = [
   {
-    number: "01",
-    title: "Dites-nous votre envie",
-    copy: "« Je veux apprendre la salsa à Cuba. » Tout commence par ce qui vous fait vibrer.",
+    title: "Des expériences uniques",
+    copy: "Sélectionnées avec soin pour leur authenticité et leur richesse humaine.",
     icon: Sparkles,
+    accent: "blue",
   },
   {
-    number: "02",
-    title: "Découvrez des expériences",
-    copy: "Odyssey vous propose des idées qui correspondent à votre envie, dans des destinations faites pour la vivre.",
+    title: "Des experts locaux",
+    copy: "Une assistance personnalisée tout au long de votre voyage.",
+    icon: ShieldCheck,
+    accent: "red",
+  },
+  {
+    title: "Un voyage à votre image",
+    copy: "Des expériences adaptées à vos envies, à votre rythme et à votre curiosité.",
     icon: Compass,
+    accent: "yellow",
   },
   {
-    number: "03",
-    title: "Partez vivre l’expérience",
-    copy: "Choisissez une date, créez votre voyage et organisez ensuite transport, hébergement et transferts.",
-    icon: Plane,
+    title: "Des souvenirs durables",
+    copy: "Plus que des voyages, des rencontres et des moments inoubliables.",
+    icon: Heart,
+    accent: "green",
   },
-];
+] as const;
 
 export function HomePage() {
+  const navigate = useNavigate();
+  const { isAuthenticated, loginWithRedirect, user } = useAuth0();
   const [experiences, setExperiences] = useState<Experience[]>([]);
+  const [heroInput, setHeroInput] = useState("");
+  const [isHeaderScrolled, setIsHeaderScrolled] = useState(false);
 
   useEffect(() => {
     document.title = "Odyssey | Voyagez pour ce que vous aimez";
+
+    const onScroll = () => {
+      setIsHeaderScrolled(window.scrollY > 12);
+    };
+
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
 
     const controller = new AbortController();
 
     getExperiences(controller.signal)
       .then((items) => {
-        setExperiences(items.slice(0, 6));
+        setExperiences(items.slice(0, 4));
       })
       .catch((requestError: unknown) => {
         if (!(requestError instanceof DOMException && requestError.name === "AbortError")) {
@@ -76,206 +71,271 @@ export function HomePage() {
         }
       });
 
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+      window.removeEventListener("scroll", onScroll);
+    };
   }, []);
+
+  function handleHeroSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    void navigate("/traveler/discover");
+  }
+
+  const displayName = user?.given_name ?? user?.name ?? "Voyageur";
 
   return (
     <div className="public-home">
-      <header className="public-header">
-        <div className="public-header-inner">
+      <header className={`public-header${isHeaderScrolled ? " is-scrolled" : ""}`}>
+        <div className="public-header__inner">
           <Link className="public-brand" to="/" aria-label="Odyssey, accueil">
-            <span className="public-brand-mark">
-              <Plane size={21} strokeWidth={2.2} />
-            </span>
-            <span>Odyssey</span>
+            <img src="/src/assets/logo.png" alt="Odyssey" className="public-brand__logo" />
           </Link>
+
           <nav className="public-nav" aria-label="Navigation principale">
-            <Link className="public-nav-link" to="/traveler/discover">
-              Découvrir
+            <Link className="public-nav__link is-active" to="/traveler/discover">
+              Expériences
             </Link>
-            <Link className="public-agent-link" to="/agent">
-              <UsersRound size={17} />
-              <span>Espace Agent</span>
+            <Link className="public-nav__link" to="/traveler/trips">
+              Mes voyages
+            </Link>
+            <Link className="public-nav__link" to="/">
+              À propos
             </Link>
           </nav>
+
+          <div className="public-header__actions">
+            <button type="button" className="public-header__search" aria-label="Recherche">
+              <Search size={17} />
+            </button>
+            {isAuthenticated ? (
+              <Link className="public-header__button public-header__button--ghost" to="/traveler/trips">
+                {displayName}
+              </Link>
+            ) : (
+              <>
+                <button type="button" className="public-header__button public-header__button--ghost" onClick={() => void loginWithRedirect()}>
+                  Se connecter
+                </button>
+                <button type="button" className="public-header__button public-header__button--primary" onClick={() => void loginWithRedirect()}>
+                  Créer un compte
+                </button>
+              </>
+            )}
+          </div>
         </div>
       </header>
 
       <main>
         <section className="public-hero">
-          <div className="public-hero-shade" />
-          <div className="public-hero-content">
-            <span className="public-kicker">
-              <Compass size={16} /> Le voyage commence par une envie
-            </span>
-            <h1>Voyagez pour ce que vous aimez.</h1>
-            <p>
-              Dites-nous ce que vous avez envie de vivre. Odyssey vous aide à trouver les expériences et événements qui vous correspondent, puis à
-              organiser votre voyage.
-            </p>
-            <Link className="public-primary-cta" to="/traveler/discover">
-              Découvrir des expériences <ArrowRight size={19} />
-            </Link>
-          </div>
-          <a className="public-scroll-cue" href="#how-it-works">
-            <span>Voir comment</span>
-            <ArrowDown size={18} />
-          </a>
-        </section>
+          <div className="public-hero__layout">
+            <div className="public-hero__content">
+              <h1>
+                Trouvez une
+                <br />
+                expérience qui vous
+                <br />
+                <span>ressemble.</span>
+              </h1>
+              <p>Culture, gastronomie, aventure, musique... Découvrez des expériences uniques et créez des souvenirs inoubliables.</p>
 
-        <section className="public-section public-how" id="how-it-works">
-          <div className="public-section-inner">
-            <div className="public-section-heading">
-              <span>De l’envie au départ</span>
-              <h2>Comment ça marche ?</h2>
-              <p>Une façon plus naturelle d’imaginer un voyage : partir de ce que vous voulez vivre, puis construire le reste.</p>
+              <form className="public-hero__search" onSubmit={handleHeroSubmit}>
+                <input
+                  type="text"
+                  value={heroInput}
+                  onChange={(event) => setHeroInput(event.target.value)}
+                  placeholder="Qu'avez-vous envie de vivre ?"
+                  aria-label="Qu'avez-vous envie de vivre ?"
+                />
+                <button type="submit">
+                  Découvrir <ArrowRight size={16} />
+                </button>
+              </form>
+
+              <div className="public-hero__examples" aria-label="Exemples d’envies">
+                <span className="public-hero__examples-label">Exemples :</span>
+                {["découvrir la culture latino", "road trip nature", "gastronomie locale"].map((example) => (
+                  <span key={example}>{example}</span>
+                ))}
+              </div>
             </div>
-            <div className="public-steps">
-              {journeySteps.map((step) => {
-                const Icon = step.icon;
-                return (
-                  <article className="public-step" key={step.number}>
-                    <div className="public-step-top">
-                      <span>{step.number}</span>
-                      <Icon size={24} />
-                    </div>
-                    <h3>{step.title}</h3>
-                    <p>{step.copy}</p>
-                  </article>
-                );
-              })}
+
+            <div className="public-hero__floating-note" aria-label="Plus que des voyages, des expériences">
+              <span>Plus que des</span>
+              <span>voyages, des</span>
+              <span>expériences.</span>
             </div>
           </div>
         </section>
 
-        <section className="public-difference">
-          <div className="public-section-inner public-difference-grid">
-            <div className="public-difference-copy">
-              <span>La différence Odyssey</span>
-              <h2>Plus qu’un moteur de réservation.</h2>
-              <p>Vous ne commencez pas par chercher un vol ou un hôtel. Vous commencez par ce que vous avez envie de vivre.</p>
-              <Link to="/traveler/discover">
-                Commencer par mon envie <ArrowRight size={18} />
+        <section className="public-section">
+          <div className="public-section__inner">
+            <div className="public-section__heading">
+              <h2>Explorez selon vos envies</h2>
+            </div>
+
+            <div className="public-category-grid">
+              {categoryCards.map((card) => (
+                <Link key={card.category} className={`public-category-card ${card.accent}`} to="/traveler/discover">
+                  <span className="public-category-card__icon" aria-hidden="true">
+                    {card.category === "CULTURE" && <MapPin size={19} />}
+                    {card.category === "FOOD" && <UtensilsCrossed size={19} />}
+                    {card.category === "NATURE" && <Trees size={19} />}
+                    {card.category === "DANCE" && <Sparkles size={19} />}
+                    {card.category === "BEACH" && <Waves size={19} />}
+                    {card.category === "ADVENTURE" && <Compass size={19} />}
+                  </span>
+                  <span>{card.label}</span>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="public-section public-section--featured">
+          <div className="public-section__inner">
+            <div className="public-section__heading public-section__heading--split">
+              <h2>Expériences à découvrir</h2>
+              <Link className="public-inline-link" to="/traveler/discover">
+                Voir toutes les expériences <ArrowRight size={17} />
               </Link>
             </div>
-            <div className="public-journey" aria-label="De l’envie au voyage">
-              <div>
-                <Sparkles size={22} />
-                <span>Votre envie</span>
-                <small>Ce qui vous inspire</small>
-              </div>
-              <ArrowRight className="public-journey-arrow" size={22} />
-              <div>
-                <Footprints size={22} />
-                <span>L’expérience</span>
-                <small>Ce que vous vivrez</small>
-              </div>
-              <ArrowRight className="public-journey-arrow" size={22} />
-              <div>
-                <CalendarDays size={22} />
-                <span>L’événement</span>
-                <small>Le bon lieu, au bon moment</small>
-              </div>
-              <ArrowRight className="public-journey-arrow" size={22} />
-              <div>
-                <Plane size={22} />
-                <span>Le voyage</span>
-                <small>Tout organisé autour</small>
-              </div>
-            </div>
-          </div>
-        </section>
 
-        <section className="public-section public-experiences">
-          <div className="public-section-inner">
-            <div className="public-section-heading public-section-heading-row">
-              <div>
-                <span>Explorez autrement</span>
-                <h2>Qu’avez-vous envie de vivre ?</h2>
+            {experiences.length === 0 ? (
+              <div className="public-state-panel">
+                <p>Le catalogue se prépare. Revenez bientôt pour découvrir les prochaines expériences Odyssey.</p>
               </div>
-              <p>Une passion, une curiosité ou un défi peuvent devenir le point de départ de votre prochain voyage.</p>
-            </div>
-            <div className="public-inspiration-grid">
-              {inspirations.map((inspiration) => {
-                const Icon = inspiration.icon;
-                return (
-                  <article className={`public-inspiration ${inspiration.tone}`} key={inspiration.label}>
-                    <Icon size={28} strokeWidth={1.8} />
-                    <div>
-                      <h3>{inspiration.label}</h3>
-                      <p>{inspiration.detail}</p>
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-
-            <div className="public-live-heading">
-              <span>
-                <span className="public-live-dot" /> En ce moment sur Odyssey
-              </span>
-              <h3>Des expériences à découvrir</h3>
-            </div>
-            {experiences.length === 0 && (
-              <div className="public-experience-state">
-                <Compass size={25} />
-                <strong>Le catalogue se prépare.</strong>
-                <span>Décrivez déjà votre envie : Odyssey vous guidera vers votre prochaine expérience.</span>
-                <Link to="/traveler/discover">
-                  Lancer ma recherche <ArrowRight size={17} />
-                </Link>
-              </div>
-            )}
-            {experiences.length > 0 && (
-              <div className="public-experience-grid">
+            ) : (
+              <div className="public-card-grid">
                 {experiences.map((experience) => (
-                  <article className="public-experience-card" key={experience.id}>
-                    <div className={`public-experience-visual category-${experience.category.toLowerCase().replace("_", "-")}`}>
-                      <span>{experienceCategoryLabels[experience.category]}</span>
-                    </div>
-                    <div className="public-experience-body">
-                      <div className="public-experience-meta">
-                        <span>
-                          <MapPin size={15} /> {experience.destination.city}, {experience.destination.country}
-                        </span>
-                        <span>
-                          <CalendarDays size={15} /> {experience.durationDays} jours
-                        </span>
-                      </div>
-                      <h3>{experience.title}</h3>
-                      <p>{experience.description}</p>
-                    </div>
-                  </article>
+                  <ExperienceCard key={experience.id} experience={experience} />
                 ))}
               </div>
             )}
           </div>
         </section>
 
-        <section className="public-final-cta">
-          <div className="public-final-cta-inner">
-            <Bike size={34} />
-            <span>Votre prochaine histoire commence ici</span>
-            <h2>Une envie de partir ?</h2>
-            <p>Ne cherchez pas encore la destination. Dites-nous d’abord ce que vous rêvez de vivre.</p>
-            <Link className="public-primary-cta light" to="/traveler/discover">
-              Trouver mon expérience <ArrowRight size={19} />
-            </Link>
+        <section className="public-editorial">
+          <div className="public-editorial__media" aria-hidden="true">
+            <img className="public-editorial__image" src="/src/assets/tortues.png" alt="" />
+          </div>
+
+          <div className="public-editorial__content">
+            <span className="public-editorial__kicker">Vivez l’extraordinaire</span>
+            <h2>
+              Des expériences
+              <br />
+              authentiques
+              <br />
+              dans des lieux
+              <br />
+              <span className="public-editorial__highlight">exceptionnels.</span>
+            </h2>
+            <p>
+              Partez à la rencontre de cultures, de saveurs et de paysages uniques, avec des expériences pensées pour vous faire vivre plus qu’un
+              simple voyage.
+            </p>
+          </div>
+
+          <img className="public-editorial__plumes" src="/src/assets/plumes.png" alt="" aria-hidden="true" />
+        </section>
+
+        <section className="public-section public-section--why">
+          <div className="public-section__inner">
+            <div className="public-section__heading">
+              <h2>Pourquoi Odyssey ?</h2>
+            </div>
+
+            <div className="public-why-grid">
+              {whyItems.map(({ title, copy, icon: Icon, accent }) => (
+                <article key={title} className={`public-why-item public-why-item--${accent}`}>
+                  <span className="public-why-item__icon">
+                    <Icon size={20} />
+                  </span>
+                  <div className="public-why-item__copy">
+                    <h3>{title}</h3>
+                    <p>{copy}</p>
+                  </div>
+                </article>
+              ))}
+            </div>
           </div>
         </section>
-      </main>
 
-      <footer className="public-footer">
-        <div>
-          <span className="public-brand">
-            <span className="public-brand-mark">
-              <Plane size={19} />
-            </span>
-            <span>Odyssey</span>
-          </span>
-          <p>Voyagez pour ce que vous aimez.</p>
-        </div>
-      </footer>
+        <section className="public-final-cta">
+          <div className="public-final-cta__inner">
+            <div className="public-final-cta__content">
+              <div className="public-final-cta__copy">
+                <p>Prêt à vivre</p>
+                <h2>votre prochaine expérience ?</h2>
+              </div>
+
+              <Link className="public-primary-button public-final-cta__button" to="/traveler/discover">
+                Explorer maintenant <ArrowRight size={18} />
+              </Link>
+            </div>
+          </div>
+        </section>
+
+        <footer className="public-final-footer">
+          <div className="public-final-footer__inner">
+            <div className="public-final-footer__brand">
+              <img src="/src/assets/logo.png" alt="Odyssey" className="public-final-footer__logo" />
+              <p>Des voyages pensés pour vivre autrement.</p>
+            </div>
+
+            <div className="public-final-footer__group">
+              <h3>Odyssey</h3>
+              <ul>
+                <li>
+                  <Link to="/traveler/discover">Expériences</Link>
+                </li>
+                <li>
+                  <Link to="/traveler/trips">Mes voyages</Link>
+                </li>
+                <li>
+                  <Link to="/">À propos</Link>
+                </li>
+              </ul>
+            </div>
+
+            <div className="public-final-footer__group">
+              <h3>Support</h3>
+              <ul>
+                <li>
+                  <Link to="/">Contact</Link>
+                </li>
+                <li>
+                  <Link to="/">FAQ</Link>
+                </li>
+                <li>
+                  <Link to="/">Aide</Link>
+                </li>
+              </ul>
+            </div>
+
+            <div className="public-final-footer__group">
+              <h3>Légal</h3>
+              <ul>
+                <li>
+                  <Link to="/">Mentions légales</Link>
+                </li>
+                <li>
+                  <Link to="/">CGV</Link>
+                </li>
+                <li>
+                  <Link to="/">Confidentialité</Link>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="public-final-footer__bottom">
+            <span>© 2026 Odyssey</span>
+            <span>Tout droit réservé</span>
+          </div>
+        </footer>
+      </main>
     </div>
   );
 }

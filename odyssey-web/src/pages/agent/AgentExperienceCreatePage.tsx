@@ -17,6 +17,7 @@ export function AgentExperienceCreatePage() {
   const [destinations, setDestinations] = useState<Destination[]>([]);
   const [category, setCategory] = useState<ExperienceCategory | "">("");
   const [durationDays, setDurationDays] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loadingDestinations, setLoadingDestinations] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -69,6 +70,7 @@ export function AgentExperienceCreatePage() {
         destinationId: parsedDestinationId,
         category,
         durationDays: parsedDuration,
+        imageUrl: imageUrl.trim() || null,
       });
       navigate("/agent/experiences");
     } catch {
@@ -155,6 +157,19 @@ export function AgentExperienceCreatePage() {
                 setDurationDays(event.target.value);
                 setError(null);
               }}
+              disabled={submitting}
+            />
+          </label>
+          <label className="form-field form-field-wide">
+            <span>URL de l’image</span>
+            <input
+              type="url"
+              value={imageUrl}
+              onChange={(event) => {
+                setImageUrl(event.target.value);
+                setError(null);
+              }}
+              placeholder="https://..."
               disabled={submitting}
             />
           </label>

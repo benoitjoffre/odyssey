@@ -16,6 +16,7 @@ import { AgentBookingRequestsPage } from "./pages/agent/AgentBookingRequestsPage
 import { BookingRequestPage } from "./pages/BookingRequestPage";
 import { ComingSoonPage } from "./pages/ComingSoonPage";
 import { HomePage } from "./pages/HomePage";
+import { ExperienceDetailPage } from "./pages/ExperienceDetailPage";
 import { TravelerDiscoverPage } from "./pages/traveler/TravelerDiscoverPage";
 import { TravelerEventDetailPage } from "./pages/traveler/TravelerEventDetailPage";
 import { TravelerOnboardingPage } from "./pages/traveler/TravelerOnboardingPage";
@@ -98,6 +99,7 @@ function App() {
     <CurrentUserProvider>
       <Routes>
         <Route path="/" element={<HomePage />} />
+        <Route path="/experiences/:id" element={<ExperienceDetailPage />} />
 
         <Route
           path="/agent"

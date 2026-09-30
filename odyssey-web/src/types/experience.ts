@@ -8,6 +8,7 @@ export interface Experience {
   destination: Destination;
   category: ExperienceCategory;
   durationDays: number;
+  imageUrl?: string | null;
 }
 
 export interface CreateExperienceRequest {
@@ -16,4 +17,5 @@ export interface CreateExperienceRequest {
   destinationId: number;
   category: ExperienceCategory;
   durationDays: number;
+  imageUrl?: string | null;
 }

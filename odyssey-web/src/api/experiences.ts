@@ -5,6 +5,10 @@ export function getExperiences(signal?: AbortSignal): Promise<Experience[]> {
   return apiFetch<Experience[]>("/api/experiences", { signal });
 }
 
+export function getExperience(experienceId: number, signal?: AbortSignal): Promise<Experience> {
+  return apiFetch<Experience>(`/api/experiences/${experienceId}`, { signal });
+}
+
 export function createExperience(request: CreateExperienceRequest): Promise<Experience> {
   return apiFetch<Experience>("/api/experiences", {
     method: "POST",
