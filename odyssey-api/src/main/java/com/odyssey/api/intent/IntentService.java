@@ -3,9 +3,13 @@ package com.odyssey.api.intent;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
+import static org.springframework.util.StringUtils.hasText;
 
+import com.odyssey.api.destination.Destination;
+import com.odyssey.api.destination.DestinationResponse;
 import com.odyssey.api.exception.ResourceNotFoundException;
 import com.odyssey.api.experience.ExperienceCategory;
+import com.odyssey.api.experience.Experience;
 import com.odyssey.api.experience.ExperienceRepository;
 import com.odyssey.api.intent.recommendation.AnalyzedIntent;
 import com.odyssey.api.intent.recommendation.IntentAnalysisService;
@@ -117,7 +121,7 @@ public class IntentService {
                     experience.getTitle(),
                     experience.getDescription(),
                     experience.getCategory(),
-                    experience.getDestination(),
+                    toDestinationResponse(experience),
                     experience.getDurationDays(),
                     score
                 );
@@ -139,5 +143,28 @@ public class IntentService {
             intent.getCategory(),
             intent.getTraveler().getId()
         );
+    }
+
+    private DestinationResponse toDestinationResponse(Experience experience) {
+        Destination destination = experience.getDestinationEntity();
+        if (destination != null) {
+            return new DestinationResponse(
+                destination.getId(),
+                destination.getCity(),
+                destination.getCountry(),
+                destination.getCountryCode()
+            );
+        }
+
+        if (hasText(experience.getLegacyDestination())) {
+            return new DestinationResponse(
+                null,
+                experience.getLegacyDestination(),
+                null,
+                null
+            );
+        }
+
+        return null;
     }
 }

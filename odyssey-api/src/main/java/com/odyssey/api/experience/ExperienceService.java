@@ -5,7 +5,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import static org.springframework.util.StringUtils.hasText;
 
+import com.odyssey.api.destination.Destination;
+import com.odyssey.api.destination.DestinationRepository;
+import com.odyssey.api.destination.DestinationResponse;
 import com.odyssey.api.exception.ResourceNotFoundException;
 import com.odyssey.api.travelevent.TravelEvent;
 import com.odyssey.api.travelevent.TravelEventRepository;
@@ -25,6 +29,7 @@ public class ExperienceService {
   private static final Logger logger =
       LoggerFactory.getLogger(ExperienceService.class);
 
+  private final DestinationRepository destinationRepository;
   private final ExperienceRepository experienceRepository;
   private final TravelEventRepository travelEventRepository;
   private final TripRepository tripRepository;
@@ -33,12 +38,14 @@ public class ExperienceService {
   private static final long CACHE_TTL_SECONDS = 30;
 
   public ExperienceService(
+    DestinationRepository destinationRepository,
     ExperienceRepository experienceRepository,
     TravelEventRepository travelEventRepository,
     TripRepository tripRepository,
     StringRedisTemplate redisTemplate,
     ObjectMapper objectMapper
   ) {
+    this.destinationRepository = destinationRepository;
     this.experienceRepository = experienceRepository;
     this.travelEventRepository = travelEventRepository;
     this.tripRepository = tripRepository;
@@ -52,16 +59,23 @@ public class ExperienceService {
         experience.getTitle(),
         experience.getDescription(),
         experience.getCategory(),
-        experience.getDestination(),
+        toDestinationResponse(experience),
         experience.getDurationDays()
     );
 }
 
 public ExperienceResponse createExperience(CreateExperienceRequest request) {
+      Destination destination = destinationRepository
+        .findById(request.destinationId())
+        .orElseThrow(() ->
+          new ResourceNotFoundException("Destination not found")
+        );
+
     Experience experience = new Experience();
     experience.setTitle(request.title());
     experience.setDescription(request.description());
-    experience.setDestination(request.destination());
+      experience.setDestination(destination);
+      experience.setLegacyDestination(destination.getCity());
     experience.setCategory(request.category());
     experience.setDurationDays(request.durationDays());
 
@@ -128,9 +142,16 @@ public ExperienceResponse createExperience(CreateExperienceRequest request) {
             new ResourceNotFoundException("Experience not found")
         );
 
+    Destination destination = destinationRepository
+      .findById(request.destinationId())
+      .orElseThrow(() ->
+        new ResourceNotFoundException("Destination not found")
+      );
+
     experience.setTitle(request.title());
     experience.setDescription(request.description());
-    experience.setDestination(request.destination());
+    experience.setDestination(destination);
+    experience.setLegacyDestination(destination.getCity());
     experience.setCategory(request.category());
     experience.setDurationDays(request.durationDays());
 
@@ -170,5 +191,28 @@ public ExperienceResponse createExperience(CreateExperienceRequest request) {
     } catch (RuntimeException exception) {
       logger.warn("Redis delete failed for key {}. Continuing after delete.", key, exception);
     }
+  }
+
+  private DestinationResponse toDestinationResponse(Experience experience) {
+    Destination destination = experience.getDestinationEntity();
+    if (destination != null) {
+      return new DestinationResponse(
+          destination.getId(),
+          destination.getCity(),
+          destination.getCountry(),
+          destination.getCountryCode()
+      );
+    }
+
+    if (hasText(experience.getLegacyDestination())) {
+      return new DestinationResponse(
+          null,
+          experience.getLegacyDestination(),
+          null,
+          null
+      );
+    }
+
+    return null;
   }
 }

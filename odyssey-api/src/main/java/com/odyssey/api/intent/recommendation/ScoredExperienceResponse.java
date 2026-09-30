@@ -1,5 +1,6 @@
 package com.odyssey.api.intent.recommendation;
 
+import com.odyssey.api.destination.DestinationResponse;
 import com.odyssey.api.experience.ExperienceCategory;
 
 public record ScoredExperienceResponse(
@@ -7,7 +8,7 @@ public record ScoredExperienceResponse(
     String title,
     String description,
     ExperienceCategory category,
-    String destination,
+    DestinationResponse destination,
     Number durationDays,
     int score
 ) {}

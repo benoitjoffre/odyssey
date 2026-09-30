@@ -9,5 +9,10 @@ public interface TravelEventRepository
 
     List<TravelEvent> findByExperienceId(Long experienceId);
 
+    java.util.Optional<TravelEvent> findByExperienceIdAndNameIgnoreCase(
+        Long experienceId,
+        String name
+    );
+
     boolean existsByExperienceId(Long experienceId);
 }

@@ -10,8 +10,8 @@ public record CreateExperienceRequest(
     @NotBlank
     String description,
 
-    @NotBlank
-    String destination,
+    @NotNull
+    Long destinationId,
 
     @NotNull
     ExperienceCategory category,

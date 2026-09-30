@@ -8,4 +8,6 @@ public interface ExperienceRepository
     extends JpaRepository<Experience, Long> {
 
     List<Experience> findByCategory(ExperienceCategory category);
+
+    java.util.Optional<Experience> findByTitleIgnoreCase(String title);
 }

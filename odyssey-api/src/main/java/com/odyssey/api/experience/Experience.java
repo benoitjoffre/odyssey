@@ -1,4 +1,5 @@
 package com.odyssey.api.experience;
+import com.odyssey.api.destination.Destination;
 import jakarta.persistence.*;
 
 @Entity
@@ -14,7 +15,12 @@ public class Experience {
   @Column(columnDefinition = "TEXT")
   private String description;
 
-  private String destination;
+  @Column(name = "destination")
+  private String legacyDestination;
+
+  @ManyToOne
+  @JoinColumn(name = "destination_id")
+  private Destination destination;
 
   @Enumerated(EnumType.STRING)
   private ExperienceCategory category;
@@ -37,7 +43,15 @@ public class Experience {
     return description;
   }
 
+  public String getLegacyDestination() {
+    return legacyDestination;
+  }
+
   public String getDestination() {
+    return legacyDestination;
+  }
+
+  public Destination getDestinationEntity() {
     return destination;
   }
 
@@ -57,8 +71,21 @@ public class Experience {
     this.description = description;
   }
 
-  public void setDestination(String destination) {
+  public void setLegacyDestination(String legacyDestination) {
+    this.legacyDestination = legacyDestination;
+  }
+
+  public void setDestination(Destination destination) {
     this.destination = destination;
+  }
+
+  public void setDestinationEntity(Destination destination) {
+    this.destination = destination;
+  }
+
+  @Deprecated
+  public void setDestination(String legacyDestination) {
+    this.legacyDestination = legacyDestination;
   }
 
   public void setCategory(ExperienceCategory category) {
