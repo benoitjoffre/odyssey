@@ -1,8 +1,24 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { ArrowLeft, BedDouble, Bus, CalendarDays, Car, Hotel, LoaderCircle, Luggage, Plane, RefreshCw, Route, Trash2 } from "lucide-react";
+import {
+  ArrowLeft,
+  BedDouble,
+  Bus,
+  CalendarDays,
+  Car,
+  CheckCircle2,
+  Hotel,
+  LoaderCircle,
+  Luggage,
+  MapPin,
+  Plane,
+  RefreshCw,
+  Route,
+  Trash2,
+} from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { createBookingRequest } from "../../api/bookingRequests";
 import { createTripCheckoutSession } from "../../api/payments";
+import { getTravelEvent } from "../../api/travelEvents";
 import { acceptTravelerQuote, getTravelerQuotes, rejectTravelerQuote } from "../../api/travelerQuotes";
 import { deleteTrip, getTripDetail } from "../../api/trips";
 import { TravelerNeedCard } from "../../components/TravelerNeedCard";
@@ -11,6 +27,7 @@ import { TravelerTripFinances, type SupplierServiceAmount } from "../../componen
 import { TripNextAction } from "../../components/TripNextAction";
 import { TripReadySummary } from "../../components/TripReadySummary";
 import { deriveTravelerNeedState } from "../../helpers/travelerNeedState";
+import { formatDateRange, getTravelEventImage, tripStatusLabels } from "../../helpers/travelerTripPresentation";
 import {
   deriveTravelerTripProgress,
   deriveTravelerTripUxState,
@@ -20,6 +37,7 @@ import {
 import { getLatestAcceptedQuote, getLatestQuote } from "../../helpers/travelerQuotes";
 import type { OrganizableNeedType } from "../../types/need";
 import type { PaymentStatus } from "../../types/payment";
+import type { TravelEvent } from "../../types/travelEvent";
 import type { TripDetail, TripNeed, TripNeedType } from "../../types/trip";
 import type { TravelerQuote } from "../../types/travelerQuote";
 
@@ -47,14 +65,6 @@ const organizationChoices: Array<{ type: TripNeedType; label: string; available:
   { type: "BUS", label: "Bus", available: false },
 ];
 
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat("fr-FR", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  }).format(new Date(`${value}T00:00:00`));
-}
-
 export function TravelerTripDetailPage() {
   const { tripId } = useParams<{ tripId: string }>();
   const navigate = useNavigate();
@@ -75,6 +85,7 @@ export function TravelerTripDetailPage() {
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus | null>(null);
   const [startingCheckout, setStartingCheckout] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [tripEvent, setTripEvent] = useState<TravelEvent | null>(null);
   const [pendingQuoteAction, setPendingQuoteAction] = useState<{ quoteId: number; action: "accept" | "reject" } | null>(null);
   const [quoteActionErrors, setQuoteActionErrors] = useState<Record<number, string>>({});
   const sendingRequestRef = useRef(false);
@@ -225,6 +236,17 @@ export function TravelerTripDetailPage() {
         setAcceptedQuotesByNeedId(Object.fromEntries(acceptedQuoteEntries));
         setLatestQuotesByNeedId(Object.fromEntries(latestQuoteEntries));
         setPaymentStatus(tripDetail.paymentStatus);
+        if (tripDetail.travelEventId) {
+          try {
+            setTripEvent(await getTravelEvent(tripDetail.travelEventId, controller.signal));
+          } catch (eventError: unknown) {
+            if (!(eventError instanceof DOMException && eventError.name === "AbortError")) {
+              setTripEvent(null);
+            }
+          }
+        } else {
+          setTripEvent(null);
+        }
       } catch (requestError: unknown) {
         if (requestError instanceof DOMException && requestError.name === "AbortError") return;
         setError("Ce voyage est introuvable ou momentanément indisponible.");
@@ -316,6 +338,9 @@ export function TravelerTripDetailPage() {
   }));
   const needStateById = new Map(needStates.map((entry) => [entry.needId, entry.state]));
   const progress = deriveTravelerTripProgress(needStates);
+  const activeServicesCount = progress?.total ?? 0;
+  const finalizedServicesCount = progress?.finalized ?? 0;
+  const finalizedServicesProgress = progress && progress.total > 0 ? Math.round((progress.finalized / progress.total) * 100) : 0;
   const tripUxState = deriveTravelerTripUxState(needStates, paymentStatus, trip.assistanceFeePayable, trip.assistanceFee);
   const nextActionCtaHandler = getNextActionCtaHandler(tripUxState);
   const finalizedServices = trip.needs
@@ -345,34 +370,48 @@ export function TravelerTripDetailPage() {
     });
   // UX-only flag returned by backend from the single eligibility source of truth.
   const tripEligibleForPayment = trip.assistanceFeePayable;
+  const tripHeroImage = getTravelEventImage(tripEvent);
+  const tripDateRange = formatDateRange(trip.startDate, trip.endDate);
+  const tripLocation = tripEvent?.location?.trim() ? tripEvent.location : null;
+  const tripStatusLabel = tripStatusLabels[trip.status];
 
   return (
     <div className="traveler-page">
-      <Link className="back-link" to="/traveler/trips">
+      <Link className="back-link traveler-trip-hero__back" to="/traveler/trips">
         <ArrowLeft size={17} /> Retour à mes voyages
       </Link>
 
-      <section className="traveler-trip-heading">
-        <span className="eyebrow">Votre voyage</span>
-        <h1>{trip.title || `Voyage #${trip.id}`}</h1>
-        <p>
-          <CalendarDays size={17} /> {formatDate(trip.startDate)} <span>au</span> {formatDate(trip.endDate)}
-        </p>
-        {trip.travelEventId === null && (
-          <span className="traveler-direct-trip-label">
-            <Luggage size={15} /> Voyage organisé directement
-          </span>
-        )}
-        {progress && (
-          <div className="trip-progress" role="status">
-            <div className="trip-progress-bar">
-              <div className="trip-progress-bar-fill" style={{ width: `${(progress.finalized / progress.total) * 100}%` }} />
-            </div>
-            <span className="trip-progress-label">
-              {progress.finalized} service{progress.total > 1 ? "s" : ""} sur {progress.total} finalisé{progress.total > 1 ? "s" : ""}
+      <section className="traveler-trip-hero" aria-labelledby="traveler-trip-hero-title">
+        <div className="traveler-trip-hero__media" aria-hidden="true">
+          <img src={tripHeroImage} alt="" />
+        </div>
+        <div className="traveler-trip-hero__overlay" aria-hidden="true" />
+
+        <div className="traveler-trip-hero__content">
+          <span className="eyebrow traveler-trip-hero__eyebrow">VOTRE VOYAGE</span>
+          <h1 id="traveler-trip-hero-title">{trip.title || `Voyage #${trip.id}`}</h1>
+
+          <div className="traveler-trip-hero__meta">
+            <span>
+              <CalendarDays size={17} /> {tripDateRange}
+            </span>
+            {tripLocation && (
+              <span>
+                <MapPin size={17} /> {tripLocation}
+              </span>
+            )}
+          </div>
+
+          <div className="traveler-trip-hero__stats" role="status" aria-label="Informations du voyage">
+            <span className={`trip-status status-${trip.status.toLowerCase()}`}>{tripStatusLabel}</span>
+            <span>
+              <Luggage size={15} /> {activeServicesCount} service{activeServicesCount > 1 ? "s" : ""}
+            </span>
+            <span>
+              <CheckCircle2 size={15} /> {finalizedServicesCount} finalisé{finalizedServicesCount > 1 ? "s" : ""}
             </span>
           </div>
-        )}
+        </div>
       </section>
 
       {tripUxState.kind === "TRIP_READY" ? (
@@ -387,6 +426,27 @@ export function TravelerTripDetailPage() {
             <h2 id="trip-needs-title">Votre voyage</h2>
             <p>Les éléments organisés avec votre conseiller Odyssey</p>
           </div>
+
+          {progress && (
+            <div
+              className="traveler-needs-progress"
+              aria-label={`Progression du voyage: ${finalizedServicesCount} services sur ${activeServicesCount} finalisés`}
+            >
+              <div className="traveler-needs-progress__label">
+                {finalizedServicesCount} services sur {activeServicesCount} finalisés
+              </div>
+              <div
+                className="traveler-needs-progress__bar"
+                role="progressbar"
+                aria-valuenow={finalizedServicesProgress}
+                aria-valuemin={0}
+                aria-valuemax={100}
+              >
+                <span style={{ width: `${finalizedServicesProgress}%` }} />
+              </div>
+              <div className="traveler-needs-progress__value">{finalizedServicesProgress} %</div>
+            </div>
+          )}
         </div>
 
         {trip.needs.length === 0 ? (

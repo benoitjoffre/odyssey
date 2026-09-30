@@ -5,17 +5,19 @@ import { getTravelerQuotes } from "../../api/travelerQuotes";
 import { getTravelEvent } from "../../api/travelEvents";
 import { getTripDetail, getTravelerTrips } from "../../api/trips";
 import { deriveTravelerNeedState, type TravelerNeedUxState } from "../../helpers/travelerNeedState";
+import {
+  computeDaysUntil,
+  formatDateBadge,
+  formatDateRange,
+  getTravelEventImage,
+  parseLocalDate,
+  startOfToday,
+  tripStatusLabels,
+} from "../../helpers/travelerTripPresentation";
 import { getLatestQuote } from "../../helpers/travelerQuotes";
 import { deriveTravelerTripProgress, type TravelerNeedStateEntry } from "../../helpers/travelerTripState";
-import heroImageFallback from "../../assets/hero.png";
 import type { TravelEvent } from "../../types/travelEvent";
-import type { Trip, TripStatus } from "../../types/trip";
-
-const tripStatusLabels: Record<TripStatus, string> = {
-  DRAFT: "En préparation",
-  CONFIRMED: "Confirmé",
-  CANCELLED: "Annulé",
-};
+import type { Trip } from "../../types/trip";
 
 const userActionNeedStates: TravelerNeedUxState[] = [
   "TO_ORGANIZE",
@@ -23,57 +25,6 @@ const userActionNeedStates: TravelerNeedUxState[] = [
   "SUPPLIER_PAYMENT_REQUIRED",
   "BOOKING_CONFIRMED_SUPPLIER_PAYMENT_REQUIRED",
 ];
-
-function parseLocalDate(value: string) {
-  const [year, month, day] = value.split("-").map(Number);
-  return new Date(year, month - 1, day);
-}
-
-function startOfToday() {
-  const now = new Date();
-  return new Date(now.getFullYear(), now.getMonth(), now.getDate());
-}
-
-function toUtcDayNumber(value: Date) {
-  return Date.UTC(value.getFullYear(), value.getMonth(), value.getDate()) / 86400000;
-}
-
-function computeDaysUntil(startDate: string) {
-  const tripStart = parseLocalDate(startDate);
-  const today = startOfToday();
-  return toUtcDayNumber(tripStart) - toUtcDayNumber(today);
-}
-
-function formatDateCompact(value: string) {
-  return new Intl.DateTimeFormat("fr-FR", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  }).format(parseLocalDate(value));
-}
-
-function formatDateRange(startDate: string, endDate: string) {
-  const start = parseLocalDate(startDate);
-  const end = parseLocalDate(endDate);
-
-  if (start.getFullYear() === end.getFullYear() && start.getMonth() === end.getMonth()) {
-    const monthYear = new Intl.DateTimeFormat("fr-FR", {
-      month: "long",
-      year: "numeric",
-    }).format(end);
-    return `${start.getDate()} → ${end.getDate()} ${monthYear}`;
-  }
-
-  return `${formatDateCompact(startDate)} → ${formatDateCompact(endDate)}`;
-}
-
-function getTravelEventImage(event: TravelEvent | null) {
-  const imageUrl = (event as (TravelEvent & { imageUrl?: string | null }) | null)?.imageUrl;
-  if (typeof imageUrl === "string" && imageUrl.trim().length > 0) {
-    return imageUrl.trim();
-  }
-  return heroImageFallback;
-}
 
 function getNextTrip(trips: Trip[]) {
   const today = startOfToday();
@@ -121,25 +72,14 @@ function deriveNextTripMetrics(needStates: TravelerNeedStateEntry[]): NextTripMe
   };
 }
 
-function deriveNeedStates(detail: Awaited<ReturnType<typeof getTripDetail>>, quotesByBookingRequestId: Map<number, Awaited<ReturnType<typeof getTravelerQuotes>>>) {
+function deriveNeedStates(
+  detail: Awaited<ReturnType<typeof getTripDetail>>,
+  quotesByBookingRequestId: Map<number, Awaited<ReturnType<typeof getTravelerQuotes>>>,
+) {
   return detail.needs.map((need) => ({
     needId: need.id,
     state: deriveTravelerNeedState(need, need.bookingRequestId ? getLatestQuote(quotesByBookingRequestId.get(need.bookingRequestId)) : null),
   }));
-}
-
-function formatDateBadge(startDate: string, endDate: string) {
-  const start = parseLocalDate(startDate);
-  const end = parseLocalDate(endDate);
-  const monthFormatter = new Intl.DateTimeFormat("fr-FR", { month: "short" });
-  const startMonth = monthFormatter.format(start).replace(".", "").toUpperCase();
-  const endMonth = monthFormatter.format(end).replace(".", "").toUpperCase();
-
-  if (start.getFullYear() === end.getFullYear() && start.getMonth() === end.getMonth()) {
-    return `${start.getDate()} → ${end.getDate()} ${endMonth}. ${end.getFullYear()}`;
-  }
-
-  return `${start.getDate()} ${startMonth}. → ${end.getDate()} ${endMonth}. ${end.getFullYear()}`;
 }
 
 function formatDisplayedTripsCount(count: number) {
@@ -549,9 +489,18 @@ export function TravelerTripsPage() {
                     const statusLabel = tripStatusLabels[trip.status];
 
                     return (
-                      <Link className="other-trip-card" to={`/traveler/trips/${trip.id}`} key={trip.id} aria-label={`Consulter le voyage ${trip.title || `#${trip.id}`}`}>
+                      <Link
+                        className="other-trip-card"
+                        to={`/traveler/trips/${trip.id}`}
+                        key={trip.id}
+                        aria-label={`Consulter le voyage ${trip.title || `#${trip.id}`}`}
+                      >
                         <div className="other-trip-card__media">
-                          <img src={cardData?.imageUrl ?? heroImageFallback} alt={`Illustration du voyage ${trip.title || `#${trip.id}`}`} loading="lazy" />
+                          <img
+                            src={cardData?.imageUrl ?? getTravelEventImage(null)}
+                            alt={`Illustration du voyage ${trip.title || `#${trip.id}`}`}
+                            loading="lazy"
+                          />
                           <span className={`trip-status status-${trip.status.toLowerCase()} other-trip-card__status`}>{statusLabel}</span>
                           <span className="other-trip-card__date-pill">
                             <CalendarDays size={14} /> {dateBadge}

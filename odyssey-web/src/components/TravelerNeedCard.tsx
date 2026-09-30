@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
-import { AlertCircle, AlertTriangle, Check, Circle, Clock3, CreditCard, LoaderCircle, Minus, Send, X } from "lucide-react";
+import { AlertCircle, AlertTriangle, Check, ChevronRight, Circle, Clock3, CreditCard, LoaderCircle, Minus, Send, X } from "lucide-react";
 import { SUPPLIER_PAYMENT_CTA_LABEL, SUPPLIER_PAYMENT_DISCLAIMER } from "../helpers/supplierPayment";
 import type { TravelerNeedUxState } from "../helpers/travelerNeedState";
+import { getNeedStatusLabel, getNeedVisualAsset, getNeedVisualLabel } from "../helpers/travelerNeedPresentation";
 import type { TripNeed } from "../types/trip";
 import type { TravelerQuote } from "../types/travelerQuote";
 
@@ -23,9 +24,6 @@ const toneIcons: Record<TravelerNeedTone, ReactNode> = {
   muted: <Minus size={16} />,
 };
 
-// Traveler-facing copy for every possible Need state. This is the only place
-// that turns the derived state into words — no raw backend enum should ever
-// reach the traveler directly.
 const travelerNeedStateContent: Record<TravelerNeedUxState, TravelerNeedStateContent> = {
   TO_ORGANIZE: {
     tone: "neutral",
@@ -156,6 +154,9 @@ export function TravelerNeedCard({
   quoteActionError,
 }: TravelerNeedCardProps) {
   const content = travelerNeedStateContent[derivedState];
+  const visualAsset = getNeedVisualAsset(need.type);
+  const visualLabel = getNeedVisualLabel(need.type);
+  const statusLabel = getNeedStatusLabel(derivedState);
   const showsSupplierPaymentCta =
     (derivedState === "SUPPLIER_PAYMENT_REQUIRED" || derivedState === "BOOKING_CONFIRMED_SUPPLIER_PAYMENT_REQUIRED") &&
     Boolean(quote?.providerPaymentUrl);
@@ -171,94 +172,118 @@ export function TravelerNeedCard({
       : { label: "Offre retenue", value: "Offre à définir" };
 
   return (
-    <article className="traveler-need-card" id={`traveler-need-${need.id}`}>
-      <div className="traveler-need-title">
-        <span>{icon}</span>
-        <h3>{label}</h3>
+    <article className={`traveler-need-card traveler-need-card--${content.tone}`} id={`traveler-need-${need.id}`}>
+      <div className="traveler-need-card__media">
+        <img src={visualAsset} alt={visualLabel} loading="lazy" />
+        <span className={`traveler-need-card__status-pill traveler-need-card__status-pill--${content.tone}`}>{statusLabel}</span>
       </div>
 
-      {need.notes && <p className="traveler-need-notes">{need.notes}</p>}
+      <div className="traveler-need-card__body">
+        <div className="traveler-need-card__heading">
+          <span className="traveler-need-card__icon" aria-hidden="true">
+            {icon}
+          </span>
+          <h3>{label}</h3>
+        </div>
 
-      {need.type === "TRANSFER" && need.transferCriteria && (
-        <p className="traveler-need-transfer-summary">
-          {need.transferCriteria.pickupLocation} → {need.transferCriteria.dropoffLocation}
-          <br />
-          {need.transferCriteria.travelers} {need.transferCriteria.travelers > 1 ? "voyageurs" : "voyageur"}
-        </p>
-      )}
+        {need.notes && <p className="traveler-need-card__summary">{need.notes}</p>}
 
-      <div className={`traveler-need-status traveler-need-status--${content.tone}`}>
-        <span className="traveler-need-status-icon" aria-hidden="true">
-          {toneIcons[content.tone]}
-        </span>
-        <div className="traveler-need-status-copy">
-          <strong>{content.title}</strong>
-          <p>{content.message}</p>
-          {derivedState === "PROPOSAL_READY" && quote?.expiresAt && (
-            <p className="traveler-need-status-secondary">Offre valable jusqu'au {formatDate(quote.expiresAt)}</p>
-          )}
-          {content.secondaryMessage && <p className="traveler-need-status-secondary">{content.secondaryMessage}</p>}
+        {need.type === "TRANSFER" && need.transferCriteria && (
+          <p className="traveler-need-card__summary">
+            {need.transferCriteria.pickupLocation} → {need.transferCriteria.dropoffLocation}
+            <br />
+            {need.transferCriteria.travelers} {need.transferCriteria.travelers > 1 ? "voyageurs" : "voyageur"}
+          </p>
+        )}
+
+        <div className={`traveler-need-card__status traveler-need-card__status--${content.tone}`}>
+          <span className="traveler-need-card__status-icon" aria-hidden="true">
+            {toneIcons[content.tone]}
+          </span>
+          <div className="traveler-need-card__status-copy">
+            <strong>{content.title}</strong>
+            <p>{content.message}</p>
+            {derivedState === "PROPOSAL_READY" && quote?.expiresAt && (
+              <p className="traveler-need-card__status-secondary">Offre valable jusqu'au {formatDate(quote.expiresAt)}</p>
+            )}
+            {content.secondaryMessage && <p className="traveler-need-card__status-secondary">{content.secondaryMessage}</p>}
+          </div>
+        </div>
+
+        {showsSupplierPaymentCta && quote?.providerPaymentUrl && (
+          <div className="traveler-need-card__action-block">
+            <a className="primary-button traveler-need-card__action" href={quote.providerPaymentUrl} target="_blank" rel="noopener noreferrer">
+              <CreditCard size={18} /> {SUPPLIER_PAYMENT_CTA_LABEL}
+            </a>
+            <p className="traveler-provider-payment-hint">{SUPPLIER_PAYMENT_DISCLAIMER}</p>
+          </div>
+        )}
+
+        {showsSupplierPaymentLinkPendingMessage && (
+          <p className="traveler-provider-payment-hint">
+            Le paiement auprès du fournisseur est nécessaire. Votre conseiller prépare actuellement le lien de paiement.
+          </p>
+        )}
+
+        {showsBookingReference && (
+          <div className="traveler-booking-reference">
+            <span>Référence de réservation</span>
+            <strong>{need.providerConfirmationId}</strong>
+          </div>
+        )}
+
+        {derivedState === "TO_ORGANIZE" && (
+          <div className="traveler-need-card__action-block">
+            {sendRequestError && (
+              <p role="alert" className="traveler-need-form-error">
+                {sendRequestError}
+              </p>
+            )}
+            <button type="button" className="primary-button traveler-need-card__action" disabled={sendRequestDisabled} onClick={onSendRequest}>
+              {sendingRequest ? <LoaderCircle className="rotating" size={17} /> : <Send size={17} />}
+              {sendingRequest ? "Envoi en cours…" : "Envoyer ma demande"}
+            </button>
+          </div>
+        )}
+
+        {derivedState === "PROPOSAL_READY" && quote && (
+          <div className="traveler-quote-actions traveler-need-card__quote-actions">
+            {quoteActionError && (
+              <p className="traveler-action-error" role="alert">
+                {quoteActionError}
+              </p>
+            )}
+            <button
+              type="button"
+              className="primary-button traveler-need-card__action"
+              disabled={quoteActionsDisabled}
+              onClick={() => onAcceptQuote(quote)}
+            >
+              {quoteActionPending === "accept" ? <LoaderCircle className="rotating" size={18} /> : <Check size={18} />}
+              {quoteActionPending === "accept" ? "Acceptation…" : "Accepter la proposition"}
+            </button>
+            <button
+              type="button"
+              className="traveler-reject-button traveler-need-card__secondary-action"
+              disabled={quoteActionsDisabled}
+              onClick={() => onRejectQuote(quote)}
+            >
+              {quoteActionPending === "reject" ? <LoaderCircle className="rotating" size={18} /> : <X size={18} />}
+              {quoteActionPending === "reject" ? "Refus…" : "Refuser"}
+            </button>
+          </div>
+        )}
+
+        <div className="traveler-need-card__footer">
+          <div className="traveler-need-card__price">
+            <span>{priceRow.label}</span>
+            <strong>{priceRow.value}</strong>
+          </div>
+          <span className="traveler-need-card__chevron" aria-hidden="true">
+            <ChevronRight size={20} strokeWidth={2.25} />
+          </span>
         </div>
       </div>
-
-      <div className="traveler-need-offer-price">
-        <span>{priceRow.label}</span>
-        <strong>{priceRow.value}</strong>
-      </div>
-
-      {derivedState === "TO_ORGANIZE" && (
-        <div className="traveler-need-request-action">
-          {sendRequestError && (
-            <p role="alert" className="traveler-need-form-error">
-              {sendRequestError}
-            </p>
-          )}
-          <button type="button" className="primary-button" disabled={sendRequestDisabled} onClick={onSendRequest}>
-            {sendingRequest ? <LoaderCircle className="rotating" size={17} /> : <Send size={17} />}
-            {sendingRequest ? "Envoi en cours…" : "Envoyer ma demande"}
-          </button>
-        </div>
-      )}
-
-      {derivedState === "PROPOSAL_READY" && quote && (
-        <div className="traveler-quote-actions">
-          {quoteActionError && (
-            <p className="traveler-action-error" role="alert">
-              {quoteActionError}
-            </p>
-          )}
-          <button type="button" className="primary-button" disabled={quoteActionsDisabled} onClick={() => onAcceptQuote(quote)}>
-            {quoteActionPending === "accept" ? <LoaderCircle className="rotating" size={18} /> : <Check size={18} />}
-            {quoteActionPending === "accept" ? "Acceptation…" : "Accepter la proposition"}
-          </button>
-          <button type="button" className="traveler-reject-button" disabled={quoteActionsDisabled} onClick={() => onRejectQuote(quote)}>
-            {quoteActionPending === "reject" ? <LoaderCircle className="rotating" size={18} /> : <X size={18} />}
-            {quoteActionPending === "reject" ? "Refus…" : "Refuser"}
-          </button>
-        </div>
-      )}
-
-      {showsSupplierPaymentCta && quote?.providerPaymentUrl && (
-        <div className="traveler-need-request-action">
-          <a className="primary-button" href={quote.providerPaymentUrl} target="_blank" rel="noopener noreferrer">
-            <CreditCard size={18} /> {SUPPLIER_PAYMENT_CTA_LABEL}
-          </a>
-          <p className="traveler-provider-payment-hint">{SUPPLIER_PAYMENT_DISCLAIMER}</p>
-        </div>
-      )}
-
-      {showsSupplierPaymentLinkPendingMessage && (
-        <p className="traveler-provider-payment-hint">
-          Le paiement auprès du fournisseur est nécessaire. Votre conseiller prépare actuellement le lien de paiement.
-        </p>
-      )}
-
-      {showsBookingReference && (
-        <div className="traveler-booking-reference">
-          <span>Référence de réservation</span>
-          <strong>{need.providerConfirmationId}</strong>
-        </div>
-      )}
     </article>
   );
 }
