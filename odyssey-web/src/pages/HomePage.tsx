@@ -7,6 +7,7 @@ import { ExperienceCard } from "../components/experience/ExperienceCard";
 import type { Experience } from "../types/experience";
 import odysseyLogo from "../assets/odyssey-bird.png";
 import tortuesImage from "../assets/tortues.png";
+import plumesImage from "../assets/plumes.png";
 const categoryCards = [
   { category: "CULTURE", label: "Culture & patrimoine", accent: "green" },
   { category: "FOOD", label: "Gastronomie & saveurs", accent: "yellow" },
@@ -238,7 +239,7 @@ export function HomePage() {
             </p>
           </div>
 
-          <img className="public-editorial__plumes" src="/src/assets/plumes.png" alt="" aria-hidden="true" />
+          <img className="public-editorial__plumes" src={plumesImage} alt="" aria-hidden="true" />
         </section>
 
         <section className="public-section public-section--why">
