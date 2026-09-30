@@ -173,7 +173,7 @@ export function TravelerDiscoverPage() {
               </span>
             </h1>
             <p className="traveler-discover-hero__description">
-              Décrivez une envie, une ambiance ou quelque chose que vous aimeriez découvrir. Je vous propose des expériences adaptées.
+              Décrivez une envie, une ambiance ou quelque chose que vous aimeriez découvrir. Nous vous proposons des expériences adaptées.
             </p>
 
             <form className="traveler-discover-hero__search" onSubmit={(event) => void handleInspirationSubmit(event)}>

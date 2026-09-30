@@ -139,7 +139,7 @@ export function HomePage() {
                 <br />
                 <span>ressemble.</span>
               </h1>
-              <p>Culture, gastronomie, aventure, musique... Découvrez des expériences uniques et créez des souvenirs inoubliables.</p>
+              <p>Culture, gastronomie, aventure, musique... Laissez nous vous assister dans la planification de vos voyages.</p>
 
               <form className="public-hero__search" onSubmit={handleHeroSubmit}>
                 <input
