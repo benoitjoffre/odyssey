@@ -6,13 +6,32 @@ import { experienceCategoryLabels } from "../../helpers/experienceCategories";
 import { getExperienceImageUrl } from "../../helpers/experienceImage";
 import type { Experience } from "../../types/experience";
 
+type ExperienceCardInput = {
+  id: number;
+  title: string;
+  description: string;
+  category: Experience["category"];
+  durationDays: number;
+  destination?: Experience["destination"] | string | null;
+  imageUrl?: string | null;
+};
+
 interface ExperienceCardProps {
-  experience: Experience;
+  experience: ExperienceCardInput;
 }
 
-function getDestinationLabel(destination: Experience["destination"] | null | undefined): string {
+function getDestinationLabel(destination: Experience["destination"] | string | null | undefined): string {
   if (!destination) {
     return "Destination à confirmer";
+  }
+
+  if (typeof destination === "string") {
+    const trimmed = destination.trim();
+    if (!trimmed) {
+      return "Destination à confirmer";
+    }
+
+    return trimmed;
   }
 
   const city = destination.city?.trim();
