@@ -17,6 +17,8 @@ public record CreateExperienceRequest(
     ExperienceCategory category,
 
     @NotNull
-    Number durationDays
+    Number durationDays,
+
+    String imageUrl
 ) {
 }

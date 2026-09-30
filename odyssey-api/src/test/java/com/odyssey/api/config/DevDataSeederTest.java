@@ -125,6 +125,18 @@ class DevDataSeederTest {
     }
 
     @Test
+    void seededExperiencesHaveRealisticImageUrls() {
+        seeder.run();
+
+        assertFalse(experiences.isEmpty());
+        experiences.values().forEach(experience -> {
+            assertNotNull(experience.getImageUrl());
+            assertFalse(experience.getImageUrl().isBlank());
+            assertFalse(experience.getImageUrl().contains("src/assets"));
+        });
+    }
+
+    @Test
     void seededExperiencesUseDestinationRelationAndDoNotUseLegacyDestination() {
         seeder.run();
 

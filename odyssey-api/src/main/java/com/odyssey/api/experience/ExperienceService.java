@@ -60,7 +60,8 @@ public class ExperienceService {
         experience.getDescription(),
         experience.getCategory(),
         toDestinationResponse(experience),
-        experience.getDurationDays()
+        experience.getDurationDays(),
+        experience.getImageUrl()
     );
 }
 
@@ -78,6 +79,7 @@ public ExperienceResponse createExperience(CreateExperienceRequest request) {
       experience.setLegacyDestination(destination.getCity());
     experience.setCategory(request.category());
     experience.setDurationDays(request.durationDays());
+    experience.setImageUrl(request.imageUrl());
 
     Experience savedExperience = experienceRepository.save(experience);
     return toResponse(savedExperience);
@@ -154,6 +156,7 @@ public ExperienceResponse createExperience(CreateExperienceRequest request) {
     experience.setLegacyDestination(destination.getCity());
     experience.setCategory(request.category());
     experience.setDurationDays(request.durationDays());
+    experience.setImageUrl(request.imageUrl());
 
     Experience savedExperience = experienceRepository.save(experience);
 

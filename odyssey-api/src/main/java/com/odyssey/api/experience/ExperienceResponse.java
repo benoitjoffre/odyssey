@@ -8,6 +8,7 @@ public record ExperienceResponse(
     String description,
     ExperienceCategory category,
     DestinationResponse destination,
-    Number durationDays
+    Number durationDays,
+    String imageUrl
 ) {
 }

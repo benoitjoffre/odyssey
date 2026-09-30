@@ -24,6 +24,24 @@ public class DevDataSeeder implements CommandLineRunner {
 
     private static final Logger logger = LoggerFactory.getLogger(DevDataSeeder.class);
 
+    private static final String DEFAULT_FOOD_IMAGE = "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=80";
+    private static final String DEFAULT_CULTURE_IMAGE = "https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=1200&q=80";
+    private static final String DEFAULT_ADVENTURE_IMAGE = "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80";
+    private static final String DEFAULT_DANCE_IMAGE = "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?auto=format&fit=crop&w=1200&q=80";
+
+    private static final java.util.Map<String, String> EXPERIENCE_IMAGE_URLS = java.util.Map.ofEntries(
+        java.util.Map.entry("Bordeaux entre vignobles et gastronomie", "https://images.unsplash.com/photo-1506377247377-2a5b3b417ebb?auto=format&fit=crop&w=1200&q=80"),
+        java.util.Map.entry("Carcassonne, voyage au cœur du Moyen Âge", "https://images.unsplash.com/photo-1467269204594-9661b134dd2b?auto=format&fit=crop&w=1200&q=80"),
+        java.util.Map.entry("Aventure dans les Pyrénées", "https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=1200&q=80"),
+        java.util.Map.entry("Barcelone entre architecture et tapas", "https://images.unsplash.com/photo-1583422409516-2895a77efded?auto=format&fit=crop&w=1200&q=80"),
+        java.util.Map.entry("Séville au rythme du flamenco", "https://images.unsplash.com/photo-1516483638261-f4dbaf036963?auto=format&fit=crop&w=1200&q=80"),
+        java.util.Map.entry("Aventure dans les Pyrénées aragonaises", "https://images.unsplash.com/photo-1470770841072-f978cf4d019e?auto=format&fit=crop&w=1200&q=80"),
+        java.util.Map.entry("Immersion Salsa", "https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?auto=format&fit=crop&w=1200&q=80"),
+        java.util.Map.entry("Immersion Salsa à Cuba", "https://images.unsplash.com/photo-1523906834658-6e24ef2386f9?auto=format&fit=crop&w=1200&q=80"),
+        java.util.Map.entry("Découverte culturelle de Cuba", "https://images.unsplash.com/photo-1514565131-fce0801e5785?auto=format&fit=crop&w=1200&q=80"),
+        java.util.Map.entry("Stage de danse à Barcelone", "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?auto=format&fit=crop&w=1200&q=80")
+    );
+
     private final DestinationRepository destinationRepository;
     private final ExperienceRepository experienceRepository;
     private final TravelEventRepository travelEventRepository;
@@ -243,18 +261,42 @@ public class DevDataSeeder implements CommandLineRunner {
         ExperienceCategory category,
         Number durationDays
     ) {
+        String imageUrl = imageUrlFor(title, category);
+
         return experienceRepository
             .findByTitleIgnoreCase(title)
             .map(experience -> {
+                boolean needsUpdate = false;
+
                 if (experience.getDestinationEntity() == null) {
                     experience.setDestination(destination);
-                    if (experience.getLegacyDestination() == null) {
-                        experience.setLegacyDestination(null);
-                    }
+                    needsUpdate = true;
+                }
+
+                if (experience.getLegacyDestination() != null) {
+                    experience.setLegacyDestination(null);
+                    needsUpdate = true;
+                }
+
+                if (experience.getCategory() != category) {
                     experience.setCategory(category);
+                    needsUpdate = true;
+                }
+
+                if (experience.getDurationDays() == null || !experience.getDurationDays().equals(durationDays)) {
                     experience.setDurationDays(durationDays);
+                    needsUpdate = true;
+                }
+
+                if (experience.getImageUrl() == null || experience.getImageUrl().isBlank()) {
+                    experience.setImageUrl(imageUrl);
+                    needsUpdate = true;
+                }
+
+                if (needsUpdate) {
                     experienceRepository.save(experience);
                 }
+
                 return new SeededExperience(experience, false);
             })
             .orElseGet(() -> {
@@ -265,8 +307,19 @@ public class DevDataSeeder implements CommandLineRunner {
                 experience.setLegacyDestination(null);
                 experience.setCategory(category);
                 experience.setDurationDays(durationDays);
+                experience.setImageUrl(imageUrl);
                 return new SeededExperience(experienceRepository.save(experience), true);
             });
+    }
+
+    private String imageUrlFor(String title, ExperienceCategory category) {
+        return EXPERIENCE_IMAGE_URLS.getOrDefault(title, switch (category) {
+            case FOOD -> DEFAULT_FOOD_IMAGE;
+            case CULTURE -> DEFAULT_CULTURE_IMAGE;
+            case ADVENTURE -> DEFAULT_ADVENTURE_IMAGE;
+            case DANCE -> DEFAULT_DANCE_IMAGE;
+            default -> DEFAULT_CULTURE_IMAGE;
+        });
     }
 
     private int countCreated(SeededExperience seededExperience) {

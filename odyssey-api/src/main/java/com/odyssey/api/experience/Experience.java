@@ -18,6 +18,9 @@ public class Experience {
   @Column(name = "destination")
   private String legacyDestination;
 
+  @Column(name = "image_url")
+  private String imageUrl;
+
   @ManyToOne
   @JoinColumn(name = "destination_id")
   private Destination destination;
@@ -47,6 +50,10 @@ public class Experience {
     return legacyDestination;
   }
 
+  public String getImageUrl() {
+    return imageUrl;
+  }
+
   public String getDestination() {
     return legacyDestination;
   }
@@ -73,6 +80,10 @@ public class Experience {
 
   public void setLegacyDestination(String legacyDestination) {
     this.legacyDestination = legacyDestination;
+  }
+
+  public void setImageUrl(String imageUrl) {
+    this.imageUrl = imageUrl;
   }
 
   public void setDestination(Destination destination) {

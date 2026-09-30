@@ -128,7 +128,8 @@ class ExperienceServiceTest {
             "Experience culture et gastronomie",
             4L,
             ExperienceCategory.CULTURE,
-            4
+            4,
+            "https://cdn.example.com/barcelona.jpg"
         );
 
         ExperienceResponse response = experienceService.createExperience(request);
@@ -137,6 +138,7 @@ class ExperienceServiceTest {
         assertEquals(4L, response.destination().id());
         assertEquals("Barcelona", response.destination().city());
         assertEquals("ES", response.destination().countryCode());
+        assertEquals("https://cdn.example.com/barcelona.jpg", response.imageUrl());
     }
 
     @Test
@@ -148,7 +150,8 @@ class ExperienceServiceTest {
             "Desc",
             99L,
             ExperienceCategory.CULTURE,
-            3
+            3,
+            null
         );
 
         ResourceNotFoundException exception = assertThrows(
