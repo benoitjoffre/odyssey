@@ -5,7 +5,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { getExperiences } from "../api/experiences";
 import { ExperienceCard } from "../components/experience/ExperienceCard";
 import type { Experience } from "../types/experience";
-
+import odysseyLogo from "../assets/odyssey-bird.png";
 const categoryCards = [
   { category: "CULTURE", label: "Culture & patrimoine", accent: "green" },
   { category: "FOOD", label: "Gastronomie & saveurs", accent: "yellow" },
@@ -89,7 +89,7 @@ export function HomePage() {
       <header className={`public-header${isHeaderScrolled ? " is-scrolled" : ""}`}>
         <div className="public-header__inner">
           <Link className="public-brand" to="/" aria-label="Odyssey, accueil">
-            <img src="/src/assets/logo.png" alt="Odyssey" className="public-brand__logo" />
+            <img src={odysseyLogo} alt="Odyssey" className="public-brand__logo" />
           </Link>
 
           <nav className="public-nav" aria-label="Navigation principale">
