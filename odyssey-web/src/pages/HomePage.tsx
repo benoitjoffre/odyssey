@@ -280,7 +280,7 @@ export function HomePage() {
         <footer className="public-final-footer">
           <div className="public-final-footer__inner">
             <div className="public-final-footer__brand">
-              <img src="/src/assets/logo.png" alt="Odyssey" className="public-final-footer__logo" />
+              <img src={odysseyLogo} alt="Odyssey" className="public-final-footer__logo" />
               <p>Des voyages pensés pour vivre autrement.</p>
             </div>
 
