@@ -41,7 +41,7 @@ export function AgentEventsPage() {
   async function handleDeleteEvent(travelEvent: TravelEvent) {
     if (deletingId !== null) return;
 
-    const confirmed = window.confirm(`Supprimer l'événement \"${travelEvent.name}\" ?`);
+    const confirmed = window.confirm(`Supprimer l'événement "${travelEvent.name}" ?`);
     if (!confirmed) return;
 
     setDeletingId(travelEvent.id);

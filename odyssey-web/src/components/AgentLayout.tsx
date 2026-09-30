@@ -8,6 +8,7 @@ const navigation = [
   { label: "Demandes", to: "/agent/booking-requests", icon: Bell },
   { label: "Propositions", to: "/agent/quotes", icon: FileText },
   { label: "Expériences", to: "/agent/experiences", icon: Sparkles },
+  { label: "Destinations", to: "/agent/destinations", icon: MapPin },
   { label: "Événements", to: "/agent/events", icon: CalendarRange },
 ];
 

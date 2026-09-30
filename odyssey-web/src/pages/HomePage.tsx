@@ -236,7 +236,7 @@ export function HomePage() {
                     <div className="public-experience-body">
                       <div className="public-experience-meta">
                         <span>
-                          <MapPin size={15} /> {experience.destination}
+                          <MapPin size={15} /> {experience.destination.city}, {experience.destination.country}
                         </span>
                         <span>
                           <CalendarDays size={15} /> {experience.durationDays} jours

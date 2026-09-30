@@ -1,8 +1,10 @@
-import { useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ArrowLeft, LoaderCircle, Sparkles } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
+import { getDestinations } from "../../api/destinations";
 import { createExperience } from "../../api/experiences";
 import { experienceCategoryLabels } from "../../helpers/experienceCategories";
+import type { Destination } from "../../types/destination";
 import type { ExperienceCategory } from "../../types/intent";
 
 const categories = Object.entries(experienceCategoryLabels) as Array<[ExperienceCategory, string]>;
@@ -11,19 +13,45 @@ export function AgentExperienceCreatePage() {
   const navigate = useNavigate();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [destination, setDestination] = useState("");
+  const [destinationId, setDestinationId] = useState("");
+  const [destinations, setDestinations] = useState<Destination[]>([]);
   const [category, setCategory] = useState<ExperienceCategory | "">("");
   const [durationDays, setDurationDays] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [loadingDestinations, setLoadingDestinations] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const submittingRef = useRef(false);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function loadDestinations() {
+      try {
+        setLoadingDestinations(true);
+        setDestinations(await getDestinations(controller.signal));
+      } catch (requestError: unknown) {
+        if (requestError instanceof DOMException && requestError.name === "AbortError") return;
+        setError("Impossible de charger les destinations pour le moment.");
+      } finally {
+        if (!controller.signal.aborted) setLoadingDestinations(false);
+      }
+    }
+
+    void loadDestinations();
+    return () => controller.abort();
+  }, []);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (submittingRef.current) return;
     const parsedDuration = Number(durationDays);
-    if (!title.trim() || !description.trim() || !destination.trim() || !category || !durationDays) {
+    const parsedDestinationId = Number(destinationId);
+    if (!title.trim() || !description.trim() || !destinationId || !category || !durationDays) {
       setError("Tous les champs sont obligatoires.");
+      return;
+    }
+    if (!Number.isInteger(parsedDestinationId) || parsedDestinationId <= 0) {
+      setError("Veuillez sélectionner une destination.");
       return;
     }
     if (!Number.isFinite(parsedDuration) || parsedDuration <= 0) {
@@ -38,7 +66,7 @@ export function AgentExperienceCreatePage() {
       await createExperience({
         title: title.trim(),
         description: description.trim(),
-        destination: destination.trim(),
+        destinationId: parsedDestinationId,
         category,
         durationDays: parsedDuration,
       });
@@ -82,14 +110,21 @@ export function AgentExperienceCreatePage() {
           </label>
           <label className="form-field">
             <span>Destination *</span>
-            <input
-              value={destination}
+            <select
+              value={destinationId}
               onChange={(event) => {
-                setDestination(event.target.value);
+                setDestinationId(event.target.value);
                 setError(null);
               }}
-              disabled={submitting}
-            />
+              disabled={submitting || loadingDestinations || destinations.length === 0}
+            >
+              <option value="">{loadingDestinations ? "Chargement…" : "Sélectionner une destination"}</option>
+              {destinations.map((destination) => (
+                <option value={destination.id} key={destination.id}>
+                  {destination.city}, {destination.country}
+                </option>
+              ))}
+            </select>
           </label>
           <label className="form-field">
             <span>Catégorie *</span>
@@ -140,7 +175,11 @@ export function AgentExperienceCreatePage() {
               {error}
             </p>
           )}
-          <button type="submit" className="primary-button agent-admin-submit" disabled={submitting}>
+          <button
+            type="submit"
+            className="primary-button agent-admin-submit"
+            disabled={submitting || loadingDestinations || destinations.length === 0}
+          >
             {submitting ? <LoaderCircle className="rotating" size={18} /> : <Sparkles size={18} />}
             {submitting ? "Création…" : "Créer l’expérience"}
           </button>

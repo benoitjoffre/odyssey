@@ -8,6 +8,7 @@ import { CurrentUserProvider } from "./auth/CurrentUserProvider";
 import { useCurrentUser } from "./auth/useCurrentUser";
 import { AgentDashboardPage } from "./pages/AgentDashboardPage";
 import { AgentEventCreatePage } from "./pages/agent/AgentEventCreatePage";
+import { AgentDestinationsPage } from "./pages/agent/AgentDestinationsPage";
 import { AgentEventsPage } from "./pages/agent/AgentEventsPage";
 import { AgentExperienceCreatePage } from "./pages/agent/AgentExperienceCreatePage";
 import { AgentExperiencesPage } from "./pages/agent/AgentExperiencesPage";
@@ -112,6 +113,7 @@ function App() {
           <Route path="quotes" element={<ComingSoonPage title="Propositions" />} />
           <Route path="experiences" element={<AgentExperiencesPage />} />
           <Route path="experiences/new" element={<AgentExperienceCreatePage />} />
+          <Route path="destinations" element={<AgentDestinationsPage />} />
           <Route path="events" element={<AgentEventsPage />} />
           <Route path="events/new" element={<AgentEventCreatePage />} />
         </Route>

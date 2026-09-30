@@ -34,7 +34,7 @@ export function AgentExperiencesPage() {
   async function handleDeleteExperience(experience: Experience) {
     if (deletingId !== null) return;
 
-    const confirmed = window.confirm(`Supprimer l'expérience \"${experience.title}\" ?`);
+    const confirmed = window.confirm(`Supprimer l'expérience "${experience.title}" ?`);
     if (!confirmed) return;
 
     setDeletingId(experience.id);
@@ -99,7 +99,7 @@ export function AgentExperiencesPage() {
               <p>{experience.description}</p>
               <div className="agent-catalog-meta">
                 <span>
-                  <MapPin size={16} /> {experience.destination}
+                  <MapPin size={16} /> {experience.destination.city}, {experience.destination.country}
                 </span>
                 <span>
                   <CalendarDays size={16} /> {experience.durationDays} jours
