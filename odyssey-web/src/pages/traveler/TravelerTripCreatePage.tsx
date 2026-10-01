@@ -1,7 +1,8 @@
 import { useRef, useState, type FormEvent } from "react";
-import { ArrowLeft, CalendarDays, LoaderCircle, Luggage, Sparkles } from "lucide-react";
+import { ArrowLeft, CalendarDays, LoaderCircle, Luggage } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { createTrip } from "../../api/trips";
+import backgroundCreate from "../../assets/background-create.png";
 
 export function TravelerTripCreatePage() {
   const navigate = useNavigate();
@@ -46,83 +47,108 @@ export function TravelerTripCreatePage() {
   }
 
   return (
-    <div className="traveler-page">
-      <Link className="back-link" to="/traveler/discover">
-        <ArrowLeft size={17} /> Retour aux choix de voyage
-      </Link>
+    <div className="traveler-page trip-create-page">
+      <div className="trip-create-card">
+        <Link className="trip-create-back" to="/traveler/discover">
+          <ArrowLeft size={17} /> Retour aux choix de voyage
+        </Link>
 
-      <section className="traveler-direct-trip-intro">
-        <span className="traveler-direct-trip-icon">
-          <Luggage size={24} />
-        </span>
-        <div>
-          <span className="eyebrow">Vous savez déjà où partir</span>
-          <h1>Organiser un voyage</h1>
-          <p>Créez votre voyage avec vos dates, puis ajoutez les services dont vous avez besoin.</p>
+        <div className="trip-create-page__container">
+          <section className="trip-create-form-panel" aria-labelledby="trip-create-form-title">
+            <div className="trip-create-intro">
+              <div className="trip-create-intro__icon" aria-hidden="true">
+                <Luggage size={24} />
+              </div>
+              <div className="trip-create-intro__content">
+                <div className="trip-create-intro__eyebrow">ORGANISER VOTRE VOYAGE</div>
+                <h1 id="trip-create-form-title">
+                  Où partez-vous <span className="trip-create-intro__title-tail">prochainement&nbsp;?</span>
+                </h1>
+                <p>Donnez un nom à votre voyage et indiquez vos dates. Odyssey vous accompagnera ensuite pour organiser chaque étape.</p>
+              </div>
+            </div>
+
+            <form className="trip-create-form" onSubmit={(event) => void handleSubmit(event)} noValidate>
+              <label className="trip-create-form__field trip-create-form__field--full">
+                <span>Titre du voyage *</span>
+                <input
+                  value={title}
+                  onChange={(event) => {
+                    setTitle(event.target.value);
+                    setError(null);
+                  }}
+                  placeholder="Ex. Une semaine à Lisbonne"
+                  disabled={submitting}
+                  required
+                />
+              </label>
+
+              <div className="trip-create-form__dates">
+                <label className="trip-create-form__field">
+                  <span>Date de début *</span>
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(event) => {
+                      setStartDate(event.target.value);
+                      setError(null);
+                    }}
+                    disabled={submitting}
+                    required
+                  />
+                </label>
+
+                <label className="trip-create-form__field">
+                  <span>Date de fin *</span>
+                  <input
+                    type="date"
+                    value={endDate}
+                    min={startDate || undefined}
+                    onChange={(event) => {
+                      setEndDate(event.target.value);
+                      setError(null);
+                    }}
+                    disabled={submitting}
+                    required
+                  />
+                </label>
+              </div>
+
+              {error && (
+                <p className="traveler-form-error" role="alert">
+                  {error}
+                </p>
+              )}
+
+              <button type="submit" className="primary-button trip-create-form__submit" disabled={submitting}>
+                {submitting ? <LoaderCircle className="rotating" size={18} /> : null}
+                {submitting ? "Création du voyage…" : "Créer mon voyage"}
+              </button>
+
+              <div className="trip-create-info-panel" aria-label="Et après ?">
+                <span className="trip-create-info-panel__icon" aria-hidden="true">
+                  <CalendarDays size={18} />
+                </span>
+                <div className="trip-create-info-panel__content">
+                  <strong>Et après ?</strong>
+                  <p>
+                    Vous pourrez ensuite ajouter votre vol, votre hébergement, vos transferts, une voiture de location et d&apos;autres services selon
+                    vos besoins.
+                  </p>
+                </div>
+              </div>
+            </form>
+          </section>
+
+          <div
+            className="trip-create-visual"
+            aria-hidden="true"
+            style={{
+              backgroundImage: `url(${backgroundCreate})`,
+            }}
+          />
         </div>
-      </section>
-
-      <section className="traveler-direct-trip-form-card" aria-labelledby="direct-trip-form-title">
-        <div className="traveler-direct-trip-form-heading">
-          <CalendarDays size={21} />
-          <div>
-            <h2 id="direct-trip-form-title">Votre voyage</h2>
-            <p>Vous pourrez organiser le vol et l’hébergement dès l’étape suivante.</p>
-          </div>
-        </div>
-
-        <form className="traveler-direct-trip-form" onSubmit={(event) => void handleSubmit(event)} noValidate>
-          <label className="form-field form-field-wide">
-            <span>Titre du voyage *</span>
-            <input
-              value={title}
-              onChange={(event) => {
-                setTitle(event.target.value);
-                setError(null);
-              }}
-              placeholder="Ex. Une semaine à Lisbonne"
-              disabled={submitting}
-              required
-            />
-          </label>
-          <label className="form-field">
-            <span>Date de début *</span>
-            <input
-              type="date"
-              value={startDate}
-              onChange={(event) => {
-                setStartDate(event.target.value);
-                setError(null);
-              }}
-              disabled={submitting}
-              required
-            />
-          </label>
-          <label className="form-field">
-            <span>Date de fin *</span>
-            <input
-              type="date"
-              value={endDate}
-              min={startDate || undefined}
-              onChange={(event) => {
-                setEndDate(event.target.value);
-                setError(null);
-              }}
-              disabled={submitting}
-              required
-            />
-          </label>
-          {error && (
-            <p className="traveler-form-error" role="alert">
-              {error}
-            </p>
-          )}
-          <button type="submit" className="primary-button traveler-create-trip" disabled={submitting}>
-            {submitting ? <LoaderCircle className="rotating" size={18} /> : <Sparkles size={18} />}
-            {submitting ? "Création du voyage…" : "Créer mon voyage"}
-          </button>
-        </form>
-      </section>
+      </div>
     </div>
   );
 }
