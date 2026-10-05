@@ -185,6 +185,65 @@ class TripServiceTest {
     }
 
     @Test
+    void updateAssistanceFeeAllowsWhenNoPaymentExists() {
+        when(tripRepository.findById(10L)).thenReturn(Optional.of(tripA));
+        when(paymentRepository.findFirstByTripIdOrderByCreatedAtDesc(10L)).thenReturn(Optional.empty());
+
+        TripResponse response = tripService.updateAssistanceFee(10L, new java.math.BigDecimal("150"));
+
+        assertEquals(new java.math.BigDecimal("150"), response.assistanceFee());
+        assertEquals(new java.math.BigDecimal("150"), tripA.getAssistanceFee());
+    }
+
+    @Test
+    void updateAssistanceFeeAllowsWhenLatestPaymentFailed() {
+        when(tripRepository.findById(10L)).thenReturn(Optional.of(tripA));
+
+        Payment failedPayment = new Payment();
+        failedPayment.setStatus(PaymentStatus.FAILED);
+        when(paymentRepository.findFirstByTripIdOrderByCreatedAtDesc(10L)).thenReturn(Optional.of(failedPayment));
+
+        TripResponse response = tripService.updateAssistanceFee(10L, new java.math.BigDecimal("180"));
+
+        assertEquals(new java.math.BigDecimal("180"), response.assistanceFee());
+        assertEquals(new java.math.BigDecimal("180"), tripA.getAssistanceFee());
+    }
+
+    @Test
+    void updateAssistanceFeeRejectsWhenLatestPaymentIsPending() {
+        when(tripRepository.findById(10L)).thenReturn(Optional.of(tripA));
+
+        Payment pendingPayment = new Payment();
+        pendingPayment.setStatus(PaymentStatus.PENDING);
+        when(paymentRepository.findFirstByTripIdOrderByCreatedAtDesc(10L)).thenReturn(Optional.of(pendingPayment));
+
+        IllegalStateException exception = assertThrows(
+            IllegalStateException.class,
+            () -> tripService.updateAssistanceFee(10L, new java.math.BigDecimal("200"))
+        );
+
+        assertEquals("Trip assistance fee cannot be modified while a payment is pending or paid", exception.getMessage());
+        assertEquals(new java.math.BigDecimal("0"), tripA.getAssistanceFee());
+    }
+
+    @Test
+    void updateAssistanceFeeRejectsWhenLatestPaymentIsPaid() {
+        when(tripRepository.findById(10L)).thenReturn(Optional.of(tripA));
+
+        Payment paidPayment = new Payment();
+        paidPayment.setStatus(PaymentStatus.PAID);
+        when(paymentRepository.findFirstByTripIdOrderByCreatedAtDesc(10L)).thenReturn(Optional.of(paidPayment));
+
+        IllegalStateException exception = assertThrows(
+            IllegalStateException.class,
+            () -> tripService.updateAssistanceFee(10L, new java.math.BigDecimal("220"))
+        );
+
+        assertEquals("Trip assistance fee cannot be modified while a payment is pending or paid", exception.getMessage());
+        assertEquals(new java.math.BigDecimal("0"), tripA.getAssistanceFee());
+    }
+
+    @Test
     void createTripUsesAuthenticatedTraveler() {
         mockTravelerA();
         CreateTripRequest request = new CreateTripRequest(

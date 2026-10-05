@@ -140,6 +140,16 @@ public class TripService {
         Trip trip = tripRepository.findById(tripId)
             .orElseThrow(() -> new ResourceNotFoundException("Trip not found"));
 
+        paymentRepository.findFirstByTripIdOrderByCreatedAtDesc(tripId)
+            .ifPresent(payment -> {
+                PaymentStatus status = payment.getStatus();
+                if (status == PaymentStatus.PENDING || status == PaymentStatus.PAID) {
+                    throw new IllegalStateException(
+                        "Trip assistance fee cannot be modified while a payment is pending or paid"
+                    );
+                }
+            });
+
         trip.setAssistanceFee(assistanceFee);
         tripRepository.save(trip);
 

@@ -264,6 +264,36 @@ class PaymentServiceTest {
     }
 
     @Test
+    void createCheckoutSessionUsesCurrentTripAssistanceFeeWhenRetryingAfterFailure() {
+
+        Trip trip = confirmedTrip();
+        trip.setAssistanceFee(BigDecimal.valueOf(180));
+        when(tripRepository.findByIdForUpdate(TRIP_ID)).thenReturn(Optional.of(trip));
+        stubTripAsCheckoutEligible();
+
+        Payment failedPayment = new Payment();
+        ReflectionTestUtils.setField(failedPayment, "id", 77L);
+        failedPayment.setStatus(PaymentStatus.FAILED);
+        failedPayment.setCheckoutAttempt(1);
+        failedPayment.setStripeCheckoutSessionId("cs_test_old_failed");
+        failedPayment.setAssistanceFee(BigDecimal.valueOf(100));
+        when(paymentRepository.findFirstByTripIdOrderByCreatedAtDesc(TRIP_ID))
+            .thenReturn(Optional.of(failedPayment));
+        when(paymentRepository.save(any(Payment.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+        when(stripeGateway.createCheckoutSession(any(StripeCheckoutSessionRequest.class)))
+            .thenReturn(new StripeCheckoutSession("cs_test_new", "https://checkout.stripe.com/test-session-retry"));
+
+        paymentService.createCheckoutSession(TRIP_ID, TRAVELER_ID);
+
+        assertEquals(BigDecimal.valueOf(180), failedPayment.getAssistanceFee());
+        ArgumentCaptor<StripeCheckoutSessionRequest> requestCaptor =
+            ArgumentCaptor.forClass(StripeCheckoutSessionRequest.class);
+        verify(stripeGateway).createCheckoutSession(requestCaptor.capture());
+        assertEquals(18000L, requestCaptor.getValue().amountInSmallestCurrencyUnit());
+    }
+
+    @Test
     void createCheckoutSessionMarksPaymentFailedAndRethrowsWhenStripeCallFails() {
 
         Trip trip = confirmedTrip();
