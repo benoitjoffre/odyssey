@@ -1133,6 +1133,10 @@ h2 {
   color: #075f57;
   background: #dff2ed;
 }
+.status-rejected {
+  color: #8b3d35;
+  background: #f9e5e2;
+}
 .status-completed {
   color: #28643e;
   background: #e1f2e6;

@@ -35,6 +35,14 @@ const statusLabels: Record<BookingRequestStatus, string> = {
   CANCELLED: "Annulée",
 };
 
+const quoteStatusLabels: Record<string, string> = {
+  DRAFT: "Brouillon",
+  SENT: "Envoyé",
+  ACCEPTED: "Accepté",
+  REJECTED: "Refusé",
+  EXPIRED: "Expiré",
+};
+
 const needTypeLabels: Record<NeedType, string> = {
   ACCOMMODATION: "Hébergement",
   FLIGHT: "Vol",
@@ -297,6 +305,8 @@ export function BookingRequestPage() {
   const canSearchOffers = bookingRequest.status === "IN_PROGRESS" && bookingRequest.assignedAgentId !== null;
   const rejectedQuotes = agentQuotes.filter((quote) => quote.status === "REJECTED");
   const latestRejectedQuote = rejectedQuotes[0] ?? null;
+  const displayRequestStatus = latestRejectedQuote ? "REJECTED" : bookingRequest.status;
+  const displayRequestStatusLabel = latestRejectedQuote ? quoteStatusLabels.REJECTED : statusLabels[bookingRequest.status];
 
   return (
     <div className="page-stack booking-request-page">
@@ -309,7 +319,7 @@ export function BookingRequestPage() {
           <span className="eyebrow">Détail de la demande</span>
           <div className="title-with-status">
             <h1>Demande #{bookingRequest.id}</h1>
-            <span className={`request-status status-${bookingRequest.status.toLowerCase()}`}>{statusLabels[bookingRequest.status]}</span>
+            <span className={`request-status status-${displayRequestStatus.toLowerCase()}`}>{displayRequestStatusLabel}</span>
           </div>
           {bookingRequest.notes && <p>{bookingRequest.notes}</p>}
         </div>

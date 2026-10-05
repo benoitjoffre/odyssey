@@ -352,9 +352,12 @@ export function AgentBookingRequestsPage() {
                   {group.requests.map((request) => {
                     const presentation = needPresentation[request.need.type];
                     const NeedIcon = presentation.icon;
-                    const currentQuote = getCurrentAgentQuote(quotesByRequestId[request.id]);
+                    const allQuotes = quotesByRequestId[request.id] ?? [];
+                    const currentQuote = getCurrentAgentQuote(allQuotes);
+                    const rejectedQuote = allQuotes.find((quote) => quote.status === "REJECTED") ?? null;
                     const currentBooking = currentQuote ? (bookingsByQuoteId[currentQuote.id] ?? null) : null;
                     const canCreateBooking = currentQuote?.status === "ACCEPTED" && currentBooking === null;
+                    const displayStatusKey = rejectedQuote ? "REJECTED" : (currentQuote?.status ?? request.status);
                     return (
                       <li key={request.id}>
                         <span className={`agent-request-type-icon ${request.need.type.toLowerCase()}`} aria-hidden="true">
@@ -369,8 +372,12 @@ export function AgentBookingRequestsPage() {
                           <span>Prix de l’offre</span>
                           <strong>{currentQuote ? formatPrice(currentQuote.providerPrice, currentQuote.currency) : "Offre à définir"}</strong>
                         </div>
-                        <span className={`request-status status-${(currentQuote?.status ?? request.status).toLowerCase()}`}>
-                          {currentQuote ? (quoteStatusLabels[currentQuote.status] ?? currentQuote.status) : statusLabels[request.status]}
+                        <span className={`request-status status-${displayStatusKey.toLowerCase()}`}>
+                          {displayStatusKey === "REJECTED"
+                            ? quoteStatusLabels.REJECTED
+                            : currentQuote
+                              ? quoteStatusLabels[currentQuote.status] ?? currentQuote.status
+                              : statusLabels[request.status]}
                         </span>
                         <div className="agent-request-actions">
                           <span>
