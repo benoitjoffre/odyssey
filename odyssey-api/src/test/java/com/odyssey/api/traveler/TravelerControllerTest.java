@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 import java.lang.reflect.Method;
 import java.lang.reflect.RecordComponent;
 import java.util.Arrays;
+import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -24,7 +25,8 @@ class TravelerControllerTest {
     @BeforeEach
     void setUp() {
         travelerService = mock(TravelerService.class);
-        travelerController = new TravelerController(travelerService);
+        TravelerNotificationSseService sseService = mock(TravelerNotificationSseService.class);
+        travelerController = new TravelerController(travelerService, sseService);
         jwt = mock(Jwt.class);
         when(jwt.getSubject()).thenReturn("auth0|traveler-a");
     }
@@ -46,6 +48,17 @@ class TravelerControllerTest {
 
         assertSame(expected, result);
         verify(travelerService).completeOnboarding("auth0|traveler-a", request);
+    }
+
+    @Test
+    void getNotificationsUsesAuthenticatedTravelerSubjectOnly() {
+        java.util.List<TravelerNotificationResponse> expected = List.of();
+        when(travelerService.getNotifications("auth0|traveler-a")).thenReturn(expected);
+
+        Object result = travelerController.getNotifications(jwt);
+
+        assertSame(expected, result);
+        verify(travelerService).getNotifications("auth0|traveler-a");
     }
 
     @Test

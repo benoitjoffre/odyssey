@@ -25,13 +25,24 @@ public class PaymentController {
         System.out.println("tripId = " + tripId);
         System.out.println("subject = " + jwt.getSubject());
         try {
-            return paymentService.createCheckoutSession(tripId, jwt.getSubject());
+            System.out.println("=== BEFORE PAYMENT SERVICE ===");
+
+            CheckoutSessionResponse response =
+                paymentService.createCheckoutSession(tripId, jwt.getSubject());
+
+            System.out.println("=== AFTER PAYMENT SERVICE ===");
+            System.out.println("response = " + response);
+            return response;
 
         } catch (IllegalArgumentException e) {
-            System.err.println("=== CHECKOUT ERROR ===");
-            System.err.println("tripId = " + tripId);
-            System.err.println("subject = " + jwt.getSubject());
-            System.err.println("error = " + e.getMessage());
+            System.err.println("=== CHECKOUT THROWABLE ===");
+            System.err.println(e.getClass().getName());
+            System.err.println(e.getMessage());
+
+            for (StackTraceElement element : e.getStackTrace()) {
+                System.err.println("  at " + element);
+            }
+
             throw e;
         }
     }

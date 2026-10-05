@@ -15,14 +15,22 @@ import java.util.List;
 @Service
 public class TravelerService {
     private final TravelerRepository travelerRepository;
+    private final TravelerNotificationRepository travelerNotificationRepository;
     private final OutboxEventRepository outboxEventRepository;
     private final ObjectMapper objectMapper;
-    
-    public TravelerService(TravelerRepository travelerRepository, OutboxEventRepository outboxEventRepository, ObjectMapper objectMapper) {
+
+    public TravelerService(
+        TravelerRepository travelerRepository,
+        TravelerNotificationRepository travelerNotificationRepository,
+        OutboxEventRepository outboxEventRepository,
+        ObjectMapper objectMapper
+    ) {
         this.travelerRepository = travelerRepository;
+        this.travelerNotificationRepository = travelerNotificationRepository;
         this.outboxEventRepository = outboxEventRepository;
         this.objectMapper = objectMapper;
     }
+
     public Traveler createTraveler(Traveler traveler) {
       return travelerRepository.save(traveler);
     }
@@ -31,13 +39,30 @@ public class TravelerService {
       return travelerRepository.findAll();
     }
 
+    public List<TravelerNotificationResponse> getNotifications(String auth0Subject) {
+        Traveler traveler = findTravelerByAuth0Subject(auth0Subject);
+        return travelerNotificationRepository
+            .findByTravelerIdOrderByCreatedAtDesc(traveler.getId())
+            .stream()
+            .map(TravelerNotificationResponse::from)
+            .toList();
+    }
+
+    public Traveler getTravelerByAuth0Subject(String auth0Subject) {
+        return findTravelerByAuth0Subject(auth0Subject);
+    }
+
+    private Traveler findTravelerByAuth0Subject(String auth0Subject) {
+        return travelerRepository.findByAuth0Subject(auth0Subject)
+            .orElseThrow(() -> new IllegalArgumentException("Traveler not found"));
+    }
+
     @Transactional
     public Traveler completeOnboarding(
     String auth0Subject,
     TravelerOnboardingRequest request
 ) {
-        Traveler traveler = travelerRepository.findByAuth0Subject(auth0Subject)
-                .orElseThrow(() -> new IllegalArgumentException("Traveler not found"));
+        Traveler traveler = findTravelerByAuth0Subject(auth0Subject);
         traveler.setFirstName(request.firstName());
         traveler.setLastName(request.lastName());
         traveler.setPhoneNumber(request.phoneNumber());
@@ -55,7 +80,7 @@ public class TravelerService {
 
         // Save the outbox event to the repository
         outboxEventRepository.save(outboxEvent);
-        
+
         return travelerRepository.save(traveler);
     }
 }

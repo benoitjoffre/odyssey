@@ -102,6 +102,12 @@ public class PaymentService {
         Long travelerId
     ) {
 
+        System.out.println(
+    "STRIPE SECRET KEY PRESENT = "
+    + (stripeProperties.getSecretKey() != null
+       && !stripeProperties.getSecretKey().isBlank())
+);
+
         if (stripeProperties.getSecretKey() == null || stripeProperties.getSecretKey().isBlank()) {
             throw new IllegalStateException(
                 "Stripe n'est pas configuré. Définissez STRIPE_SECRET_KEY côté backend."

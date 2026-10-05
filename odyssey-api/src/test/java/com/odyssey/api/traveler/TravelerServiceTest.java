@@ -43,8 +43,10 @@ class TravelerServiceTest {
 
     @BeforeEach
     void setUp() {
+        TravelerNotificationRepository notificationRepository = org.mockito.Mockito.mock(TravelerNotificationRepository.class);
         travelerService = new TravelerService(
             travelerRepository,
+            notificationRepository,
             outboxEventRepository,
             objectMapper
         );
