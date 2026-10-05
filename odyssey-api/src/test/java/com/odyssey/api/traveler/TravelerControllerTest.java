@@ -14,6 +14,7 @@ import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.oauth2.jwt.Jwt;
 
 class TravelerControllerTest {
@@ -90,6 +91,20 @@ class TravelerControllerTest {
                     || name.equalsIgnoreCase("auth0Subject")
                     || name.equalsIgnoreCase("id")),
             "TravelerOnboardingRequest must not allow the client to supply an identifier"
+        );
+    }
+
+    @Test
+    void completeOnboardingIsTravelerOnly() throws Exception {
+        Method method = TravelerController.class.getMethod(
+            "completeOnboarding",
+            Jwt.class,
+            TravelerOnboardingRequest.class
+        );
+
+        assertEquals(
+            "hasRole('TRAVELER')",
+            method.getAnnotation(PreAuthorize.class).value()
         );
     }
 }

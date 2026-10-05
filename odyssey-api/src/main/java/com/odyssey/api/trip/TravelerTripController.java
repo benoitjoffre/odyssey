@@ -1,5 +1,8 @@
 package com.odyssey.api.trip;
 
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -16,10 +19,12 @@ public class TravelerTripController {
         this.tripService = tripService;
     }
 
+    @PreAuthorize("hasRole('TRAVELER')")
     @GetMapping("/{travelerId}/trips")
     public List<TripResponse> getTravelerTrips(
-        @PathVariable Long travelerId
+        @PathVariable Long travelerId,
+        @AuthenticationPrincipal Jwt jwt
     ) {
-        return tripService.getTripsByTraveler(travelerId);
+        return tripService.getOwnedTripsByTravelerId(travelerId, jwt.getSubject());
     }
 }

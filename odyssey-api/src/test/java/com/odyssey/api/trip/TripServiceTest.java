@@ -185,6 +185,19 @@ class TripServiceTest {
     }
 
     @Test
+    void travelerCannotReadTripsByAnotherTravelerId() {
+        mockTravelerA();
+
+        ResourceNotFoundException exception = assertThrows(
+            ResourceNotFoundException.class,
+            () -> tripService.getOwnedTripsByTravelerId(2L, TRAVELER_A_SUBJECT)
+        );
+
+        assertEquals("Traveler not found", exception.getMessage());
+        verify(tripRepository, never()).findByTravelerIdOrderByStartDateDesc(any());
+    }
+
+    @Test
     void updateAssistanceFeeAllowsWhenNoPaymentExists() {
         when(tripRepository.findById(10L)).thenReturn(Optional.of(tripA));
         when(paymentRepository.findFirstByTripIdOrderByCreatedAtDesc(10L)).thenReturn(Optional.empty());

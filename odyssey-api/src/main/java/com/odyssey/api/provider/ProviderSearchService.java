@@ -1,7 +1,10 @@
 package com.odyssey.api.provider;
 
+import com.odyssey.api.agent.Agent;
+import com.odyssey.api.agent.AgentRepository;
 import com.odyssey.api.booking.BookingRequest;
 import com.odyssey.api.booking.BookingRequestRepository;
+import com.odyssey.api.exception.ResourceNotFoundException;
 import com.odyssey.api.need.accommodation.AccommodationCriteriaRepository;
 import com.odyssey.api.need.flight.FlightCriteriaRepository;
 import com.odyssey.api.provider.accommodation.AccommodationSearchRequest;
@@ -24,6 +27,7 @@ public class ProviderSearchService {
     private final AccommodationCriteriaRepository accommodationCriteriaRepository;
     private final TransferSearchService transferSearchService;
     private final TransferCriteriaRepository transferCriteriaRepository;
+        private final AgentRepository agentRepository;
 
     public ProviderSearchService(
             BookingRequestRepository bookingRequestRepository,
@@ -32,7 +36,8 @@ public class ProviderSearchService {
             FlightCriteriaRepository flightCriteriaRepository,
             AccommodationCriteriaRepository accommodationCriteriaRepository,
             TransferSearchService transferSearchService,
-            TransferCriteriaRepository transferCriteriaRepository
+                        TransferCriteriaRepository transferCriteriaRepository,
+                        AgentRepository agentRepository
     ) {
         this.bookingRequestRepository = bookingRequestRepository;
         this.flightSearchService = flightSearchService;
@@ -41,15 +46,30 @@ public class ProviderSearchService {
         this.accommodationCriteriaRepository = accommodationCriteriaRepository;
         this.transferSearchService = transferSearchService;
         this.transferCriteriaRepository = transferCriteriaRepository;
+                this.agentRepository = agentRepository;
     }
 
-    public List<? extends ProviderOffer> search(Long bookingRequestId) {
+        public List<? extends ProviderOffer> search(
+                Long bookingRequestId,
+                String auth0Subject
+        ) {
+
+                Agent agent = agentRepository
+                        .findByAuth0Subject(auth0Subject)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException("Agent not found")
+                        );
 
         BookingRequest bookingRequest = bookingRequestRepository
                 .findById(bookingRequestId)
                 .orElseThrow(() ->
-                        new RuntimeException("BookingRequest not found")
+                                                new ResourceNotFoundException("BookingRequest not found")
                 );
+
+                if (bookingRequest.getAssignedAgent() == null
+                        || !bookingRequest.getAssignedAgent().getId().equals(agent.getId())) {
+                        throw new ResourceNotFoundException("BookingRequest not found");
+                }
 
         var need = bookingRequest.getNeed();
         var trip = need.getTrip();
@@ -60,7 +80,7 @@ public class ProviderSearchService {
                 var flightCriteria = flightCriteriaRepository
                         .findByNeedId(need.getId())
                         .orElseThrow(() ->
-                                new RuntimeException("FlightCriteria not found")
+                                new ResourceNotFoundException("FlightCriteria not found")
                         );
 
                 yield flightSearchService.search(
@@ -78,7 +98,7 @@ public class ProviderSearchService {
                 var accommodationCriteria = accommodationCriteriaRepository
                         .findByNeedId(need.getId())
                         .orElseThrow(() ->
-                                new RuntimeException("AccommodationCriteria not found")
+                                new ResourceNotFoundException("AccommodationCriteria not found")
                         );
 
                 yield accommodationSearchService.search(
@@ -96,7 +116,7 @@ public class ProviderSearchService {
                 var transferCriteria = transferCriteriaRepository
                         .findByNeedId(need.getId())
                         .orElseThrow(() ->
-                                new RuntimeException("TransferCriteria not found")
+                                new ResourceNotFoundException("TransferCriteria not found")
                         );
 
                 yield transferSearchService.search(

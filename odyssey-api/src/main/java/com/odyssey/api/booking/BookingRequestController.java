@@ -27,12 +27,14 @@ public class BookingRequestController {
         this.quoteService = quoteService;
     }
 
+    @PreAuthorize("hasRole('TRAVELER')")
     @PostMapping
     public BookingRequestResponse createBookingRequest(
-        @Valid @RequestBody CreateBookingRequest request
+        @Valid @RequestBody CreateBookingRequest request,
+        @AuthenticationPrincipal Jwt jwt
     ) {
         return bookingRequestService
-            .createBookingRequest(request);
+            .createBookingRequest(request, jwt.getSubject());
     }
 
     @PreAuthorize("hasRole('AGENT')")

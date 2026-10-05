@@ -30,20 +30,29 @@ public class IntentController {
         return intentService.createIntent(request, jwt.getSubject());
     }
 
+    @PreAuthorize("hasRole('TRAVELER')")
     @GetMapping
-    public List<IntentResponse> getIntents() {
-        return intentService.getIntents();
+    public List<IntentResponse> getIntents(
+        @AuthenticationPrincipal Jwt jwt
+    ) {
+        return intentService.getIntents(jwt.getSubject());
     }
 
+    @PreAuthorize("hasRole('TRAVELER')")
     @GetMapping("/{id}")
-    public IntentResponse getIntent(@PathVariable Long id) {
-        return intentService.getIntent(id);
+    public IntentResponse getIntent(
+        @PathVariable Long id,
+        @AuthenticationPrincipal Jwt jwt
+    ) {
+        return intentService.getIntent(id, jwt.getSubject());
     }
 
+    @PreAuthorize("hasRole('TRAVELER')")
     @GetMapping("/{id}/recommendations")
     public List<ScoredExperienceResponse> getRecommendations(
-        @PathVariable Long id
+        @PathVariable Long id,
+        @AuthenticationPrincipal Jwt jwt
     ) {
-        return intentService.getRecommendations(id);
+        return intentService.getRecommendations(id, jwt.getSubject());
     }
 }

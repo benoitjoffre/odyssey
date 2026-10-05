@@ -19,6 +19,8 @@ import com.odyssey.api.need.flight.FlightCriteriaRepository;
 import com.odyssey.api.outbox.OutboxEvent;
 import com.odyssey.api.outbox.OutboxEventRepository;
 import com.odyssey.api.outbox.OutboxStatus;
+import com.odyssey.api.traveler.Traveler;
+import com.odyssey.api.traveler.TravelerRepository;
 
 import jakarta.transaction.Transactional;
 import tools.jackson.core.JacksonException;
@@ -32,6 +34,7 @@ public class BookingRequestService {
     private final OutboxEventRepository outboxEventRepository;
     private final ObjectMapper objectMapper;
     private final AgentRepository agentRepository;
+    private final TravelerRepository travelerRepository;
     private final FlightCriteriaRepository flightCriteriaRepository;
     private final AccommodationCriteriaRepository accommodationCriteriaRepository;
 
@@ -41,6 +44,7 @@ public class BookingRequestService {
         OutboxEventRepository outboxEventRepository,
         ObjectMapper objectMapper,
         AgentRepository agentRepository,
+        TravelerRepository travelerRepository,
         FlightCriteriaRepository flightCriteriaRepository,
         AccommodationCriteriaRepository accommodationCriteriaRepository
     ) {
@@ -49,8 +53,33 @@ public class BookingRequestService {
         this.outboxEventRepository = outboxEventRepository;
         this.objectMapper = objectMapper;
         this.agentRepository = agentRepository;
+        this.travelerRepository = travelerRepository;
         this.flightCriteriaRepository = flightCriteriaRepository;
         this.accommodationCriteriaRepository = accommodationCriteriaRepository;
+    }
+
+    @Transactional
+    public BookingRequestResponse createBookingRequest(
+        CreateBookingRequest request,
+        String auth0Subject
+    ) {
+        Traveler traveler = travelerRepository
+            .findByAuth0Subject(auth0Subject)
+            .orElseThrow(() ->
+                new ResourceNotFoundException("Traveler not found")
+            );
+
+        Need need = needRepository
+            .findById(request.needId())
+            .orElseThrow(() ->
+                new ResourceNotFoundException("Need not found")
+            );
+
+        if (!need.getTrip().getTraveler().getId().equals(traveler.getId())) {
+            throw new ResourceNotFoundException("Need not found");
+        }
+
+        return createBookingRequestForOwnedNeed(request, need);
     }
 
     @Transactional
@@ -62,6 +91,14 @@ public class BookingRequestService {
             .orElseThrow(() ->
                 new ResourceNotFoundException("Need not found")
             );
+
+        return createBookingRequestForOwnedNeed(request, need);
+    }
+
+    private BookingRequestResponse createBookingRequestForOwnedNeed(
+        CreateBookingRequest request,
+        Need need
+    ) {
 
         if (bookingRequestRepository.existsByNeedId(need.getId())) {
             throw new IllegalArgumentException(

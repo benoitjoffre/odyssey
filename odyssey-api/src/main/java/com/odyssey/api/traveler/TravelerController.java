@@ -56,6 +56,7 @@ public class TravelerController {
         return sseService.subscribe(traveler.getId());
     }
 
+    @PreAuthorize("hasRole('TRAVELER')")
     @PutMapping("/me/onboarding")
     public Traveler completeOnboarding(
             @AuthenticationPrincipal Jwt jwt,

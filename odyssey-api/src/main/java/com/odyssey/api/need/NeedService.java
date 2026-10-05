@@ -15,6 +15,8 @@ import com.odyssey.api.need.transfer.TransferCriteriaRepository;
 import com.odyssey.api.need.transfer.TransferCriteriaResponse;
 import com.odyssey.api.trip.Trip;
 import com.odyssey.api.trip.TripRepository;
+import com.odyssey.api.traveler.Traveler;
+import com.odyssey.api.traveler.TravelerRepository;
 
 
 @Service
@@ -22,6 +24,7 @@ public class NeedService {
 
     private final NeedRepository needRepository;
     private final TripRepository tripRepository;
+    private final TravelerRepository travelerRepository;
     private final FlightCriteriaRepository flightCriteriaRepository;
     private final AccommodationCriteriaRepository accommodationCriteriaRepository;
     private final TransferCriteriaRepository transferCriteriaRepository;
@@ -29,24 +32,26 @@ public class NeedService {
     public NeedService(
         NeedRepository needRepository,
         TripRepository tripRepository,
+        TravelerRepository travelerRepository,
         FlightCriteriaRepository flightCriteriaRepository,
         AccommodationCriteriaRepository accommodationCriteriaRepository,
         TransferCriteriaRepository transferCriteriaRepository
     ) {
         this.needRepository = needRepository;
         this.tripRepository = tripRepository;
+        this.travelerRepository = travelerRepository;
         this.flightCriteriaRepository = flightCriteriaRepository;
         this.accommodationCriteriaRepository = accommodationCriteriaRepository;
         this.transferCriteriaRepository = transferCriteriaRepository;
     }
-    @Transactional
-    public NeedResponse createNeed(CreateNeedRequest request) {
 
-        Trip trip = tripRepository
-            .findById(request.tripId())
-            .orElseThrow(() ->
-                new ResourceNotFoundException("Trip not found")
-            );
+    @Transactional
+    public NeedResponse createNeed(
+        CreateNeedRequest request,
+        String auth0Subject
+    ) {
+
+        Trip trip = getOwnedTrip(request.tripId(), auth0Subject);
 
         if (request.type() == NeedType.FLIGHT
                 && request.flightCriteria() == null) {
@@ -114,29 +119,30 @@ public class NeedService {
         return toResponse(savedNeed);
     }
 
-    public NeedResponse getNeed(Long id) {
+    public NeedResponse getNeed(Long id, String auth0Subject) {
 
-        Need need = needRepository
-            .findById(id)
-            .orElseThrow(() ->
-                new ResourceNotFoundException("Need not found")
-            );
+        Need need = getOwnedNeed(id, auth0Subject);
 
         return toResponse(need);
     }
 
-    public List<NeedResponse> getNeeds() {
-        return needRepository.findAll()
+    public List<NeedResponse> getNeeds(String auth0Subject) {
+        Traveler traveler = getCurrentTraveler(auth0Subject);
+
+        return tripRepository
+            .findByTravelerIdOrderByStartDateDesc(traveler.getId())
             .stream()
+            .flatMap(trip -> needRepository.findByTripId(trip.getId()).stream())
             .map(this::toResponse)
             .toList();
     }
 
-    public List<NeedResponse> getNeedsByTrip(Long tripId) {
+    public List<NeedResponse> getNeedsByTrip(
+        Long tripId,
+        String auth0Subject
+    ) {
 
-        if (!tripRepository.existsById(tripId)) {
-            throw new ResourceNotFoundException("Trip not found");
-        }
+        getOwnedTrip(tripId, auth0Subject);
 
         return needRepository
             .findByTripId(tripId)
@@ -145,12 +151,12 @@ public class NeedService {
             .toList();
     }
 
-    public NeedResponse updateNotes(Long id, UpdateNeedNotesRequest request) {
-        Need need = needRepository
-            .findById(id)
-            .orElseThrow(() ->
-                new ResourceNotFoundException("Need not found")
-            );
+    public NeedResponse updateNotes(
+        Long id,
+        UpdateNeedNotesRequest request,
+        String auth0Subject
+    ) {
+        Need need = getOwnedNeed(id, auth0Subject);
 
         need.setNotes(request.getNotes());
 
@@ -182,6 +188,35 @@ public class NeedService {
             need.getTrip().getId(),
             toTransferCriteriaResponse(need.getTransferCriteria())
         );
+    }
+
+    private Traveler getCurrentTraveler(String auth0Subject) {
+        return travelerRepository
+            .findByAuth0Subject(auth0Subject)
+            .orElseThrow(() -> new ResourceNotFoundException("Traveler not found"));
+    }
+
+    private Trip getOwnedTrip(Long tripId, String auth0Subject) {
+        Traveler traveler = getCurrentTraveler(auth0Subject);
+
+        return tripRepository
+            .findByIdAndTravelerId(tripId, traveler.getId())
+            .orElseThrow(() -> new ResourceNotFoundException("Trip not found"));
+    }
+
+    private Need getOwnedNeed(Long needId, String auth0Subject) {
+        Traveler traveler = getCurrentTraveler(auth0Subject);
+
+        Need need = needRepository
+            .findById(needId)
+            .orElseThrow(() -> new ResourceNotFoundException("Need not found"));
+
+        Long ownerId = need.getTrip().getTraveler().getId();
+        if (!ownerId.equals(traveler.getId())) {
+            throw new ResourceNotFoundException("Need not found");
+        }
+
+        return need;
     }
 
 

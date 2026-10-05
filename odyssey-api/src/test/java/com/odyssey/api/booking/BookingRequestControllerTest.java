@@ -34,6 +34,26 @@ class BookingRequestControllerTest {
     }
 
     @Test
+    void createBookingRequestForwardsAuthenticatedTravelerSubject()
+        throws Exception {
+        CreateBookingRequest request = new CreateBookingRequest(10L, "notes");
+
+        controller.createBookingRequest(request, jwt);
+
+        verify(bookingRequestService).createBookingRequest(request, "auth0|agent-a");
+
+        Method method = BookingRequestController.class.getMethod(
+            "createBookingRequest",
+            CreateBookingRequest.class,
+            Jwt.class
+        );
+        assertEquals(
+            "hasRole('TRAVELER')",
+            method.getAnnotation(PreAuthorize.class).value()
+        );
+    }
+
+    @Test
     void getQuotesForwardsAuthenticatedAgentSubject() throws Exception {
         controller.getQuotes(10L, jwt);
 

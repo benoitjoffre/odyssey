@@ -178,6 +178,23 @@ public class TripService {
             .toList();
     }
 
+    public List<TripResponse> getOwnedTripsByTravelerId(
+        Long travelerId,
+        String auth0Subject
+    ) {
+        Traveler traveler = getCurrentTraveler(auth0Subject);
+
+        if (!traveler.getId().equals(travelerId)) {
+            throw new ResourceNotFoundException("Traveler not found");
+        }
+
+        return tripRepository
+            .findByTravelerIdOrderByStartDateDesc(travelerId)
+            .stream()
+            .map(this::toResponse)
+            .toList();
+    }
+
     public TripDetailResponse getTripDetail(Long id, String auth0Subject) {
 
         Trip trip = getOwnedTrip(id, auth0Subject);

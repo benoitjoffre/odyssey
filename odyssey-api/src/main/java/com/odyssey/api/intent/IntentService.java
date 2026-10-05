@@ -50,11 +50,7 @@ public class IntentService {
         String auth0Subject
     ) {
 
-        Traveler traveler = travelerRepository
-            .findByAuth0Subject(auth0Subject)
-            .orElseThrow(() ->
-                new ResourceNotFoundException("Traveler not found")
-            );
+        Traveler traveler = getCurrentTraveler(auth0Subject);
 
         ExperienceCategory category = request.category();
 
@@ -75,30 +71,28 @@ public class IntentService {
         return toResponse(savedIntent);
     }
 
-    public IntentResponse getIntent(Long id) {
-        Intent intent = intentRepository
-            .findById(id)
-            .orElseThrow(() ->
-                new ResourceNotFoundException("Intent not found")
-            );
+    public IntentResponse getIntent(Long id, String auth0Subject) {
+        Intent intent = getOwnedIntent(id, auth0Subject);
 
         return toResponse(intent);
     }
 
-    public List<IntentResponse> getIntents() {
-        return intentRepository.findAll()
+    public List<IntentResponse> getIntents(String auth0Subject) {
+        Traveler traveler = getCurrentTraveler(auth0Subject);
+
+        return intentRepository
+            .findByTravelerIdOrderByIdDesc(traveler.getId())
             .stream()
             .map(this::toResponse)
             .toList();
     }
 
-    public List<ScoredExperienceResponse> getRecommendations(Long intentId) {
+    public List<ScoredExperienceResponse> getRecommendations(
+        Long intentId,
+        String auth0Subject
+    ) {
 
-        Intent intent = intentRepository
-            .findById(intentId)
-            .orElseThrow(() ->
-                new ResourceNotFoundException("Intent not found")
-            );
+        Intent intent = getOwnedIntent(intentId, auth0Subject);
 
         AnalyzedIntent analyzed = intentAnalysisService.analyze(
             intent.getDescription()
@@ -166,5 +160,23 @@ public class IntentService {
         }
 
         return null;
+    }
+
+    private Traveler getCurrentTraveler(String auth0Subject) {
+        return travelerRepository
+            .findByAuth0Subject(auth0Subject)
+            .orElseThrow(() ->
+                new ResourceNotFoundException("Traveler not found")
+            );
+    }
+
+    private Intent getOwnedIntent(Long intentId, String auth0Subject) {
+        Traveler traveler = getCurrentTraveler(auth0Subject);
+
+        return intentRepository
+            .findByIdAndTravelerId(intentId, traveler.getId())
+            .orElseThrow(() ->
+                new ResourceNotFoundException("Intent not found")
+            );
     }
 }

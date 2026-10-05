@@ -8,8 +8,10 @@ import com.odyssey.api.intent.recommendation.IntentAnalysisService;
 import com.odyssey.api.intent.recommendation.IntentAnalyzer;
 import com.odyssey.api.intent.recommendation.RecommendationScorer;
 import com.odyssey.api.intent.recommendation.ScoredExperienceResponse;
+import com.odyssey.api.traveler.Traveler;
 import com.odyssey.api.traveler.TravelerRepository;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
 import java.util.Optional;
@@ -33,7 +35,11 @@ class IntentServiceRecommendationTest {
         Intent intent = mock(Intent.class);
         when(intent.getDescription()).thenReturn("Salsa à Cuba");
         when(intent.getCategory()).thenReturn(ExperienceCategory.DANCE);
-        when(intentRepository.findById(1L)).thenReturn(Optional.of(intent));
+        Traveler traveler = new Traveler("Alice", "Martin", "alice@example.com");
+        ReflectionTestUtils.setField(traveler, "id", 7L);
+        when(travelerRepository.findByAuth0Subject("auth0|traveler-a"))
+            .thenReturn(Optional.of(traveler));
+        when(intentRepository.findByIdAndTravelerId(1L, 7L)).thenReturn(Optional.of(intent));
         when(intentAnalysisService.analyze("Salsa à Cuba"))
             .thenReturn(new AnalyzedIntent(null, "salsa", "Cuba"));
 
@@ -68,7 +74,7 @@ class IntentServiceRecommendationTest {
         );
 
         List<ScoredExperienceResponse> recommendations =
-            service.getRecommendations(1L);
+            service.getRecommendations(1L, "auth0|traveler-a");
 
         assertEquals(2, recommendations.size());
         assertEquals(100, recommendations.get(0).score());
