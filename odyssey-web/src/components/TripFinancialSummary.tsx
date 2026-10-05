@@ -72,6 +72,7 @@ export function TripFinancialSummary({
   const [saved, setSaved] = useState(false);
   const providerTotals = providerOffers ? getProviderTotals(providerOffers) : null;
   const providerCurrencies = providerTotals ? [...providerTotals.keys()] : [];
+  const feeEditingLocked = paymentStatus === "PENDING" || paymentStatus === "PAID";
   const canCalculateEstimatedTotal =
     assistanceFee !== undefined &&
     providerTotals !== null &&
@@ -95,6 +96,11 @@ export function TripFinancialSummary({
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!onSaveAssistanceFee || saving) return;
+
+    if (feeEditingLocked) {
+      setError("Les frais d’assistance ne peuvent pas être modifiés pendant un paiement en cours ou déjà payé.");
+      return;
+    }
 
     const parsedFee = Number(feeInput);
     if (feeInput.trim() === "" || !Number.isFinite(parsedFee) || parsedFee < 0) {
@@ -169,11 +175,12 @@ export function TripFinancialSummary({
         ) : (
           <div className="trip-fee-display">
             <strong>{assistanceFee === undefined ? "Non disponible" : formatPrice(assistanceFee, "EUR")}</strong>
-            {editable && onSaveAssistanceFee && (
+            {editable && onSaveAssistanceFee && !feeEditingLocked && (
               <button type="button" className="secondary-button" onClick={startEditing}>
                 <Pencil size={15} /> Modifier
               </button>
             )}
+            {feeEditingLocked && <span className="trip-financial-note">Non modifiable pendant le paiement</span>}
           </div>
         )}
       </div>

@@ -70,6 +70,14 @@ function getNextActionContent(action: TravelerTripNextActionKind, count: number)
         title: "Votre agent s'occupe d'un problème avec un service",
         message: "Rien à faire de votre côté pour le moment : votre agent vous recontactera si nécessaire.",
       };
+    case "CLIENT_REJECTED":
+      return {
+        tone: "neutral",
+        eyebrow: "Refus du client",
+        title: isPlural ? `${count} services ont été refusés` : "Vous avez refusé ce service",
+        message: "Vous avez refusé cette proposition. Votre agent va chercher une nouvelle solution adaptée.",
+        secondaryMessage: "Ce service n'est pas en cours : il a été refusé par le client.",
+      };
     case "AGENT_WORKING":
       return {
         tone: "progress",

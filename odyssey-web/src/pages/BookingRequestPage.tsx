@@ -295,6 +295,9 @@ export function BookingRequestPage() {
   const { need, traveler, trip } = bookingRequest;
   const canClaim = bookingRequest.status === "REQUESTED" && bookingRequest.assignedAgentId === null;
   const canSearchOffers = bookingRequest.status === "IN_PROGRESS" && bookingRequest.assignedAgentId !== null;
+  const rejectedQuotes = agentQuotes.filter((quote) => quote.status === "REJECTED");
+  const latestRejectedQuote = rejectedQuotes[0] ?? null;
+
   return (
     <div className="page-stack booking-request-page">
       <Link className="back-link" to="/agent/booking-requests">
@@ -472,6 +475,38 @@ export function BookingRequestPage() {
           </p>
         )}
       </section>
+
+      {latestRejectedQuote && (
+        <section className="quote-creation-card" aria-labelledby="rejected-quote-title">
+          <div className="detail-card-heading">
+            <FileCheck2 size={20} />
+            <h2 id="rejected-quote-title">Proposition refusée</h2>
+          </div>
+          <div className="quote-result-grid">
+            <div>
+              <span>Fournisseur</span>
+              <strong>{latestRejectedQuote.provider}</strong>
+            </div>
+            <div>
+              <span>Prix fournisseur</span>
+              <strong>{formatPrice(latestRejectedQuote.providerPrice, latestRejectedQuote.currency)}</strong>
+            </div>
+            <div className="quote-description">
+              <span>Description</span>
+              <strong>{latestRejectedQuote.description}</strong>
+            </div>
+          </div>
+          <p className="quote-sent-confirmation" style={{ marginTop: "1rem" }}>
+            <Check size={18} /> Le voyageur a refusé cette proposition.
+          </p>
+          {canSearchOffers && (
+            <button type="button" className="primary-button quote-submit" onClick={handleSearchOffers} disabled={searchingOffers}>
+              {searchingOffers ? <LoaderCircle className="rotating" size={18} /> : <Search size={18} />}
+              {searchingOffers ? "Recherche des offres…" : "Proposer une autre solution"}
+            </button>
+          )}
+        </section>
+      )}
 
       {!searchingOffers && offers.length > 0 && (
         <section aria-labelledby="offers-title">

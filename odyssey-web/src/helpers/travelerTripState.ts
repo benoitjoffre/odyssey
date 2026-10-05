@@ -14,6 +14,7 @@ export type TravelerTripNextActionKind =
   | "ODYSSEY_PAYMENT_PENDING"
   | "NEEDS_TO_ORGANIZE"
   | "BOOKING_FAILED"
+  | "CLIENT_REJECTED"
   | "AGENT_WORKING"
   | "NO_ACTIVE_NEEDS";
 
@@ -107,6 +108,11 @@ export function deriveTravelerTripUxState(
   // Everything else the agent is actively handling, including an accepted
   // proposal whose Odyssey fee is free or already settled — nothing left for
   // the traveler to do right now.
+  const clientRejected = needsInStates(activeNeeds, ["PROPOSAL_REJECTED"]);
+  if (clientRejected.length > 0) {
+    return { kind: "NEXT_ACTION", action: "CLIENT_REJECTED", count: clientRejected.length, targetNeedId: clientRejected[0].needId };
+  }
+
   const stillWorking = needsInStates(activeNeeds, [
     "REQUEST_SENT",
     "SEARCH_IN_PROGRESS",
@@ -114,7 +120,6 @@ export function deriveTravelerTripUxState(
     "AGENT_FINALIZING",
     "SUPPLIER_PAYMENT_DONE_WAITING_CONFIRMATION",
     "PROPOSAL_EXPIRED",
-    "PROPOSAL_REJECTED",
   ]);
   if (stillWorking.length > 0) {
     return { kind: "NEXT_ACTION", action: "AGENT_WORKING", count: stillWorking.length, targetNeedId: null };

@@ -12,4 +12,9 @@ if (pendingResult.kind !== "NEXT_ACTION" || pendingResult.action !== "ODYSSEY_PA
   throw new Error(`Expected ODYSSEY_PAYMENT_PENDING, got ${JSON.stringify(pendingResult)}`);
 }
 
+const rejectedResult = deriveTravelerTripUxState([{ needId: 42, state: "PROPOSAL_REJECTED" }], null, false, 0);
+if (rejectedResult.kind !== "NEXT_ACTION" || rejectedResult.action !== "CLIENT_REJECTED") {
+  throw new Error(`Expected CLIENT_REJECTED, got ${JSON.stringify(rejectedResult)}`);
+}
+
 console.log("travelerTripState tests passed");
