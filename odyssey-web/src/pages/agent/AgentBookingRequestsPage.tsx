@@ -353,11 +353,17 @@ export function AgentBookingRequestsPage() {
                     const presentation = needPresentation[request.need.type];
                     const NeedIcon = presentation.icon;
                     const allQuotes = quotesByRequestId[request.id] ?? [];
-                    const currentQuote = getCurrentAgentQuote(allQuotes);
-                    const rejectedQuote = allQuotes.find((quote) => quote.status === "REJECTED") ?? null;
-                    const currentBooking = currentQuote ? (bookingsByQuoteId[currentQuote.id] ?? null) : null;
-                    const canCreateBooking = currentQuote?.status === "ACCEPTED" && currentBooking === null;
-                    const displayStatusKey = rejectedQuote ? "REJECTED" : (currentQuote?.status ?? request.status);
+                    const sortedQuotes = [...allQuotes].sort((first, second) => second.id - first.id);
+                    const currentQuote = getCurrentAgentQuote(allQuotes) ?? sortedQuotes[0] ?? null;
+                    const displayQuote = currentQuote ?? sortedQuotes[0] ?? null;
+                    const previousRejectedQuote = sortedQuotes.find((quote) => quote.id !== displayQuote?.id && quote.status === "REJECTED") ?? null;
+                    const currentBooking = displayQuote ? (bookingsByQuoteId[displayQuote.id] ?? null) : null;
+                    const canCreateBooking = displayQuote?.status === "ACCEPTED" && currentBooking === null;
+                    const displayStatusKey = displayQuote?.status ?? request.status;
+                    const displayStatusLabel = displayQuote
+                      ? (quoteStatusLabels[displayQuote.status] ?? displayQuote.status)
+                      : statusLabels[request.status];
+                    const shouldOfferAnotherSolution = displayQuote?.status === "REJECTED" && !currentQuote;
                     return (
                       <li key={request.id}>
                         <span className={`agent-request-type-icon ${request.need.type.toLowerCase()}`} aria-hidden="true">
@@ -367,18 +373,26 @@ export function AgentBookingRequestsPage() {
                           <span>{presentation.label}</span>
                           <strong>Demande #{request.id}</strong>
                           <p>{getRequestDetail(request)}</p>
+                          {displayQuote ? (
+                            <div className="agent-request-proposal-summary">
+                              <span className="agent-request-proposal-name">{displayQuote.provider}</span>
+                              <span className="agent-request-proposal-meta">{displayQuote.description}</span>
+                            </div>
+                          ) : (
+                            <p className="agent-request-empty-offer">Aucune proposition en cours.</p>
+                          )}
+                          {previousRejectedQuote && (
+                            <p className="agent-request-history">
+                              ↳ Proposition précédente refusée : {previousRejectedQuote.provider} ·{" "}
+                              {formatPrice(previousRejectedQuote.providerPrice, previousRejectedQuote.currency)}
+                            </p>
+                          )}
                         </div>
                         <div className="agent-request-price">
                           <span>Prix de l’offre</span>
-                          <strong>{currentQuote ? formatPrice(currentQuote.providerPrice, currentQuote.currency) : "Offre à définir"}</strong>
+                          <strong>{displayQuote ? formatPrice(displayQuote.providerPrice, displayQuote.currency) : "Offre à définir"}</strong>
                         </div>
-                        <span className={`request-status status-${displayStatusKey.toLowerCase()}`}>
-                          {displayStatusKey === "REJECTED"
-                            ? quoteStatusLabels.REJECTED
-                            : currentQuote
-                              ? quoteStatusLabels[currentQuote.status] ?? currentQuote.status
-                              : statusLabels[request.status]}
-                        </span>
+                        <span className={`request-status status-${displayStatusKey.toLowerCase()}`}>{displayStatusLabel}</span>
                         <div className="agent-request-actions">
                           <span>
                             {canCreateBooking && (
@@ -387,10 +401,18 @@ export function AgentBookingRequestsPage() {
                                 className="primary-button"
                                 aria-label="Créer la réservation"
                                 disabled={creatingBookingQuoteId !== null}
-                                onClick={() => handleCreateBooking(currentQuote!.id)}
+                                onClick={() => handleCreateBooking(displayQuote!.id)}
                               >
-                                {creatingBookingQuoteId === currentQuote!.id ? "Création…" : "Créer la réservation"}
+                                {creatingBookingQuoteId === displayQuote!.id ? "Création…" : "Créer la réservation"}
                               </button>
+                            )}
+                            {shouldOfferAnotherSolution && (
+                              <Link
+                                className="secondary-button agent-request-link agent-request-link--secondary"
+                                to={`/agent/booking-requests/${request.id}`}
+                              >
+                                Proposer une autre solution
+                              </Link>
                             )}
                             {currentBooking?.status === "PENDING" && (
                               <button type="button" className="primary-button" onClick={() => setEditingBookingId(currentBooking.id)}>
@@ -402,9 +424,9 @@ export function AgentBookingRequestsPage() {
                                 {bookingStatusLabels[currentBooking.status]}
                               </span>
                             )}
-                            {canCreateBooking && bookingErrors[currentQuote!.id] && (
+                            {canCreateBooking && bookingErrors[displayQuote!.id] && (
                               <p className="action-error" role="alert">
-                                {bookingErrors[currentQuote!.id]}
+                                {bookingErrors[displayQuote!.id]}
                               </p>
                             )}
                           </span>

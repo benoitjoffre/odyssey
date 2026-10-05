@@ -427,6 +427,42 @@ h2 {
   font-size: 12px;
 }
 
+.agent-request-proposal-summary {
+  display: grid;
+  gap: 3px;
+  margin-top: 7px;
+}
+
+.agent-request-proposal-name {
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.agent-request-proposal-meta {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.agent-request-history {
+  margin-top: 8px;
+  color: #5f7b79;
+  font-size: 11px;
+  font-style: italic;
+}
+
+.agent-request-empty-offer {
+  margin-top: 7px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.agent-request-link--secondary {
+  min-height: 34px;
+  padding-inline: 12px;
+  font-size: 12px;
+}
+
 .agent-request-price {
   display: grid;
   justify-items: end;
@@ -1133,9 +1169,22 @@ h2 {
   color: #075f57;
   background: #dff2ed;
 }
+.status-sent,
+.status-quoted {
+  color: #8a4b0d;
+  background: #fff1df;
+}
+.status-accepted {
+  color: #28643e;
+  background: #e1f2e6;
+}
 .status-rejected {
   color: #8b3d35;
   background: #f9e5e2;
+}
+.status-expired {
+  color: #45615d;
+  background: #edf2f0;
 }
 .status-completed {
   color: #28643e;
@@ -1435,6 +1484,135 @@ h2 {
 .quote-creation-card,
 .quote-success-card {
   padding: 24px;
+}
+
+.proposal-history-section {
+  display: grid;
+  gap: 14px;
+  padding: 20px 0 0;
+}
+
+.proposal-history-list {
+  position: relative;
+  display: grid;
+  gap: 16px;
+  padding-left: 18px;
+}
+
+.proposal-history-list::before {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 6px;
+  width: 2px;
+  background: #d9e7e4;
+  content: "";
+}
+
+.proposal-history-item {
+  position: relative;
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.proposal-history-marker {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 14px;
+  height: 14px;
+  margin-top: 6px;
+  background: var(--primary);
+  border: 3px solid #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px rgba(8, 127, 114, 0.18);
+}
+
+.proposal-history-item--previous .proposal-history-marker {
+  background: #c8deda;
+  box-shadow: none;
+}
+
+.proposal-history-card {
+  display: grid;
+  gap: 8px;
+  padding: 16px 18px;
+  background: #f7faf8;
+  border: 1px solid #dfeae8;
+  border-radius: 8px;
+}
+
+.proposal-history-item--previous .proposal-history-card {
+  background: #f3f5f4;
+  border-color: #e4e8e7;
+  opacity: 0.9;
+}
+
+.proposal-history-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.proposal-history-label {
+  color: var(--primary);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+.proposal-history-status {
+  display: inline-flex;
+  min-height: 24px;
+  align-items: center;
+  padding: 0 9px;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 999px;
+}
+
+.proposal-history-status--sent,
+.proposal-history-status--quoted {
+  color: #8a4b0d;
+  background: #fff1df;
+}
+
+.proposal-history-status--accepted {
+  color: #28643e;
+  background: #e1f2e6;
+}
+
+.proposal-history-status--rejected {
+  color: #8b3d35;
+  background: #f9e5e2;
+}
+
+.proposal-history-status--expired {
+  color: #45615d;
+  background: #edf2f0;
+}
+
+.proposal-history-card strong {
+  color: var(--ink);
+  font-size: 16px;
+}
+
+.proposal-history-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.proposal-history-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 11px;
 }
 
 .agent-quotes-list {

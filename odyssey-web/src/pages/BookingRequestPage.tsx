@@ -27,6 +27,7 @@ import type { BookingRequest, BookingRequestStatus, NeedType } from "../types/bo
 import { isAccommodationOffer, isTransferOffer, type ProviderOffer } from "../types/providerOffer";
 import type { AgentQuoteResponse, QuoteResponse } from "../types/quote";
 import { AgentBookingModal } from "../components/AgentBookingModal";
+import { getCurrentAgentQuote } from "../helpers/agentQuotes";
 
 const statusLabels: Record<BookingRequestStatus, string> = {
   REQUESTED: "Demandée",
@@ -303,10 +304,12 @@ export function BookingRequestPage() {
   const { need, traveler, trip } = bookingRequest;
   const canClaim = bookingRequest.status === "REQUESTED" && bookingRequest.assignedAgentId === null;
   const canSearchOffers = bookingRequest.status === "IN_PROGRESS" && bookingRequest.assignedAgentId !== null;
-  const rejectedQuotes = agentQuotes.filter((quote) => quote.status === "REJECTED");
-  const latestRejectedQuote = rejectedQuotes[0] ?? null;
-  const displayRequestStatus = latestRejectedQuote ? "REJECTED" : bookingRequest.status;
-  const displayRequestStatusLabel = latestRejectedQuote ? quoteStatusLabels.REJECTED : statusLabels[bookingRequest.status];
+  const sortedQuotes = [...agentQuotes].sort((first, second) => second.id - first.id);
+  const currentQuote = getCurrentAgentQuote(sortedQuotes) ?? sortedQuotes[0] ?? null;
+  const displayRequestStatus = currentQuote?.status ?? bookingRequest.status;
+  const displayRequestStatusLabel = currentQuote
+    ? (quoteStatusLabels[currentQuote.status] ?? currentQuote.status)
+    : statusLabels[bookingRequest.status];
 
   return (
     <div className="page-stack booking-request-page">
@@ -486,7 +489,7 @@ export function BookingRequestPage() {
         )}
       </section>
 
-      {latestRejectedQuote && (
+      {currentQuote && currentQuote.status === "REJECTED" && (
         <section className="quote-creation-card" aria-labelledby="rejected-quote-title">
           <div className="detail-card-heading">
             <FileCheck2 size={20} />
@@ -495,15 +498,15 @@ export function BookingRequestPage() {
           <div className="quote-result-grid">
             <div>
               <span>Fournisseur</span>
-              <strong>{latestRejectedQuote.provider}</strong>
+              <strong>{currentQuote.provider}</strong>
             </div>
             <div>
               <span>Prix fournisseur</span>
-              <strong>{formatPrice(latestRejectedQuote.providerPrice, latestRejectedQuote.currency)}</strong>
+              <strong>{formatPrice(currentQuote.providerPrice, currentQuote.currency)}</strong>
             </div>
             <div className="quote-description">
               <span>Description</span>
-              <strong>{latestRejectedQuote.description}</strong>
+              <strong>{currentQuote.description}</strong>
             </div>
           </div>
           <p className="quote-sent-confirmation" style={{ marginTop: "1rem" }}>
@@ -515,6 +518,56 @@ export function BookingRequestPage() {
               {searchingOffers ? "Recherche des offres…" : "Proposer une autre solution"}
             </button>
           )}
+        </section>
+      )}
+
+      {sortedQuotes.length > 0 && (
+        <section className="proposal-history-section" aria-labelledby="proposal-history-title">
+          <div className="section-heading">
+            <div>
+              <h2 id="proposal-history-title">Historique des propositions</h2>
+              <p>La proposition la plus récente est affichée en premier.</p>
+            </div>
+          </div>
+          <div className="proposal-history-list">
+            {sortedQuotes.map((quote, index) => {
+              const isCurrent = index === 0;
+              const statusText =
+                quote.status === "SENT"
+                  ? "À examiner"
+                  : quote.status === "ACCEPTED"
+                    ? "Acceptée"
+                    : quote.status === "REJECTED"
+                      ? "Refusée"
+                      : quote.status === "EXPIRED"
+                        ? "Expirée"
+                        : quote.status;
+              const statusClass = quote.status === "SENT" ? "sent" : quote.status.toLowerCase();
+              return (
+                <div key={quote.id} className={`proposal-history-item proposal-history-item--${isCurrent ? "current" : "previous"}`}>
+                  <span className="proposal-history-marker" aria-hidden="true" />
+                  <div className="proposal-history-card">
+                    <div className="proposal-history-header">
+                      <span className="proposal-history-label">
+                        {isCurrent ? "PROPOSITION ACTUELLE" : index === 1 ? "PROPOSITION PRÉCÉDENTE" : "ANCIENNE PROPOSITION"}
+                      </span>
+                      <span className={`proposal-history-status proposal-history-status--${statusClass}`}>{statusText}</span>
+                    </div>
+                    <strong>{quote.provider}</strong>
+                    <p>{quote.description}</p>
+                    <div className="proposal-history-meta">
+                      <span>{formatPrice(quote.providerPrice, quote.currency)}</span>
+                      {quote.createdAt && (
+                        <span>
+                          Proposée le {new Date(quote.createdAt).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </section>
       )}
 
