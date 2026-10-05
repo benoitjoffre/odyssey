@@ -116,6 +116,8 @@ export function TravelerTripsPage() {
   const [requestVersion, setRequestVersion] = useState(0);
 
   const nextTrip = useMemo(() => getNextTrip(trips), [trips]);
+  const shouldShowNextTripCta = (nextTripMetrics?.pendingActions ?? 0) > 0;
+  const nextTripCtaLabel = shouldShowNextTripCta ? "Continuer la préparation" : "Voir mon voyage";
   const otherTrips = useMemo(() => {
     if (!nextTrip) return trips;
     return trips.filter((trip) => trip.id !== nextTrip.id);
@@ -421,7 +423,7 @@ export function TravelerTripsPage() {
                     </div>
 
                     <Link className="next-trip-card__cta" to={`/traveler/trips/${nextTrip.id}`}>
-                      Continuer la préparation <ArrowRight size={16} />
+                      {nextTripCtaLabel} <ArrowRight size={16} />
                     </Link>
                   </div>
 

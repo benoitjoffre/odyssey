@@ -342,6 +342,7 @@ export function TravelerTripDetailPage() {
   const finalizedServicesCount = progress?.finalized ?? 0;
   const finalizedServicesProgress = progress && progress.total > 0 ? Math.round((progress.finalized / progress.total) * 100) : 0;
   const tripUxState = deriveTravelerTripUxState(needStates, paymentStatus, trip.assistanceFeePayable, trip.assistanceFee);
+  const shouldShowOrganizeSection = tripUxState.kind !== "TRIP_READY";
   const nextActionCtaHandler = getNextActionCtaHandler(tripUxState);
   const finalizedServices = trip.needs
     .filter((need) => needStateById.get(need.id) === "BOOKING_CONFIRMED")
@@ -496,49 +497,51 @@ export function TravelerTripDetailPage() {
         supplierServices={supplierServices}
       />
 
-      <section id="organize-need-section" aria-labelledby="organize-trip-title">
-        <div className="section-heading traveler-needs-heading">
-          <div>
-            <h2 id="organize-trip-title">Organiser mon voyage</h2>
-            <p>Ajoutez les éléments pour lesquels vous souhaitez être accompagné par Odyssey.</p>
+      {shouldShowOrganizeSection && (
+        <section id="organize-need-section" aria-labelledby="organize-trip-title">
+          <div className="section-heading traveler-needs-heading">
+            <div>
+              <h2 id="organize-trip-title">Organiser mon voyage</h2>
+              <p>Ajoutez les éléments pour lesquels vous souhaitez être accompagné par Odyssey.</p>
+            </div>
           </div>
-        </div>
 
-        <div className="traveler-organization-grid">
-          {organizationChoices.map((choice) =>
-            choice.available ? (
-              <button
-                type="button"
-                className={`traveler-organization-choice${selectedNeedType === choice.type ? " selected" : ""}`}
-                key={choice.type}
-                onClick={() => setSelectedNeedType(choice.type as OrganizableNeedType)}
-              >
-                <span>{needIcons[choice.type]}</span>
-                <strong>{choice.label}</strong>
-              </button>
-            ) : (
-              <div className="traveler-organization-choice unavailable" key={choice.type} aria-disabled="true">
-                <span>{needIcons[choice.type]}</span>
-                <strong>{choice.label}</strong>
-                <small>À venir</small>
-              </div>
-            ),
+          <div className="traveler-organization-grid">
+            {organizationChoices.map((choice) =>
+              choice.available ? (
+                <button
+                  type="button"
+                  className={`traveler-organization-choice${selectedNeedType === choice.type ? " selected" : ""}`}
+                  key={choice.type}
+                  onClick={() => setSelectedNeedType(choice.type as OrganizableNeedType)}
+                >
+                  <span>{needIcons[choice.type]}</span>
+                  <strong>{choice.label}</strong>
+                </button>
+              ) : (
+                <div className="traveler-organization-choice unavailable" key={choice.type} aria-disabled="true">
+                  <span>{needIcons[choice.type]}</span>
+                  <strong>{choice.label}</strong>
+                  <small>À venir</small>
+                </div>
+              ),
+            )}
+          </div>
+
+          {selectedNeedType && (
+            <TravelerNeedForm
+              key={selectedNeedType}
+              tripId={trip.id}
+              type={selectedNeedType}
+              onCancel={() => setSelectedNeedType(null)}
+              onCreated={() => {
+                setSelectedNeedType(null);
+                setRequestVersion((version) => version + 1);
+              }}
+            />
           )}
-        </div>
-
-        {selectedNeedType && (
-          <TravelerNeedForm
-            key={selectedNeedType}
-            tripId={trip.id}
-            type={selectedNeedType}
-            onCancel={() => setSelectedNeedType(null)}
-            onCreated={() => {
-              setSelectedNeedType(null);
-              setRequestVersion((version) => version + 1);
-            }}
-          />
-        )}
-      </section>
+        </section>
+      )}
 
       <section className="traveler-trip-danger-zone" aria-labelledby="delete-trip-title">
         <div>

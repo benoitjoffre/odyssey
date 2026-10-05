@@ -122,20 +122,24 @@ export function deriveTravelerTripUxState(
 
   const allFinalized = activeNeeds.every((entry) => entry.state === "BOOKING_CONFIRMED");
   if (allFinalized) {
-    if (assistanceFee === 0) {
-      return { kind: "TRIP_READY" };
-    }
-
-    if (odysseyPaymentStatus === "PAID") {
-      return { kind: "TRIP_READY" };
-    }
-
-    if (odysseyPaymentStatus === "PENDING") {
-      return { kind: "NEXT_ACTION", action: "ODYSSEY_PAYMENT_PENDING", count: 0, targetNeedId: null };
-    }
-
+    // The backend eligibility flag is the source of truth for whether a
+    // traveler still owes the Odyssey assistance fee. It must take precedence
+    // over the generic “no fee” shortcut so a confirmed trip is not treated as
+    // fully ready while the final Odyssey payment step remains pending.
     if (assistanceFeePayable) {
+      if (odysseyPaymentStatus === "PAID") {
+        return { kind: "TRIP_READY" };
+      }
+
+      if (odysseyPaymentStatus === "PENDING") {
+        return { kind: "NEXT_ACTION", action: "ODYSSEY_PAYMENT_PENDING", count: 0, targetNeedId: null };
+      }
+
       return { kind: "NEXT_ACTION", action: "ODYSSEY_PAYMENT_REQUIRED", count: 0, targetNeedId: null };
+    }
+
+    if (assistanceFee === 0 || odysseyPaymentStatus === "PAID") {
+      return { kind: "TRIP_READY" };
     }
 
     return { kind: "NEXT_ACTION", action: "AGENT_WORKING", count: 0, targetNeedId: null };

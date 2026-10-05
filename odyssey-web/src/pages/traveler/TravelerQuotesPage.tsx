@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
-import { AlertCircle, Bus, CalendarDays, Car, Check, ChevronRight, Hotel, Inbox, Plane, RefreshCw, Route } from "lucide-react";
-import { Link } from "react-router-dom";
-import { getTravelerQuotes } from "../../api/travelerQuotes";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { AlertCircle, Bus, CalendarDays, Car, Check, ChevronRight, Hotel, Inbox, LoaderCircle, Plane, RefreshCw, Route } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { acceptTravelerQuote, getTravelerQuotes, rejectTravelerQuote } from "../../api/travelerQuotes";
 import { getTripDetail, getTravelerTrips } from "../../api/trips";
 import { formatDateRange } from "../../helpers/travelerTripPresentation";
 import type { TravelerQuote, TravelerQuoteStatus } from "../../types/travelerQuote";
@@ -69,13 +69,47 @@ function getQuoteSecondaryDetail(need: TripNeed) {
 }
 
 export function TravelerQuotesPage() {
+  const navigate = useNavigate();
   const [quotes, setQuotes] = useState<TravelerQuote[]>([]);
   const [needContextByBookingRequestId, setNeedContextByBookingRequestId] = useState<Map<number, QuoteNeedContext>>(new Map());
   const [activeFilter, setActiveFilter] = useState<TravelerQuoteFilter>("all");
   const [sortOrder, setSortOrder] = useState<TravelerQuoteSort>("recent");
+  const [pendingQuoteActions, setPendingQuoteActions] = useState<Record<number, "accept" | "reject">>({});
+  const [quoteActionErrors, setQuoteActionErrors] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [requestVersion, setRequestVersion] = useState(0);
+  const pendingQuoteActionRef = useRef<Set<number>>(new Set());
+
+  async function handleQuoteAction(quote: TravelerQuote, action: "accept" | "reject") {
+    if (pendingQuoteActionRef.current.has(quote.id)) return;
+
+    pendingQuoteActionRef.current.add(quote.id);
+    setPendingQuoteActions((current) => ({ ...current, [quote.id]: action }));
+    setQuoteActionErrors((current) => {
+      const next = { ...current };
+      delete next[quote.id];
+      return next;
+    });
+
+    try {
+      const updatedQuote = action === "accept" ? await acceptTravelerQuote(quote.id) : await rejectTravelerQuote(quote.id);
+
+      setQuotes((current) => current.map((item) => (item.id === updatedQuote.id ? updatedQuote : item)));
+    } catch {
+      setQuoteActionErrors((current) => ({
+        ...current,
+        [quote.id]: "Cette proposition n’a pas pu être mise à jour. Elle a peut-être déjà été traitée.",
+      }));
+    } finally {
+      pendingQuoteActionRef.current.delete(quote.id);
+      setPendingQuoteActions((current) => {
+        const next = { ...current };
+        delete next[quote.id];
+        return next;
+      });
+    }
+  }
 
   useEffect(() => {
     const controller = new AbortController();
@@ -295,13 +329,25 @@ export function TravelerQuotesPage() {
                   const detail = getQuoteSecondaryDetail(need);
                   const rowLink = `/traveler/trips/${context.trip.id}#traveler-need-${need.id}`;
 
+                  const isSent = quote.status === "SENT";
+                  const pendingAction = pendingQuoteActions[quote.id];
+                  const quoteActionsDisabled = pendingAction !== undefined;
+                  const actionError = quoteActionErrors[quote.id] ?? null;
+
                   return (
-                    <Link
+                    <div
                       key={quote.id}
-                      className={`traveler-proposal-row ${quote.status === "SENT" ? "is-review" : ""}`}
-                      to={rowLink}
+                      className={`traveler-proposal-row ${isSent ? "is-review" : ""}`}
                       role="listitem"
+                      tabIndex={0}
                       aria-label={`${needTypeLabels[needType]} - ${quote.description}`}
+                      onClick={() => navigate(rowLink)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          navigate(rowLink);
+                        }
+                      }}
                     >
                       <span className="traveler-proposal-row__icon" aria-hidden="true">
                         <Icon size={22} />
@@ -320,10 +366,51 @@ export function TravelerQuotesPage() {
                         {statusLabels[quote.status]}
                       </span>
 
-                      <span className="traveler-proposal-row__chevron" aria-hidden="true">
+                      {isSent ? (
+                        <div className="traveler-proposal-row__actions" onClick={(event) => event.stopPropagation()}>
+                          <button
+                            type="button"
+                            className="traveler-proposal-row__reject"
+                            disabled={quoteActionsDisabled}
+                            aria-label={`Refuser la proposition ${quote.description}`}
+                            onClick={() => void handleQuoteAction(quote, "reject")}
+                          >
+                            {pendingAction === "reject" ? <LoaderCircle className="rotating" size={16} /> : null}
+                            {pendingAction === "reject" ? "Refus…" : "Refuser"}
+                          </button>
+                          <button
+                            type="button"
+                            className="traveler-proposal-row__accept"
+                            disabled={quoteActionsDisabled}
+                            aria-label={`Accepter la proposition ${quote.description}`}
+                            onClick={() => void handleQuoteAction(quote, "accept")}
+                          >
+                            {pendingAction === "accept" ? <LoaderCircle className="rotating" size={16} /> : null}
+                            {pendingAction === "accept" ? "Acceptation…" : "Accepter"}
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="traveler-proposal-row__actions-spacer" aria-hidden="true" />
+                      )}
+
+                      {actionError ? (
+                        <p className="traveler-proposal-row__action-error" role="alert" onClick={(event) => event.stopPropagation()}>
+                          {actionError}
+                        </p>
+                      ) : null}
+
+                      <button
+                        type="button"
+                        className="traveler-proposal-row__chevron"
+                        aria-label={`Voir le détail de la proposition ${quote.description}`}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          navigate(rowLink);
+                        }}
+                      >
                         <ChevronRight size={18} />
-                      </span>
-                    </Link>
+                      </button>
+                    </div>
                   );
                 })}
               </div>

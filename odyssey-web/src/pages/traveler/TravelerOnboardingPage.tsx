@@ -1,8 +1,11 @@
 import { useRef, useState, type FormEvent } from "react";
-import { Compass, LoaderCircle, Sparkles } from "lucide-react";
+import { LoaderCircle, Sparkles, UserRound } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { updateTravelerOnboarding } from "../../api/travelers";
 import { useCurrentUser } from "../../auth/useCurrentUser";
+import { TravelerHeader } from "../../components/TravelerHeader";
+import onboardBackground from "../../assets/onboard-background.png";
+import plumesImage from "../../assets/plumes.png";
 
 const PREFERRED_LANGUAGES: { value: string; label: string }[] = [
   { value: "fr", label: "Français" },
@@ -54,106 +57,138 @@ export function TravelerOnboardingPage() {
   }
 
   return (
-    <div className="traveler-content">
-      <div className="traveler-page traveler-onboarding-page">
-        <section className="traveler-direct-trip-intro">
-          <span className="traveler-direct-trip-icon">
-            <Compass size={24} />
-          </span>
-          <div>
-            <h1>Bienvenue sur Odyssey</h1>
-            <p>Quelques informations nous permettront de vous accompagner et de vous contacter au sujet de votre voyage.</p>
-          </div>
-        </section>
+    <div className="traveler-shell onboarding-page">
+      <TravelerHeader />
 
-        <section className="traveler-direct-trip-form-card" aria-labelledby="onboarding-form-title">
-          <form className="traveler-direct-trip-form" onSubmit={(event) => void handleSubmit(event)} noValidate>
-            <label className="form-field">
-              <span>Prénom *</span>
-              <input
-                value={firstName}
-                onChange={(event) => {
-                  setFirstName(event.target.value);
-                  setError(null);
-                }}
-                placeholder="Ex. Benoît"
-                disabled={submitting}
-                autoComplete="given-name"
-                required
-              />
-            </label>
-            <label className="form-field">
-              <span>Nom *</span>
-              <input
-                value={lastName}
-                onChange={(event) => {
-                  setLastName(event.target.value);
-                  setError(null);
-                }}
-                placeholder="Ex. Joffre"
-                disabled={submitting}
-                autoComplete="family-name"
-                required
-              />
-            </label>
-            <label className="form-field">
-              <span>Téléphone *</span>
-              <input
-                type="tel"
-                value={phoneNumber}
-                onChange={(event) => {
-                  setPhoneNumber(event.target.value);
-                  setError(null);
-                }}
-                placeholder="+33612345678"
-                disabled={submitting}
-                autoComplete="tel"
-                required
-              />
-            </label>
-            <label className="form-field">
-              <span>WhatsApp (optionnel)</span>
-              <input
-                type="tel"
-                value={whatsappNumber}
-                onChange={(event) => {
-                  setWhatsappNumber(event.target.value);
-                  setError(null);
-                }}
-                placeholder="Laissez vide pour utiliser le même numéro que le téléphone"
-                disabled={submitting}
-              />
-            </label>
-            <label className="form-field form-field-wide">
-              <span>Langue préférée *</span>
-              <select
-                value={preferredLanguage}
-                onChange={(event) => {
-                  setPreferredLanguage(event.target.value);
-                  setError(null);
-                }}
-                disabled={submitting}
-                required
-              >
-                {PREFERRED_LANGUAGES.map((language) => (
-                  <option key={language.value} value={language.value}>
-                    {language.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            {error && (
-              <p className="traveler-form-error" role="alert">
-                {error}
-              </p>
-            )}
-            <button type="submit" className="primary-button traveler-create-trip" disabled={submitting}>
-              {submitting ? <LoaderCircle className="rotating" size={18} /> : <Sparkles size={18} />}
-              {submitting ? "Enregistrement…" : "Commencer mon voyage"}
-            </button>
-          </form>
-        </section>
-      </div>
+      <main className="onboarding-main">
+        <div className="onboarding-page__container">
+          <section className="onboarding-shell" aria-label="Bienvenue sur Odyssey">
+            <div className="onboarding-visual">
+              <img src={onboardBackground} alt="Paysage de voyage méditerranéen" className="onboarding-visual-image" />
+              <div className="onboarding-visual-overlay" aria-hidden="true" />
+              <img src={plumesImage} alt="" className="onboarding-visual-ornament" aria-hidden="true" />
+
+              <div className="onboarding-visual-content">
+                <p className="onboarding-eyebrow">BIENVENUE SUR ODYSSEY</p>
+                <h1 className="onboarding-visual-title">Votre voyage commence ici.</h1>
+                <p className="onboarding-visual-description">
+                  Partagez quelques informations pour que nous puissions vous accompagner et vous contacter au sujet de votre voyage.
+                </p>
+              </div>
+            </div>
+
+            <section className="onboarding-form-card" aria-labelledby="onboarding-form-title">
+              <header className="onboarding-form-header">
+                <div className="onboarding-form-kicker">
+                  <span className="onboarding-form-kicker__icon" aria-hidden="true">
+                    <UserRound size={24} />
+                  </span>
+                  <p className="onboarding-form-kicker__text">VOTRE ESPACE ODYSSEY</p>
+                </div>
+
+                <h2 id="onboarding-form-title" className="onboarding-form-title">
+                  Faisons connaissance
+                </h2>
+                <p className="onboarding-form-description">Quelques informations pour mieux vous accompagner dans la préparation de votre voyage.</p>
+              </header>
+
+              <form className="onboarding-form" onSubmit={(event) => void handleSubmit(event)} noValidate>
+                <div className="onboarding-name-grid">
+                  <label className="onboarding-field">
+                    <span>Prénom *</span>
+                    <input
+                      value={firstName}
+                      onChange={(event) => {
+                        setFirstName(event.target.value);
+                        setError(null);
+                      }}
+                      placeholder="Ex. John"
+                      disabled={submitting}
+                      autoComplete="given-name"
+                      required
+                    />
+                  </label>
+
+                  <label className="onboarding-field">
+                    <span>Nom *</span>
+                    <input
+                      value={lastName}
+                      onChange={(event) => {
+                        setLastName(event.target.value);
+                        setError(null);
+                      }}
+                      placeholder="Ex. Doe"
+                      disabled={submitting}
+                      autoComplete="family-name"
+                      required
+                    />
+                  </label>
+                </div>
+
+                <label className="onboarding-field">
+                  <span>Téléphone *</span>
+                  <input
+                    type="tel"
+                    value={phoneNumber}
+                    onChange={(event) => {
+                      setPhoneNumber(event.target.value);
+                      setError(null);
+                    }}
+                    placeholder="+33612345678"
+                    disabled={submitting}
+                    autoComplete="tel"
+                    required
+                  />
+                </label>
+
+                <label className="onboarding-field">
+                  <span>WhatsApp (optionnel)</span>
+                  <input
+                    type="tel"
+                    value={whatsappNumber}
+                    onChange={(event) => {
+                      setWhatsappNumber(event.target.value);
+                      setError(null);
+                    }}
+                    placeholder="Laissez vide pour utiliser le même numéro que le téléphone"
+                    disabled={submitting}
+                  />
+                </label>
+
+                <label className="onboarding-field">
+                  <span>Langue préférée *</span>
+                  <select
+                    value={preferredLanguage}
+                    onChange={(event) => {
+                      setPreferredLanguage(event.target.value);
+                      setError(null);
+                    }}
+                    disabled={submitting}
+                    required
+                  >
+                    {PREFERRED_LANGUAGES.map((language) => (
+                      <option key={language.value} value={language.value}>
+                        {language.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                {error && (
+                  <p className="traveler-form-error" role="alert">
+                    {error}
+                  </p>
+                )}
+
+                <button type="submit" className="primary-button onboarding-submit" disabled={submitting}>
+                  {submitting ? <LoaderCircle className="rotating" size={18} /> : <Sparkles size={18} />}
+                  {submitting ? "Enregistrement…" : "Commencer mon voyage →"}
+                </button>
+              </form>
+            </section>
+          </section>
+        </div>
+      </main>
     </div>
   );
 }
