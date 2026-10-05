@@ -52,6 +52,7 @@ export function TravelerTripFinances({
 }: TravelerTripFinancesProps) {
   const supplierTotals = getSupplierTotalsByCurrency(supplierServices);
   const supplierCurrencies = [...supplierTotals.keys()];
+  const hasAssistanceFee = assistanceFee > 0;
 
   return (
     <section id="trip-financial-summary" className="trip-finances" aria-labelledby="trip-finances-title">
@@ -65,6 +66,13 @@ export function TravelerTripFinances({
         <div className="trip-finance-block">
           <h3>Frais d'accompagnement Odyssey</h3>
           <p className="trip-finance-block-description">Ce montant couvre l'accompagnement et l'organisation de votre voyage.</p>
+
+          {hasAssistanceFee && (
+            <div className="trip-finance-amount" aria-live="polite">
+              <span>Commission Odyssey</span>
+              <strong>{formatPrice(assistanceFee, "EUR")}</strong>
+            </div>
+          )}
 
           {assistanceFee === 0 ? (
             <p className="trip-finance-status trip-finance-status--muted">

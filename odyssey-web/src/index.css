@@ -698,6 +698,32 @@ h2 {
   line-height: 1.5;
 }
 
+.trip-finance-amount {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 4px 0 6px;
+  padding: 10px 12px;
+  background: #eef8f6;
+  border: 1px solid #d8e7e4;
+  border-radius: 6px;
+}
+
+.trip-finance-amount span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.trip-finance-amount strong {
+  color: var(--ink);
+  font-size: 20px;
+  line-height: 1.2;
+}
+
 .trip-finance-status {
   display: flex;
   align-items: center;
