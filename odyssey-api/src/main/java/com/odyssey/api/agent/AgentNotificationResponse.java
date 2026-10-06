@@ -5,6 +5,7 @@ import com.odyssey.api.need.Need;
 import com.odyssey.api.need.NeedType;
 import com.odyssey.api.traveler.Traveler;
 import com.odyssey.api.trip.Trip;
+import com.odyssey.api.trip.TripStatus;
 
 import java.time.Instant;
 
@@ -24,6 +25,7 @@ public record AgentNotificationResponse(
     Instant createdAt,
     Long bookingRequestId,
     Long tripId,
+    TripStatus tripStatus,
     String tripTitle,
     String tripStartDate,
     String tripEndDate,
@@ -45,6 +47,7 @@ public record AgentNotificationResponse(
             notification.getCreatedAt(),
             bookingRequest.getId(),
             trip.getId(),
+            trip.getStatus(),
             trip.getTitle(),
             trip.getStartDate() != null ? trip.getStartDate().toString() : null,
             trip.getEndDate() != null ? trip.getEndDate().toString() : null,

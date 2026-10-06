@@ -1,4 +1,5 @@
 import type { NeedType } from "./bookingRequest";
+import type { TripStatus } from "./trip";
 
 export interface AgentNotification {
   id: number;
@@ -7,6 +8,7 @@ export interface AgentNotification {
   createdAt: string;
   bookingRequestId: number;
   tripId: number | null;
+  tripStatus: TripStatus | null;
   tripTitle: string | null;
   tripStartDate: string | null;
   tripEndDate: string | null;
