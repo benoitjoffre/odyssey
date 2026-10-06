@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { ArrowRight, CalendarDays, Inbox, LoaderCircle, MapPin, Plus, RefreshCw, Sparkles, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { deleteExperience, getExperiences } from "../../api/experiences";
+import { EmptyState, ErrorState, LoadingState } from "../../components/ui/State";
 import { experienceCategoryLabels } from "../../helpers/experienceCategories";
 import type { Experience } from "../../types/experience";
 
@@ -63,27 +64,16 @@ export function AgentExperiencesPage() {
         </Link>
       </section>
 
-      {loading && (
-        <div className="state-panel" role="status">
-          <span className="spinner" />
-          <strong>Chargement des expériences…</strong>
-        </div>
-      )}
+      {loading && <LoadingState title="Chargement des expériences…" icon={<span className="ui-state-spinner" aria-hidden="true" />} />}
       {!loading && error && (
-        <div className="state-panel error-panel" role="alert">
-          <RefreshCw size={24} />
-          <strong>{error}</strong>
+        <ErrorState title={error} icon={<RefreshCw size={24} />}>
           <button className="secondary-button" type="button" onClick={() => setRequestVersion((value) => value + 1)}>
             <RefreshCw size={16} /> Réessayer
           </button>
-        </div>
+        </ErrorState>
       )}
       {!loading && !error && experiences.length === 0 && (
-        <div className="state-panel">
-          <Inbox size={28} />
-          <strong>Aucune expérience</strong>
-          <p>Créez la première expérience du catalogue Odyssey.</p>
-        </div>
+        <EmptyState title="Aucune expérience" description="Créez la première expérience du catalogue Odyssey." icon={<Inbox size={28} />} />
       )}
       {!loading && !error && experiences.length > 0 && (
         <section className="agent-catalog-grid" aria-label="Catalogue des expériences">

@@ -3,6 +3,7 @@ import { CalendarDays, Inbox, LoaderCircle, MapPin, Plus, RefreshCw, Sparkles, T
 import { Link } from "react-router-dom";
 import { getExperiences } from "../../api/experiences";
 import { deleteTravelEvent, getTravelEvents } from "../../api/travelEvents";
+import { EmptyState, ErrorState, LoadingState } from "../../components/ui/State";
 import type { TravelEvent } from "../../types/travelEvent";
 
 function formatDate(value: string) {
@@ -69,27 +70,16 @@ export function AgentEventsPage() {
           <Plus size={18} /> Nouvel événement
         </Link>
       </section>
-      {loading && (
-        <div className="state-panel" role="status">
-          <span className="spinner" />
-          <strong>Chargement des événements…</strong>
-        </div>
-      )}
+      {loading && <LoadingState title="Chargement des événements…" icon={<span className="ui-state-spinner" aria-hidden="true" />} />}
       {!loading && error && (
-        <div className="state-panel error-panel" role="alert">
-          <RefreshCw size={24} />
-          <strong>{error}</strong>
+        <ErrorState title={error} icon={<RefreshCw size={24} />}>
           <button className="secondary-button" type="button" onClick={() => setRequestVersion((value) => value + 1)}>
             <RefreshCw size={16} /> Réessayer
           </button>
-        </div>
+        </ErrorState>
       )}
       {!loading && !error && events.length === 0 && (
-        <div className="state-panel">
-          <Inbox size={28} />
-          <strong>Aucun événement</strong>
-          <p>Programmez le premier événement associé à une expérience.</p>
-        </div>
+        <EmptyState title="Aucun événement" description="Programmez le premier événement associé à une expérience." icon={<Inbox size={28} />} />
       )}
       {!loading && !error && events.length > 0 && (
         <section className="agent-event-list" aria-label="Événements programmés">

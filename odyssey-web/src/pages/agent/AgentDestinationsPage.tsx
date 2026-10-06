@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { LoaderCircle, MapPin, Plus, RefreshCw } from "lucide-react";
 import { createDestination, getDestinations } from "../../api/destinations";
+import { EmptyState, ErrorState, LoadingState } from "../../components/ui/State";
 import type { Destination } from "../../types/destination";
 
 function sortDestinations(items: Destination[]) {
@@ -145,29 +146,18 @@ export function AgentDestinationsPage() {
         </form>
       </section>
 
-      {loading && (
-        <div className="state-panel" role="status">
-          <span className="spinner" />
-          <strong>Chargement des destinations…</strong>
-        </div>
-      )}
+      {loading && <LoadingState title="Chargement des destinations…" icon={<span className="ui-state-spinner" aria-hidden="true" />} />}
 
       {!loading && loadingError && (
-        <div className="state-panel error-panel" role="alert">
-          <RefreshCw size={24} />
-          <strong>{loadingError}</strong>
+        <ErrorState title={loadingError} icon={<RefreshCw size={24} />}>
           <button className="secondary-button" type="button" onClick={() => setRequestVersion((value) => value + 1)}>
             <RefreshCw size={16} /> Réessayer
           </button>
-        </div>
+        </ErrorState>
       )}
 
       {!loading && !loadingError && destinations.length === 0 && (
-        <div className="state-panel">
-          <MapPin size={28} />
-          <strong>Aucune destination</strong>
-          <p>Ajoutez la première destination du catalogue.</p>
-        </div>
+        <EmptyState title="Aucune destination" description="Ajoutez la première destination du catalogue." icon={<MapPin size={28} />} />
       )}
 
       {!loading && !loadingError && destinations.length > 0 && (

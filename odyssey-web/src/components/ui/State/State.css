@@ -1,0 +1,65 @@
+.ui-state-panel {
+  display: grid;
+  min-height: 260px;
+  place-items: center;
+  align-content: center;
+  gap: 9px;
+  padding: 32px;
+  color: var(--primary);
+  text-align: center;
+  background: var(--surface);
+  border: 1px dashed #c9dad5;
+  border-radius: 8px;
+}
+
+.ui-state-panel strong {
+  color: var(--ink);
+  font-size: 16px;
+}
+
+.ui-state-panel p {
+  max-width: 430px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.ui-state-panel__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  color: var(--primary);
+}
+
+.ui-state-panel__action {
+  display: flex;
+  justify-content: center;
+  margin-top: 6px;
+}
+
+.ui-state-panel--error {
+  color: #b54b3d;
+  border-color: #e8c5bf;
+}
+
+.ui-state-panel--error .ui-state-panel__icon {
+  color: #b54b3d;
+}
+
+.ui-state-spinner {
+  width: 27px;
+  height: 27px;
+  border: 3px solid #cfe4df;
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: ui-state-spin 700ms linear infinite;
+}
+
+@keyframes ui-state-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
