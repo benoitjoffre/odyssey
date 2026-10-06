@@ -1,5 +1,8 @@
 import type { ReactNode } from "react";
 import { AlertCircle, AlertTriangle, Circle, Clock3 } from "lucide-react";
+import { Button } from "./ui/Button";
+import { Badge } from "./ui/Badge";
+import { Card } from "./ui/Card";
 import type { TravelerTripNextActionKind } from "../helpers/travelerTripState";
 
 type TripNextActionTone = "action" | "progress" | "neutral" | "critical";
@@ -105,24 +108,27 @@ export interface TripNextActionProps {
 
 export function TripNextAction({ action, count, onCtaClick }: TripNextActionProps) {
   const content = getNextActionContent(action, count);
+  const badgeVariant = content.tone === "action" || content.tone === "progress" ? "warning" : content.tone === "critical" ? "danger" : "neutral";
 
   return (
-    <section className={`trip-next-action trip-next-action--${content.tone}`} aria-labelledby="trip-next-action-title">
+    <Card className={`trip-next-action trip-next-action--${content.tone}`} padding="lg" aria-labelledby="trip-next-action-title">
       <span className="trip-next-action-ornament" aria-hidden="true" />
       <span className="trip-next-action-icon" aria-hidden="true">
         {toneIcons[content.tone]}
       </span>
       <div className="trip-next-action-copy">
-        <span className="trip-next-action-eyebrow">{content.eyebrow}</span>
+        <Badge variant={badgeVariant} className="trip-next-action-eyebrow">
+          {content.eyebrow}
+        </Badge>
         <strong id="trip-next-action-title">{content.title}</strong>
         <p>{content.message}</p>
         {content.secondaryMessage && <p className="trip-next-action-secondary">{content.secondaryMessage}</p>}
       </div>
       {content.ctaLabel && onCtaClick && (
-        <button type="button" className="primary-button trip-next-action-cta" onClick={onCtaClick}>
+        <Button type="button" className="trip-next-action-cta" onClick={onCtaClick}>
           {content.ctaLabel}
-        </button>
+        </Button>
       )}
-    </section>
+    </Card>
   );
 }

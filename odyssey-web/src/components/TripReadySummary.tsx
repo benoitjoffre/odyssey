@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Check } from "lucide-react";
+import { Badge } from "./ui/Badge";
 import { Card } from "./ui/Card";
 
 export interface TripReadyService {
@@ -32,7 +33,9 @@ export function TripReadySummary({ services }: TripReadySummaryProps) {
               {service.icon}
             </span>
             <span className="trip-ready-list-label">{service.label}</span>
-            <span className="trip-ready-list-status">Confirmé</span>
+            <Badge variant="success" className="trip-ready-list-status">
+              Confirmé
+            </Badge>
             {service.providerConfirmationId && <span className="trip-ready-list-reference">{service.providerConfirmationId}</span>}
           </li>
         ))}

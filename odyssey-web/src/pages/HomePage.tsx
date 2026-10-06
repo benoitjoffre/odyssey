@@ -5,6 +5,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { getExperiences } from "../api/experiences";
 import { ExperienceCard } from "../components/experience/ExperienceCard";
 import { Button } from "../components/ui/Button";
+import { EmptyState } from "../components/ui/State";
 import type { Experience } from "../types/experience";
 import odysseyLogo from "../assets/odyssey-bird.png";
 import tortuesImage from "../assets/tortues.png";
@@ -205,9 +206,11 @@ export function HomePage() {
             </div>
 
             {experiences.length === 0 ? (
-              <div className="public-state-panel">
-                <p>Le catalogue se prépare. Revenez bientôt pour découvrir les prochaines expériences Odyssey.</p>
-              </div>
+              <EmptyState
+                title="Le catalogue se prépare."
+                description="Revenez bientôt pour découvrir les prochaines expériences Odyssey."
+                icon={<Sparkles size={28} aria-hidden="true" />}
+              />
             ) : (
               <div className="public-card-grid">
                 {experiences.map((experience) => (

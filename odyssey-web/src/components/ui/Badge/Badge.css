@@ -14,6 +14,7 @@
   white-space: nowrap;
   background: var(--ui-badge-bg);
   border-radius: 999px;
+  width: fit-content;
 }
 
 .ui-badge--neutral {

@@ -1,4 +1,5 @@
 import { Construction } from "lucide-react";
+import { EmptyState } from "../components/ui/State";
 
 interface ComingSoonPageProps {
   title: string;
@@ -13,11 +14,11 @@ export function ComingSoonPage({ title }: ComingSoonPageProps) {
           <h1>{title}</h1>
         </div>
       </section>
-      <div className="state-panel">
-        <Construction size={28} aria-hidden="true" />
-        <strong>Cette section arrive bientôt</strong>
-        <p>Elle sera ajoutée lors d’une prochaine étape du développement.</p>
-      </div>
+      <EmptyState
+        title="Cette section arrive bientôt"
+        description="Elle sera ajoutée lors d’une prochaine étape du développement."
+        icon={<Construction size={28} aria-hidden="true" />}
+      />
     </div>
   );
 }

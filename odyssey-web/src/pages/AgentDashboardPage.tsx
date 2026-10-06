@@ -3,6 +3,8 @@ import { ArrowRight, BedDouble, Bell, Bus, Car, Plane, Route, RefreshCw, Inbox }
 import { Link } from "react-router-dom";
 import { openAgentNotificationStream } from "../api/agentNotificationStream";
 import { getAgentNotifications } from "../api/agents";
+import { Button } from "../components/ui/Button";
+import { EmptyState, ErrorState } from "../components/ui/State";
 import type { AgentNotification } from "../types/agent";
 import type { NeedType } from "../types/bookingRequest";
 
@@ -227,23 +229,24 @@ export function AgentDashboardPage() {
         )}
 
         {!loading && error && (
-          <div className="state-panel error-panel" role="alert">
-            <RefreshCw size={24} aria-hidden="true" />
-            <strong>Impossible de charger les notifications.</strong>
-            <p>Vérifiez que l’API Odyssey est accessible puis réessayez.</p>
-            <button type="button" className="secondary-button" onClick={() => setRequestVersion((value) => value + 1)}>
+          <ErrorState
+            title="Impossible de charger les notifications."
+            description="Vérifiez que l’API Odyssey est accessible puis réessayez."
+            icon={<RefreshCw size={24} aria-hidden="true" />}
+          >
+            <Button type="button" variant="secondary" size="sm" onClick={() => setRequestVersion((value) => value + 1)}>
               <RefreshCw size={16} />
               Réessayer
-            </button>
-          </div>
+            </Button>
+          </ErrorState>
         )}
 
         {!loading && !error && tripGroups.length === 0 && (
-          <div className="state-panel notification-empty-state">
-            <Inbox size={28} aria-hidden="true" />
-            <strong>Vous n’avez aucune nouvelle notification.</strong>
-            <p>Les activités sur vos demandes apparaîtront ici.</p>
-          </div>
+          <EmptyState
+            title="Vous n’avez aucune nouvelle notification."
+            description="Les activités sur vos demandes apparaîtront ici."
+            icon={<Inbox size={28} aria-hidden="true" />}
+          />
         )}
 
         {!loading && !error && tripGroups.length > 0 && (

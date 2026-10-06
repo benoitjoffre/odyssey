@@ -1427,10 +1427,6 @@ body {
   width: 68%;
 }
 
-.notification-empty-state {
-  min-height: 210px;
-}
-
 @keyframes notification-shimmer {
   to {
     background-position: -200% 0;
@@ -8754,18 +8750,6 @@ button.traveler-organization-choice:hover,
   border-top: 1px solid rgba(0, 0, 0, 0.12);
   color: rgba(0, 0, 0, 0.7);
   font-size: 0.85rem;
-}
-
-.public-state-panel {
-  display: grid;
-  place-items: center;
-  min-height: 180px;
-  padding: 24px;
-  color: var(--odyssey-text);
-  background: var(--odyssey-white);
-  border: 1px dashed var(--odyssey-border);
-  border-radius: 18px;
-  text-align: center;
 }
 
 .experience-detail-shell {
