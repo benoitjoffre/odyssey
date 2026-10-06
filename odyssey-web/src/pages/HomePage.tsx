@@ -4,6 +4,7 @@ import { type FormEvent, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { getExperiences } from "../api/experiences";
 import { ExperienceCard } from "../components/experience/ExperienceCard";
+import { Button } from "../components/ui/Button";
 import type { Experience } from "../types/experience";
 import odysseyLogo from "../assets/odyssey-bird.png";
 import tortuesImage from "../assets/tortues.png";
@@ -46,7 +47,7 @@ const whyItems = [
 
 export function HomePage() {
   const navigate = useNavigate();
-  const { isAuthenticated, loginWithRedirect, user } = useAuth0();
+  const { isAuthenticated, user } = useAuth0();
   const [experiences, setExperiences] = useState<Experience[]>([]);
   const [heroInput, setHeroInput] = useState("");
   const [isHeaderScrolled, setIsHeaderScrolled] = useState(false);
@@ -107,21 +108,21 @@ export function HomePage() {
           </nav>
 
           <div className="public-header__actions">
-            <button type="button" className="public-header__search" aria-label="Recherche">
+            <Button type="button" variant="ghost" size="sm" className="public-header__search" aria-label="Recherche">
               <Search size={17} />
-            </button>
+            </Button>
             {isAuthenticated ? (
               <Link className="public-header__button public-header__button--ghost" to="/traveler/trips">
                 {displayName}
               </Link>
             ) : (
               <>
-                <button type="button" className="public-header__button public-header__button--ghost" onClick={() => void loginWithRedirect()}>
+                <Link className="public-header__button public-header__button--ghost" to="/login">
                   Se connecter
-                </button>
-                <button type="button" className="public-header__button public-header__button--primary" onClick={() => void loginWithRedirect()}>
+                </Link>
+                <Link className="public-header__button public-header__button--primary" to="/login">
                   Créer un compte
-                </button>
+                </Link>
               </>
             )}
           </div>
@@ -149,9 +150,9 @@ export function HomePage() {
                   placeholder="Qu'avez-vous envie de vivre ?"
                   aria-label="Qu'avez-vous envie de vivre ?"
                 />
-                <button type="submit">
+                <Button type="submit" size="lg">
                   Découvrir <ArrowRight size={16} />
-                </button>
+                </Button>
               </form>
 
               <div className="public-hero__examples" aria-label="Exemples d’envies">

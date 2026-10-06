@@ -30,11 +30,13 @@ public class TravelerController {
         this.sseService = sseService;
     }
 
+    @PreAuthorize("hasRole('AGENT')")
     @PostMapping
     public Traveler createTraveler(@Valid @RequestBody Traveler traveler) {
         return travelerService.createTraveler(traveler);
     }
 
+    @PreAuthorize("hasRole('AGENT')")
     @GetMapping
     public List<Traveler> getTravelers() {
         return travelerService.getTravelers();

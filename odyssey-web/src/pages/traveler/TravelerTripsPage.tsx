@@ -16,6 +16,7 @@ import {
 } from "../../helpers/travelerTripPresentation";
 import { getLatestQuote } from "../../helpers/travelerQuotes";
 import { deriveTravelerTripProgress, type TravelerNeedStateEntry } from "../../helpers/travelerTripState";
+import { Badge } from "../../components/ui/Badge";
 import type { TravelEvent } from "../../types/travelEvent";
 import type { Trip } from "../../types/trip";
 
@@ -70,6 +71,19 @@ function deriveNextTripMetrics(needStates: TravelerNeedStateEntry[]): NextTripMe
     bookedNeeds,
     pendingActions,
   };
+}
+
+function getTripStatusBadgeVariant(status: Trip["status"]) {
+  switch (status) {
+    case "CONFIRMED":
+      return "success";
+    case "CANCELLED":
+      return "danger";
+    case "DRAFT":
+      return "warning";
+    default:
+      return "neutral";
+  }
 }
 
 function deriveNeedStates(
@@ -338,7 +352,9 @@ export function TravelerTripsPage() {
 
                 <div className="next-trip-card__content">
                   <div className="next-trip-card__topline">
-                    <span className={`trip-status status-${nextTrip.status.toLowerCase()}`}>{tripStatusLabel}</span>
+                    <Badge variant={getTripStatusBadgeVariant(nextTrip.status)} className="trip-status">
+                      {tripStatusLabel}
+                    </Badge>
                     {countdownLabel && (
                       <span className="next-trip-card__countdown" aria-label={countdownLabel}>
                         <span className="next-trip-card__countdown-label">
@@ -503,7 +519,9 @@ export function TravelerTripsPage() {
                             alt={`Illustration du voyage ${trip.title || `#${trip.id}`}`}
                             loading="lazy"
                           />
-                          <span className={`trip-status status-${trip.status.toLowerCase()} other-trip-card__status`}>{statusLabel}</span>
+                          <Badge variant={getTripStatusBadgeVariant(trip.status)} className="trip-status other-trip-card__status">
+                            {statusLabel}
+                          </Badge>
                           <span className="other-trip-card__date-pill">
                             <CalendarDays size={14} /> {dateBadge}
                           </span>

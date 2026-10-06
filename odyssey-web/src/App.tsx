@@ -16,6 +16,7 @@ import { AgentBookingRequestsPage } from "./pages/agent/AgentBookingRequestsPage
 import { BookingRequestPage } from "./pages/BookingRequestPage";
 import { ComingSoonPage } from "./pages/ComingSoonPage";
 import { HomePage } from "./pages/HomePage";
+import { LoginPage } from "./pages/LoginPage";
 import { ExperienceDetailPage } from "./pages/ExperienceDetailPage";
 import { TravelerDiscoverPage } from "./pages/traveler/TravelerDiscoverPage";
 import { TravelerEventDetailPage } from "./pages/traveler/TravelerEventDetailPage";
@@ -33,26 +34,18 @@ function getDashboardPathFromRoles(roles: string[]): string {
 
 function AuthGuard({ children, requiredRole }: { children: ReactNode; requiredRole?: "TRAVELER" | "AGENT" }) {
   const location = useLocation();
-  const { isAuthenticated, isLoading, loginWithRedirect } = useAuth0();
+  const { isAuthenticated, isLoading } = useAuth0();
   const { currentUser, isLoading: isUserLoading } = useCurrentUser();
   const roles = currentUser?.roles ?? [];
-
-  useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      void loginWithRedirect({ appState: { targetUrl: `${location.pathname}${location.search}` } });
-    }
-  }, [isAuthenticated, isLoading, location.pathname, location.search, loginWithRedirect]);
 
   if (isLoading || (isAuthenticated && isUserLoading)) {
     return <div style={{ display: "grid", placeItems: "center", minHeight: "100vh", color: "#1d3c39", fontWeight: 600 }}>Chargement…</div>;
   }
 
   if (!isAuthenticated) {
-    return (
-      <div style={{ display: "grid", placeItems: "center", minHeight: "100vh", color: "#1d3c39", fontWeight: 600 }}>
-        Redirection vers la connexion…
-      </div>
-    );
+    const targetUrl = `${location.pathname}${location.search}`;
+    const returnTo = encodeURIComponent(targetUrl);
+    return <Navigate to={`/login?returnTo=${returnTo}`} replace />;
   }
 
   if (requiredRole && !roles.includes(requiredRole)) {
@@ -99,6 +92,7 @@ function App() {
     <CurrentUserProvider>
       <Routes>
         <Route path="/" element={<HomePage />} />
+        <Route path="/login" element={<LoginPage />} />
         <Route path="/experiences/:id" element={<ExperienceDetailPage />} />
 
         <Route

@@ -1,0 +1,64 @@
+.ui-badge {
+  --ui-badge-bg: #edf1f0;
+  --ui-badge-color: #4f5c59;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 24px;
+  padding: 0 9px;
+  color: var(--ui-badge-color);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  background: var(--ui-badge-bg);
+  border-radius: 999px;
+}
+
+.ui-badge--neutral {
+  --ui-badge-bg: #edf1f0;
+  --ui-badge-color: var(--color-text-muted);
+}
+
+.ui-badge--success {
+  --ui-badge-bg: color-mix(in srgb, var(--color-success) 16%, white);
+  --ui-badge-color: #28643e;
+}
+
+.ui-badge--warning {
+  --ui-badge-bg: color-mix(in srgb, var(--color-warning) 20%, white);
+  --ui-badge-color: #8a4b0d;
+}
+
+.ui-badge--danger {
+  --ui-badge-bg: color-mix(in srgb, var(--color-danger) 12%, white);
+  --ui-badge-color: #8b3d35;
+}
+
+.ui-badge.trip-status {
+  display: inline-flex;
+  min-height: 24px;
+  align-items: center;
+  padding: 0 9px;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 999px;
+}
+
+.ui-badge.traveler-need-card__status-pill {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 6px 9px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  border-radius: 999px;
+  backdrop-filter: blur(10px);
+}

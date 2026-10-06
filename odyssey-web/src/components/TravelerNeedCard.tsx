@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { AlertCircle, AlertTriangle, Check, ChevronRight, Circle, Clock3, CreditCard, LoaderCircle, Minus, Send, X } from "lucide-react";
+import { Badge, type BadgeVariant } from "./ui/Badge";
 import { SUPPLIER_PAYMENT_CTA_LABEL, SUPPLIER_PAYMENT_DISCLAIMER } from "../helpers/supplierPayment";
 import type { TravelerNeedUxState } from "../helpers/travelerNeedState";
 import { getNeedStatusLabel, getNeedVisualAsset, getNeedVisualLabel } from "../helpers/travelerNeedPresentation";
@@ -99,6 +100,22 @@ const travelerNeedStateContent: Record<TravelerNeedUxState, TravelerNeedStateCon
   },
 };
 
+function getNeedBadgeVariant(tone: TravelerNeedTone): BadgeVariant {
+  switch (tone) {
+    case "success":
+      return "success";
+    case "error":
+      return "danger";
+    case "action":
+    case "progress":
+      return "warning";
+    case "muted":
+    case "neutral":
+    default:
+      return "neutral";
+  }
+}
+
 function formatPrice(price: number, currency: string) {
   return new Intl.NumberFormat("fr-FR", {
     style: "currency",
@@ -175,7 +192,9 @@ export function TravelerNeedCard({
     <article className={`traveler-need-card traveler-need-card--${content.tone}`} id={`traveler-need-${need.id}`}>
       <div className="traveler-need-card__media">
         <img src={visualAsset} alt={visualLabel} loading="lazy" />
-        <span className={`traveler-need-card__status-pill traveler-need-card__status-pill--${content.tone}`}>{statusLabel}</span>
+        <Badge variant={getNeedBadgeVariant(content.tone)} className="traveler-need-card__status-pill">
+          {statusLabel}
+        </Badge>
       </div>
 
       <div className="traveler-need-card__body">

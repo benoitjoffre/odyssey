@@ -1,11 +1,11 @@
 import { useAuth0 } from "@auth0/auth0-react";
 import { Compass, FileText, Luggage, Menu, Search, X } from "lucide-react";
 import { useState } from "react";
-import { NavLink } from "react-router-dom";
+import { Link, NavLink } from "react-router-dom";
 import odysseyBird from "../assets/odyssey-bird.png";
 
 export function TravelerHeader() {
-  const { isAuthenticated, isLoading, loginWithRedirect, logout, user } = useAuth0();
+  const { isAuthenticated, isLoading, logout, user } = useAuth0();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const userDisplayName = user?.name ?? user?.nickname ?? user?.email ?? "Voyageur";
@@ -80,9 +80,9 @@ export function TravelerHeader() {
                   <span>Non connecté</span>
                 </div>
               </div>
-              <button type="button" className="traveler-auth-button" onClick={() => void loginWithRedirect()}>
+              <Link to="/login" className="traveler-auth-button">
                 Se connecter
-              </button>
+              </Link>
             </>
           )}
 
