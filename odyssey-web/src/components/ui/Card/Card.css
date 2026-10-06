@@ -1,0 +1,23 @@
+.ui-card {
+  background: var(--color-surface, var(--surface));
+  border: 1px solid var(--color-border, var(--border));
+  border-radius: var(--radius-md, 10px);
+  box-shadow: var(--shadow-card, 0 8px 24px rgba(29, 69, 65, 0.06));
+  overflow: hidden;
+}
+
+.ui-card--padding-none {
+  padding: 0;
+}
+
+.ui-card--padding-sm {
+  padding: 12px;
+}
+
+.ui-card--padding-md {
+  padding: 16px;
+}
+
+.ui-card--padding-lg {
+  padding: 24px;
+}

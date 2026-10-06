@@ -37,13 +37,7 @@ export function Button({
     .join(" ");
 
   return (
-    <button
-      {...buttonProps}
-      type={type}
-      className={classes}
-      disabled={isDisabled}
-      aria-busy={loading || undefined}
-    >
+    <button {...buttonProps} type={type} className={classes} disabled={isDisabled} aria-busy={loading || undefined}>
       <span className="ui-button__content">
         <span className="ui-button__label">{children}</span>
         {loading ? <span className="ui-button__spinner" aria-hidden="true" /> : null}

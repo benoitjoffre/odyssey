@@ -112,11 +112,7 @@ export function LoginPage() {
 
         <main className="login-showcase">
           <aside className="login-visual" aria-hidden="true">
-            <img
-              src={onboardBackground}
-              alt=""
-              className="login-visual__bg"
-            />
+            <img src={onboardBackground} alt="" className="login-visual__bg" />
             <div className="login-visual__overlay" />
             <img src={plumesImage} alt="" className="login-visual__plumes" />
             <div className="login-visual__card">
@@ -137,13 +133,7 @@ export function LoginPage() {
               Découvrez des expériences qui vous ressemblent et laissez Odyssey vous accompagner dans l&apos;organisation de votre voyage.
             </p>
 
-            <Button
-              size="lg"
-              fullWidth
-              loading={submitting}
-              onClick={() => void handleLogin()}
-              disabled={submitting || isLoading}
-            >
+            <Button size="lg" fullWidth loading={submitting} onClick={() => void handleLogin()} disabled={submitting || isLoading}>
               {submitting ? <LoaderCircle className="rotating" size={18} aria-hidden="true" /> : <ShieldCheck size={18} aria-hidden="true" />}
               {submitting ? "Connexion en cours…" : "Se connecter"}
             </Button>
@@ -156,13 +146,7 @@ export function LoginPage() {
 
             <p className="login-signup-caption">Pas encore de compte ?</p>
 
-            <Button
-              variant="outline"
-              fullWidth
-              loading={submitting}
-              onClick={() => void handleSignup()}
-              disabled={submitting || isLoading}
-            >
+            <Button variant="outline" fullWidth loading={submitting} onClick={() => void handleSignup()} disabled={submitting || isLoading}>
               Créer un compte
               <ArrowRight size={16} aria-hidden="true" />
             </Button>

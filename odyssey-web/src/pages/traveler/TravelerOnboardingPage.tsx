@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { updateTravelerOnboarding } from "../../api/travelers";
 import { useCurrentUser } from "../../auth/useCurrentUser";
 import { TravelerHeader } from "../../components/TravelerHeader";
+import { FormField } from "../../components/ui/FormField";
 import onboardBackground from "../../assets/onboard-background.png";
 import plumesImage from "../../assets/plumes.png";
 
@@ -94,8 +95,7 @@ export function TravelerOnboardingPage() {
 
               <form className="onboarding-form" onSubmit={(event) => void handleSubmit(event)} noValidate>
                 <div className="onboarding-name-grid">
-                  <label className="onboarding-field">
-                    <span>Prénom *</span>
+                  <FormField label="Prénom" required>
                     <input
                       value={firstName}
                       onChange={(event) => {
@@ -107,10 +107,9 @@ export function TravelerOnboardingPage() {
                       autoComplete="given-name"
                       required
                     />
-                  </label>
+                  </FormField>
 
-                  <label className="onboarding-field">
-                    <span>Nom *</span>
+                  <FormField label="Nom" required>
                     <input
                       value={lastName}
                       onChange={(event) => {
@@ -122,11 +121,10 @@ export function TravelerOnboardingPage() {
                       autoComplete="family-name"
                       required
                     />
-                  </label>
+                  </FormField>
                 </div>
 
-                <label className="onboarding-field">
-                  <span>Téléphone *</span>
+                <FormField label="Téléphone" required>
                   <input
                     type="tel"
                     value={phoneNumber}
@@ -139,10 +137,9 @@ export function TravelerOnboardingPage() {
                     autoComplete="tel"
                     required
                   />
-                </label>
+                </FormField>
 
-                <label className="onboarding-field">
-                  <span>WhatsApp (optionnel)</span>
+                <FormField label="WhatsApp (optionnel)" helperText="Laissez vide pour utiliser le même numéro que le téléphone">
                   <input
                     type="tel"
                     value={whatsappNumber}
@@ -153,10 +150,9 @@ export function TravelerOnboardingPage() {
                     placeholder="Laissez vide pour utiliser le même numéro que le téléphone"
                     disabled={submitting}
                   />
-                </label>
+                </FormField>
 
-                <label className="onboarding-field">
-                  <span>Langue préférée *</span>
+                <FormField label="Langue préférée" required>
                   <select
                     value={preferredLanguage}
                     onChange={(event) => {
@@ -172,7 +168,7 @@ export function TravelerOnboardingPage() {
                       </option>
                     ))}
                   </select>
-                </label>
+                </FormField>
 
                 {error && (
                   <p className="traveler-form-error" role="alert">

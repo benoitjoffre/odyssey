@@ -2,6 +2,7 @@ import { ArrowRight, CalendarDays, MapPin } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import fallbackExperienceImage from "../../assets/experience-placeholder.svg";
+import { Card } from "../ui/Card";
 import { experienceCategoryLabels } from "../../helpers/experienceCategories";
 import { getExperienceImageUrl } from "../../helpers/experienceImage";
 import type { Experience } from "../../types/experience";
@@ -61,26 +62,28 @@ export function ExperienceCard({ experience }: ExperienceCardProps) {
 
   return (
     <Link className="experience-card" to={`/experiences/${experience.id}`} aria-label={`Voir l'expérience ${experience.title}`}>
-      <div className="experience-card__media">
-        <img className="experience-card__image" src={imageSrc} alt={experience.title} onError={() => setImageSrc(fallbackExperienceImage)} />
-        <span className={`experience-card__category ${categoryClassName}`}>{categoryLabel.toUpperCase()}</span>
-      </div>
-      <div className="experience-card__content">
-        <h3>{experience.title}</h3>
-
-        <div className="experience-card__meta">
-          <span>
-            <MapPin size={14} /> {destinationLabel}
-          </span>
-          <span>
-            <CalendarDays size={14} /> {durationLabel}
-          </span>
+      <Card className="experience-card__surface">
+        <div className="experience-card__media">
+          <img className="experience-card__image" src={imageSrc} alt={experience.title} onError={() => setImageSrc(fallbackExperienceImage)} />
+          <span className={`experience-card__category ${categoryClassName}`}>{categoryLabel.toUpperCase()}</span>
         </div>
-      </div>
+        <div className="experience-card__content">
+          <h3>{experience.title}</h3>
 
-      <span className="experience-card__action" aria-hidden="true">
-        <ArrowRight size={16} />
-      </span>
+          <div className="experience-card__meta">
+            <span>
+              <MapPin size={14} /> {destinationLabel}
+            </span>
+            <span>
+              <CalendarDays size={14} /> {durationLabel}
+            </span>
+          </div>
+        </div>
+
+        <span className="experience-card__action" aria-hidden="true">
+          <ArrowRight size={16} />
+        </span>
+      </Card>
     </Link>
   );
 }

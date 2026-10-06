@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Check } from "lucide-react";
+import { Card } from "./ui/Card";
 
 export interface TripReadyService {
   needId: number;
@@ -14,7 +15,7 @@ export interface TripReadySummaryProps {
 
 export function TripReadySummary({ services }: TripReadySummaryProps) {
   return (
-    <section className="trip-ready-summary" aria-labelledby="trip-ready-title">
+    <Card className="trip-ready-summary" padding="lg" aria-labelledby="trip-ready-title">
       <div className="trip-ready-headline">
         <span className="trip-ready-icon" aria-hidden="true">
           <Check size={20} />
@@ -36,6 +37,6 @@ export function TripReadySummary({ services }: TripReadySummaryProps) {
           </li>
         ))}
       </ul>
-    </section>
+    </Card>
   );
 }
