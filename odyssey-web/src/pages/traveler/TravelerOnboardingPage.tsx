@@ -7,12 +7,7 @@ import { TravelerHeader } from "../../components/TravelerHeader";
 import { FormField } from "../../components/ui/FormField";
 import onboardBackground from "../../assets/onboard-background.png";
 import plumesImage from "../../assets/plumes.png";
-
-const PREFERRED_LANGUAGES: { value: string; label: string }[] = [
-  { value: "fr", label: "Français" },
-  { value: "en", label: "English" },
-  { value: "es", label: "Español" },
-];
+import { PREFERRED_LANGUAGES } from "./travelerProfileConstants";
 
 export function TravelerOnboardingPage() {
   const navigate = useNavigate();

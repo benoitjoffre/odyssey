@@ -2,6 +2,7 @@ package com.odyssey.api.security;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -318,6 +319,109 @@ class CurrentUserServiceTest {
             currentUserService.getTravelerOnboardingStatus("auth0|agent-1");
 
         assertNull(status);
+    }
+
+    @Test
+    void getCurrentTravelerProfileReturnsProfileWhenTravelerExists() {
+        Traveler traveler = new Traveler(
+            "Alice",
+            "Martin",
+            "traveler@example.com"
+        );
+        traveler.setAuth0Subject("auth0|traveler-1");
+        traveler.setPhoneNumber("+33600000000");
+        traveler.setWhatsappNumber("+33600000001");
+        traveler.setPreferredLanguage("fr");
+        when(travelerRepository.findByAuth0Subject("auth0|traveler-1"))
+            .thenReturn(Optional.of(traveler));
+
+        CurrentTravelerProfile profile = currentUserService
+            .getCurrentTravelerProfile("auth0|traveler-1");
+
+        assertEquals("Alice", profile.firstName());
+        assertEquals("Martin", profile.lastName());
+        assertEquals("traveler@example.com", profile.email());
+        assertEquals("+33600000000", profile.phoneNumber());
+        assertEquals("+33600000001", profile.whatsappNumber());
+        assertEquals("fr", profile.preferredLanguage());
+    }
+
+    @Test
+    void getCurrentTravelerProfileReturnsNullWhenTravelerMissing() {
+        when(travelerRepository.findByAuth0Subject("auth0|traveler-1"))
+            .thenReturn(Optional.empty());
+
+        CurrentTravelerProfile profile = currentUserService
+            .getCurrentTravelerProfile("auth0|traveler-1");
+
+        assertNull(profile);
+    }
+
+    @Test
+    void updateCurrentTravelerProfileUpdatesOnlyMutableFields() {
+        Traveler traveler = new Traveler(
+            "Old",
+            "Name",
+            "traveler@example.com"
+        );
+        traveler.setAuth0Subject("auth0|traveler-1");
+        traveler.setOnboardingCompleted(true);
+        traveler.setPhoneNumber("+33611111111");
+        traveler.setWhatsappNumber("+33622222222");
+        traveler.setPreferredLanguage("en");
+
+        when(travelerRepository.findByAuth0Subject("auth0|traveler-1"))
+            .thenReturn(Optional.of(traveler));
+        when(travelerRepository.save(traveler)).thenReturn(traveler);
+
+        UpdateProfileRequest request = new UpdateProfileRequest(
+            "Alice",
+            "Martin",
+            "+33600000000",
+            null,
+            "fr"
+        );
+
+        CurrentTravelerProfile profile = currentUserService
+            .updateCurrentTravelerProfile("auth0|traveler-1", request);
+
+        assertEquals("Alice", traveler.getFirstName());
+        assertEquals("Martin", traveler.getLastName());
+        assertEquals("traveler@example.com", traveler.getEmail());
+        assertEquals("+33600000000", traveler.getPhoneNumber());
+        assertNull(traveler.getWhatsappNumber());
+        assertEquals("fr", traveler.getPreferredLanguage());
+        assertEquals(true, traveler.isOnboardingCompleted());
+        assertEquals("auth0|traveler-1", traveler.getAuth0Subject());
+
+        assertEquals("Alice", profile.firstName());
+        assertEquals("Martin", profile.lastName());
+        assertEquals("traveler@example.com", profile.email());
+        assertEquals("+33600000000", profile.phoneNumber());
+        assertNull(profile.whatsappNumber());
+        assertEquals("fr", profile.preferredLanguage());
+    }
+
+    @Test
+    void updateCurrentTravelerProfileThrowsWhenTravelerMissing() {
+        when(travelerRepository.findByAuth0Subject("auth0|traveler-1"))
+            .thenReturn(Optional.empty());
+
+        UpdateProfileRequest request = new UpdateProfileRequest(
+            "Alice",
+            "Martin",
+            "+33600000000",
+            null,
+            "fr"
+        );
+
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> currentUserService.updateCurrentTravelerProfile(
+                "auth0|traveler-1",
+                request
+            )
+        );
     }
 
     private Jwt jwt(

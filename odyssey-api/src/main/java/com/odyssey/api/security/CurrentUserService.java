@@ -14,6 +14,8 @@ import com.odyssey.api.agent.AgentStatus;
 import com.odyssey.api.traveler.Traveler;
 import com.odyssey.api.traveler.TravelerRepository;
 
+import org.springframework.transaction.annotation.Transactional;
+
 @Service
 public class CurrentUserService {
 
@@ -132,6 +134,30 @@ public class CurrentUserService {
         return travelerRepository.findByAuth0Subject(auth0Subject)
             .map(Traveler::isOnboardingCompleted)
             .orElse(null);
+    }
+
+    public CurrentTravelerProfile getCurrentTravelerProfile(String auth0Subject) {
+        return travelerRepository.findByAuth0Subject(auth0Subject)
+            .map(CurrentTravelerProfile::from)
+            .orElse(null);
+    }
+
+    @Transactional
+    public CurrentTravelerProfile updateCurrentTravelerProfile(
+        String auth0Subject,
+        UpdateProfileRequest request
+    ) {
+        Traveler traveler = travelerRepository.findByAuth0Subject(auth0Subject)
+            .orElseThrow(() -> new IllegalArgumentException("Traveler not found"));
+
+        traveler.setFirstName(request.firstName());
+        traveler.setLastName(request.lastName());
+        traveler.setPhoneNumber(request.phoneNumber());
+        traveler.setWhatsappNumber(request.whatsappNumber());
+        traveler.setPreferredLanguage(request.preferredLanguage());
+
+        Traveler savedTraveler = travelerRepository.save(traveler);
+        return CurrentTravelerProfile.from(savedTraveler);
     }
 
     private String resolveEmailClaim(Jwt jwt) {

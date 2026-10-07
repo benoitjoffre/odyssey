@@ -4,6 +4,7 @@ import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { configureApiClient } from "./api/client";
 import { AgentLayout } from "./components/AgentLayout";
 import { TravelerLayout } from "./components/TravelerLayout";
+import { ToastHost } from "./components/ui/Toast";
 import { CurrentUserProvider } from "./auth/CurrentUserProvider";
 import { useCurrentUser } from "./auth/useCurrentUser";
 import { AgentDashboardPage } from "./pages/AgentDashboardPage";
@@ -25,6 +26,7 @@ import { TravelerQuotesPage } from "./pages/traveler/TravelerQuotesPage";
 import { TravelerTripDetailPage } from "./pages/traveler/TravelerTripDetailPage";
 import { TravelerTripCreatePage } from "./pages/traveler/TravelerTripCreatePage";
 import { TravelerTripsPage } from "./pages/traveler/TravelerTripsPage";
+import { TravelerProfilePage } from "./pages/traveler/TravelerProfilePage";
 
 function getDashboardPathFromRoles(roles: string[]): string {
   if (roles.includes("AGENT")) return "/agent";
@@ -90,6 +92,7 @@ function App() {
 
   return (
     <CurrentUserProvider>
+      <ToastHost />
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<LoginPage />} />
@@ -138,6 +141,7 @@ function App() {
           <Route path="trips/new" element={<TravelerTripCreatePage />} />
           <Route path="trips/:tripId" element={<TravelerTripDetailPage />} />
           <Route path="quotes" element={<TravelerQuotesPage />} />
+          <Route path="profile" element={<TravelerProfilePage />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

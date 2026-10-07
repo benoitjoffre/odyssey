@@ -2640,6 +2640,81 @@ body {
   margin-left: auto;
 }
 
+.traveler-account-menu {
+  position: relative;
+}
+
+.traveler-account-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  background: transparent;
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.traveler-account-trigger:hover,
+.traveler-account-trigger.open {
+  background: rgba(8, 102, 165, 0.06);
+  border-color: rgba(8, 102, 165, 0.12);
+}
+
+.traveler-account-trigger__chevron {
+  color: #60757b;
+  transition: transform 0.2s ease;
+}
+
+.traveler-account-trigger.open .traveler-account-trigger__chevron {
+  transform: rotate(180deg);
+}
+
+.traveler-account-dropdown {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  min-width: 190px;
+  display: none;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px;
+  background: #ffffff;
+  border: 1px solid var(--odyssey-border);
+  border-radius: 12px;
+  box-shadow: 0 12px 28px rgba(16, 42, 50, 0.14);
+  z-index: 30;
+}
+
+.traveler-account-dropdown.open {
+  display: flex;
+}
+
+.traveler-account-dropdown__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 40px;
+  padding: 0 10px;
+  color: var(--odyssey-dark);
+  text-align: left;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  background: transparent;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.traveler-account-dropdown__item:hover,
+.traveler-account-dropdown__item.active {
+  color: var(--primary);
+  background: rgba(8, 102, 165, 0.08);
+}
+
 .traveler-nav-search {
   display: grid;
   place-items: center;
@@ -2783,7 +2858,8 @@ body {
 @media (max-width: 767px) {
   .traveler-nav,
   .traveler-nav-search,
-  .traveler-auth-button {
+  .traveler-auth-button,
+  .traveler-account-menu {
     display: none;
   }
 
@@ -2922,6 +2998,22 @@ body {
   margin-top: 4px;
 }
 
+.traveler-mobile-menu-divider {
+  height: 1px;
+  margin: 4px 0 2px;
+  background: var(--odyssey-border);
+}
+
+.traveler-mobile-menu-label {
+  margin: 0;
+  padding: 2px 2px 0;
+  color: #60757b;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
 .traveler-content {
   width: 100%;
   max-width: 1600px;
@@ -2933,6 +3025,75 @@ body {
 .traveler-page {
   display: grid;
   gap: 34px;
+}
+
+.traveler-profile-page {
+  padding-top: clamp(34px, 3.5vw, 44px);
+}
+
+.traveler-profile-heading h1 {
+  margin: 0;
+  color: var(--odyssey-dark);
+  font-size: clamp(30px, 3vw, 40px);
+  letter-spacing: -0.03em;
+}
+
+.traveler-profile-card {
+  width: min(860px, 100%);
+  border: 1px solid var(--odyssey-border);
+}
+
+.traveler-profile-card__header h2 {
+  margin: 0;
+  color: var(--odyssey-dark);
+  font-size: 20px;
+}
+
+.traveler-profile-form {
+  display: grid;
+  gap: 18px;
+  margin-top: 16px;
+}
+
+.traveler-profile-name-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.traveler-profile-email-input {
+  background: #f7fafb;
+  color: #60757b;
+}
+
+.traveler-profile-success {
+  margin: 0;
+  color: #186f42;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.traveler-profile-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+@media (max-width: 767px) {
+  .traveler-profile-name-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .traveler-profile-actions {
+    justify-content: stretch;
+    flex-direction: column-reverse;
+  }
+
+  .traveler-profile-actions .ui-button {
+    width: 100%;
+  }
 }
 
 .traveler-trips-page {

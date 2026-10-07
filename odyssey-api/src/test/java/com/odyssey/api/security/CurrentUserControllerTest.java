@@ -34,13 +34,29 @@ class CurrentUserControllerTest {
         when(jwt.getClaimAsStringList(ROLES_CLAIM)).thenReturn(List.of("TRAVELER"));
         when(currentUserService.getTravelerOnboardingStatus("auth0|traveler-a"))
             .thenReturn(Boolean.FALSE);
+        when(currentUserService.getCurrentTravelerProfile("auth0|traveler-a"))
+            .thenReturn(new CurrentTravelerProfile(
+                "Alice",
+                "Martin",
+                "traveler@example.com",
+                "+33600000000",
+                "+33600000001",
+                "fr"
+            ));
 
         CurrentUserResponse response = currentUserController.getCurrentUser(jwt);
 
         verify(currentUserService).provisionUser(jwt);
         verify(currentUserService).getTravelerOnboardingStatus("auth0|traveler-a");
+        verify(currentUserService).getCurrentTravelerProfile("auth0|traveler-a");
         assertEquals(List.of("TRAVELER"), response.roles());
         assertEquals(Boolean.FALSE, response.onboardingCompleted());
+        assertEquals("Alice", response.firstName());
+        assertEquals("Martin", response.lastName());
+        assertEquals("traveler@example.com", response.email());
+        assertEquals("+33600000000", response.phoneNumber());
+        assertEquals("+33600000001", response.whatsappNumber());
+        assertEquals("fr", response.preferredLanguage());
     }
 
     @Test
@@ -48,11 +64,26 @@ class CurrentUserControllerTest {
         when(jwt.getClaimAsStringList(ROLES_CLAIM)).thenReturn(List.of());
         when(currentUserService.getTravelerOnboardingStatus("auth0|traveler-a"))
             .thenReturn(Boolean.FALSE);
+        when(currentUserService.getCurrentTravelerProfile("auth0|traveler-a"))
+            .thenReturn(new CurrentTravelerProfile(
+                "Alice",
+                "Martin",
+                "traveler@example.com",
+                "+33600000000",
+                "+33600000001",
+                "fr"
+            ));
 
         CurrentUserResponse response = currentUserController.getCurrentUser(jwt);
 
         assertEquals(List.of("TRAVELER"), response.roles());
         assertEquals(Boolean.FALSE, response.onboardingCompleted());
+        assertEquals("Alice", response.firstName());
+        assertEquals("Martin", response.lastName());
+        assertEquals("traveler@example.com", response.email());
+        assertEquals("+33600000000", response.phoneNumber());
+        assertEquals("+33600000001", response.whatsappNumber());
+        assertEquals("fr", response.preferredLanguage());
     }
 
     @Test
@@ -60,10 +91,20 @@ class CurrentUserControllerTest {
         when(jwt.getClaimAsStringList(ROLES_CLAIM)).thenReturn(List.of("TRAVELER"));
         when(currentUserService.getTravelerOnboardingStatus("auth0|traveler-a"))
             .thenReturn(Boolean.TRUE);
+        when(currentUserService.getCurrentTravelerProfile("auth0|traveler-a"))
+            .thenReturn(new CurrentTravelerProfile(
+                "Alice",
+                "Martin",
+                "traveler@example.com",
+                "+33600000000",
+                "+33600000001",
+                "fr"
+            ));
 
         CurrentUserResponse response = currentUserController.getCurrentUser(jwt);
 
         assertEquals(Boolean.TRUE, response.onboardingCompleted());
+        assertEquals("traveler@example.com", response.email());
     }
 
     @Test
@@ -74,8 +115,16 @@ class CurrentUserControllerTest {
 
         assertEquals(List.of("AGENT"), response.roles());
         assertNull(response.onboardingCompleted());
+        assertNull(response.firstName());
+        assertNull(response.lastName());
+        assertNull(response.email());
+        assertNull(response.phoneNumber());
+        assertNull(response.whatsappNumber());
+        assertNull(response.preferredLanguage());
         verify(currentUserService, never())
             .getTravelerOnboardingStatus("auth0|traveler-a");
+        verify(currentUserService, never())
+            .getCurrentTravelerProfile("auth0|traveler-a");
     }
 
     @Test
@@ -83,10 +132,13 @@ class CurrentUserControllerTest {
         when(jwt.getClaimAsStringList(ROLES_CLAIM)).thenReturn(List.of("TRAVELER"));
         when(currentUserService.getTravelerOnboardingStatus("auth0|traveler-a"))
             .thenReturn(null);
+        when(currentUserService.getCurrentTravelerProfile("auth0|traveler-a"))
+            .thenReturn(null);
 
         CurrentUserResponse response = currentUserController.getCurrentUser(jwt);
 
         assertEquals(List.of("TRAVELER"), response.roles());
         assertEquals(Boolean.FALSE, response.onboardingCompleted());
+        assertNull(response.email());
     }
 }
