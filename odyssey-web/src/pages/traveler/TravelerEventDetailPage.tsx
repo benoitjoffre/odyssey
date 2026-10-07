@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { ArrowLeft, ArrowRight, CalendarDays, Leaf, MapPin, RefreshCw, Sparkles, UsersRound } from "lucide-react";
+import { ArrowLeft, CalendarDays, Leaf, MapPin, RefreshCw, Sparkles, UsersRound } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ApiError } from "../../api/client";
 import { getTravelEvent } from "../../api/travelEvents";
