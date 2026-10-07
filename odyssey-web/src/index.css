@@ -1962,6 +1962,7 @@ body {
 .offer-button,
 .selected-button {
   display: inline-flex;
+  box-sizing: border-box;
   min-height: 42px;
   align-items: center;
   justify-content: center;
@@ -2653,7 +2654,9 @@ body {
   border-radius: 14px;
   background: transparent;
   cursor: pointer;
-  transition: background-color 0.2s ease, border-color 0.2s ease;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease;
 }
 
 .traveler-account-trigger:hover,
@@ -6142,7 +6145,6 @@ button.traveler-organization-choice:hover,
   min-height: 180px;
 }
 
-.traveler-event-detail-meta,
 .traveler-preparation-event {
   display: flex;
   flex-wrap: wrap;
@@ -6152,7 +6154,6 @@ button.traveler-organization-choice:hover,
   font-weight: 600;
 }
 
-.traveler-event-detail-meta span,
 .traveler-preparation-event > span {
   display: inline-flex;
   align-items: center;
@@ -6349,7 +6350,6 @@ button.traveler-organization-choice:hover,
   }
 }
 
-.traveler-event-detail,
 .traveler-stay-preparation {
   padding: 38px;
   background: var(--surface);
@@ -6358,22 +6358,422 @@ button.traveler-organization-choice:hover,
   box-shadow: 0 8px 24px rgba(29, 69, 65, 0.06);
 }
 
-.traveler-event-detail h1,
 .traveler-stay-preparation h1 {
   max-width: 760px;
   margin: 10px 0 18px;
 }
 
-.traveler-event-detail > p {
-  max-width: 720px;
-  margin: 30px 0 0;
-  color: var(--muted);
-  font-size: 16px;
-  line-height: 1.65;
+.traveler-event-page {
+  gap: 16px;
 }
 
-.traveler-event-cta {
-  margin-top: 34px;
+.traveler-event-back {
+  width: fit-content;
+  color: var(--odyssey-blue);
+  font-size: 14px;
+  margin-top: 15px;
+}
+
+.traveler-event-back:hover {
+  color: var(--primary-dark);
+}
+
+.ui-card.traveler-event-hero {
+  display: grid;
+  min-height: 460px;
+  grid-template-columns: minmax(0, 44%) minmax(0, 56%);
+  overflow: hidden;
+  background: #ffffff;
+  border: 1px solid rgba(16, 42, 50, 0.08);
+  border-radius: 22px;
+  box-shadow: 0 10px 30px rgba(29, 69, 65, 0.07);
+}
+
+.traveler-event-hero__media {
+  position: relative;
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+  min-height: 440px;
+  overflow: hidden;
+}
+
+.traveler-event-hero__media::before {
+  position: absolute;
+  z-index: 1;
+  inset-block: 0;
+  left: 0;
+  width: 88px;
+  content: "";
+  background: linear-gradient(90deg, #ffffff 0%, rgba(255, 255, 255, 0.72) 28%, rgba(255, 255, 255, 0) 100%);
+  pointer-events: none;
+}
+
+.traveler-event-hero__media img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.traveler-event-hero__content {
+  display: flex;
+  min-width: 0;
+  grid-column: 1;
+  grid-row: 1;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  padding: clamp(32px, 4vw, 54px);
+}
+
+.traveler-event-hero__eyebrow {
+  margin: 0 0 12px;
+  color: var(--odyssey-blue);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.traveler-event-hero__content h1 {
+  max-width: 620px;
+  margin: 0;
+  color: var(--odyssey-dark);
+  font-size: clamp(38px, 3vw, 52px);
+  font-weight: 900;
+  letter-spacing: 0;
+  line-height: 1.05;
+  overflow-wrap: anywhere;
+}
+
+.traveler-event-detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  margin-top: 20px;
+  color: var(--primary-dark);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.traveler-event-detail-meta span {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  overflow-wrap: anywhere;
+}
+
+.traveler-event-detail-meta svg {
+  flex: 0 0 auto;
+  color: var(--odyssey-blue);
+}
+
+.traveler-event-hero__description {
+  max-width: 580px;
+  margin: 20px 0 0;
+  color: #5a6f7a;
+  font-size: 16px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.ui-button.traveler-event-cta {
+  display: inline-flex;
+  width: fit-content;
+
+  min-height: 58px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 24px;
+  padding: 0 28px;
+  border-radius: 10px;
+  transition:
+    background-color 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease;
+}
+
+.ui-button.traveler-event-cta:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(8, 102, 165, 0.2);
+}
+
+.traveler-event-cta:focus-visible,
+.traveler-event-follow-up__cta:focus-visible {
+  outline: 3px solid rgba(8, 102, 165, 0.4);
+  outline-offset: 3px;
+}
+
+.traveler-event-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.traveler-event-tags .ui-badge.traveler-event-duration {
+  min-height: 0;
+  padding: 7px 13px;
+  color: var(--primary-dark);
+  background: #eaf4fb;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.ui-card.traveler-event-highlights {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  padding: 26px 28px;
+  background: #f1f7fc;
+  border: 1px solid rgba(8, 102, 165, 0.06);
+  border-radius: 18px;
+}
+
+.traveler-event-highlight {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 0 22px;
+}
+
+.traveler-event-highlight:first-child {
+  padding-left: 0;
+}
+
+.traveler-event-highlight + .traveler-event-highlight {
+  border-left: 1px solid rgba(8, 102, 165, 0.12);
+}
+
+.traveler-event-highlight:last-child {
+  padding-right: 0;
+}
+
+.traveler-event-highlight__icon {
+  display: inline-flex;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  align-items: center;
+  justify-content: center;
+  color: var(--odyssey-blue);
+  background: #e2eff9;
+  border-radius: 10px;
+}
+
+.traveler-event-highlight h2 {
+  margin: 0;
+  color: var(--odyssey-dark);
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.traveler-event-highlight p {
+  margin: 5px 0 0;
+  color: #5a6f7a;
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.traveler-event-editorial {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 620px);
+  align-items: center;
+  gap: 32px;
+  padding: 8px 0 20px;
+}
+
+.traveler-event-editorial__copy h2 {
+  margin: 0;
+  color: var(--odyssey-dark);
+  font-size: 24px;
+  line-height: 1.2;
+}
+
+.ui-card.traveler-event-follow-up {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 24px 28px;
+  background: #f1f7fc;
+  border: 1px solid rgba(8, 102, 165, 0.08);
+  border-radius: 16px;
+}
+
+.traveler-event-follow-up .eyebrow {
+  margin: 0 0 7px;
+  color: var(--odyssey-blue);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.traveler-event-follow-up h2 {
+  margin: 0;
+  color: var(--odyssey-dark);
+  font-size: 20px;
+  line-height: 1.25;
+}
+
+.traveler-event-follow-up p {
+  margin: 8px 0 0;
+  color: #5a6f7a;
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.ui-button.traveler-event-follow-up__cta {
+  min-height: 44px;
+  flex: 0 0 auto;
+  padding: 0 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  --ui-button-shadow: none;
+  --ui-button-hover-bg: #eaf4fb;
+  --ui-button-hover-border: var(--odyssey-blue);
+}
+
+@media (max-width: 1050px) {
+  .ui-card.traveler-event-hero {
+    grid-template-columns: minmax(0, 45%) minmax(0, 55%);
+  }
+
+  .traveler-event-editorial {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 55%);
+  }
+
+  .traveler-event-hero__content {
+    padding: 32px;
+  }
+
+  .traveler-event-hero__content h1 {
+    font-size: clamp(36px, 4vw, 44px);
+  }
+
+  .traveler-event-detail-meta {
+    gap: 10px 16px;
+  }
+
+  .traveler-event-highlight {
+    gap: 10px;
+    padding-inline: 14px;
+  }
+}
+
+@media (max-width: 768px) {
+  .traveler-event-page {
+    gap: 14px;
+  }
+
+  .ui-card.traveler-event-hero {
+    display: flex;
+    min-height: 0;
+    flex-direction: column;
+    overflow: visible;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .traveler-event-hero__media {
+    height: clamp(260px, 45vh, 360px);
+    min-height: 0;
+    flex: 0 0 auto;
+    overflow: hidden;
+    border-radius: 20px 20px 0 0;
+  }
+
+  .traveler-event-hero__media::before {
+    display: none;
+  }
+
+  .traveler-event-hero__content {
+    position: relative;
+    z-index: 2;
+    margin-top: -20px;
+    padding: 24px;
+    background: #ffffff;
+    border: 1px solid rgba(16, 42, 50, 0.08);
+    border-radius: 22px 22px 18px 18px;
+    box-shadow: 0 8px 24px rgba(29, 69, 65, 0.08);
+  }
+
+  .traveler-event-hero__eyebrow {
+    margin-bottom: 10px;
+    font-size: 11px;
+  }
+
+  .traveler-event-hero__content h1 {
+    font-size: clamp(28px, 8vw, 36px);
+    line-height: 1.08;
+  }
+
+  .traveler-event-detail-meta {
+    gap: 10px 16px;
+    margin-top: 16px;
+    font-size: 13px;
+  }
+
+  .traveler-event-hero__description {
+    margin-top: 16px;
+    font-size: 15px;
+    line-height: 1.55;
+  }
+
+  .ui-button.traveler-event-cta {
+    width: 100%;
+    min-width: 0;
+    min-height: 56px;
+    margin-top: 20px;
+  }
+
+  .traveler-event-highlights {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+    padding: 22px;
+  }
+
+  .traveler-event-highlight,
+  .traveler-event-highlight:first-child,
+  .traveler-event-highlight:last-child {
+    padding: 0;
+  }
+
+  .traveler-event-highlight + .traveler-event-highlight {
+    border-left: 0;
+  }
+
+  .traveler-event-follow-up {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 18px;
+    padding: 22px;
+  }
+
+  .traveler-event-editorial {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+
+  .traveler-event-follow-up__cta {
+    min-height: 50px;
+  }
+}
+
+.traveler-stay-preparation {
+  min-width: 0;
 }
 
 .traveler-preparation-event {
@@ -7589,10 +7989,6 @@ button.traveler-organization-choice:hover,
     align-items: stretch;
   }
 
-  .next-trip-card__cta {
-    width: 100%;
-  }
-
   .next-trip-card__indicators {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -7651,10 +8047,6 @@ button.traveler-organization-choice:hover,
     grid-column: 1 / -1;
   }
 
-  .traveler-trips-heading .primary-button {
-    width: 100%;
-  }
-
   .next-trip-empty .primary-button {
     width: 100%;
     justify-self: stretch;
@@ -7706,7 +8098,6 @@ button.traveler-organization-choice:hover,
     gap: 18px;
   }
 
-  .traveler-event-detail,
   .traveler-stay-preparation {
     padding: 24px;
   }
@@ -8066,7 +8457,6 @@ button.traveler-organization-choice:hover,
   }
 
   .next-trip-card__cta {
-    width: 100%;
     min-height: 52px;
     margin-top: 4px;
   }
