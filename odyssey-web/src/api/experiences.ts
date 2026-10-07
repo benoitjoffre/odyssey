@@ -17,6 +17,14 @@ export function createExperience(request: CreateExperienceRequest): Promise<Expe
   });
 }
 
+export function updateExperience(experienceId: number, request: CreateExperienceRequest): Promise<Experience> {
+  return apiFetch<Experience>(`/api/experiences/${experienceId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
+}
+
 export function deleteExperience(experienceId: number): Promise<void> {
   return apiFetch<void>(`/api/experiences/${experienceId}`, {
     method: "DELETE",

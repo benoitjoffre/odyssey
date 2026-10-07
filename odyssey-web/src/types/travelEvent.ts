@@ -5,6 +5,7 @@ export interface TravelEvent {
   startDate: string;
   endDate: string;
   description: string | null;
+  imageUrl: string | null;
   experienceId: number;
 }
 
@@ -14,5 +15,6 @@ export interface CreateTravelEventRequest {
   startDate: string;
   endDate: string;
   description: string | null;
+  imageUrl: string | null;
   experienceId: number;
 }

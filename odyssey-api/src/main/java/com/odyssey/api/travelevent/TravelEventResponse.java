@@ -9,5 +9,6 @@ public record TravelEventResponse(
     LocalDate startDate,
     LocalDate endDate,
     String description,
+    String imageUrl,
     Long experienceId
 ) {}

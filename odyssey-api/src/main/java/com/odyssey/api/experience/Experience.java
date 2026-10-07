@@ -18,7 +18,7 @@ public class Experience {
   @Column(name = "destination")
   private String legacyDestination;
 
-  @Column(name = "image_url")
+  @Column(name = "image_url", length = 2048)
   private String imageUrl;
 
   @ManyToOne

@@ -35,6 +35,14 @@ public class TravelEventController {
         return travelEventService.getById(id);
     }
 
+    @PutMapping("/{id}")
+    public TravelEventResponse update(
+        @PathVariable Long id,
+        @Valid @RequestBody CreateTravelEventRequest request
+    ) {
+        return travelEventService.update(id, request);
+    }
+
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable Long id) {

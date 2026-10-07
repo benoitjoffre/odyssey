@@ -11,5 +11,6 @@ public record CreateTravelEventRequest(
     @NotNull LocalDate startDate,
     @NotNull LocalDate endDate,
     String description,
+    String imageUrl,
     @NotNull Long experienceId
 ) {}

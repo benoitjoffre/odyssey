@@ -17,6 +17,14 @@ export function createTravelEvent(request: CreateTravelEventRequest): Promise<Tr
   });
 }
 
+export function updateTravelEvent(eventId: number, request: CreateTravelEventRequest): Promise<TravelEvent> {
+  return apiFetch<TravelEvent>(`/api/travel-events/${eventId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
+}
+
 export function deleteTravelEvent(eventId: number): Promise<void> {
   return apiFetch<void>(`/api/travel-events/${eventId}`, {
     method: "DELETE",

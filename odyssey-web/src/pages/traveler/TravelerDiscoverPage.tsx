@@ -52,7 +52,7 @@ function formatEventDatePill(startDate: string, endDate: string) {
 }
 
 function getTravelEventImage(event: TravelEvent) {
-  const imageUrl = (event as TravelEvent & { imageUrl?: string | null }).imageUrl;
+  const imageUrl = event.imageUrl;
   if (typeof imageUrl === "string" && imageUrl.trim().length > 0) {
     return imageUrl.trim();
   }

@@ -28,6 +28,9 @@ public class TravelEvent {
     @Column(length = 2000)
     private String description;
 
+    @Column(name = "image_url", length = 2048)
+    private String imageUrl;
+
     @ManyToOne(optional = false)
     @JoinColumn(name = "experience_id", nullable = false)
     private Experience experience;
@@ -58,6 +61,10 @@ public class TravelEvent {
         return description;
     }
 
+    public String getImageUrl() {
+        return imageUrl;
+    }
+
     public Experience getExperience() {
         return experience;
     }
@@ -80,6 +87,10 @@ public class TravelEvent {
 
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public void setImageUrl(String imageUrl) {
+        this.imageUrl = imageUrl;
     }
 
     public void setExperience(Experience experience) {

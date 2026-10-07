@@ -66,7 +66,7 @@ export function formatDateBadge(startDate: string, endDate: string) {
 }
 
 export function getTravelEventImage(event: TravelEvent | null) {
-  const imageUrl = (event as (TravelEvent & { imageUrl?: string | null }) | null)?.imageUrl;
+  const imageUrl = event?.imageUrl;
   if (typeof imageUrl === "string" && imageUrl.trim().length > 0) {
     return imageUrl.trim();
   }

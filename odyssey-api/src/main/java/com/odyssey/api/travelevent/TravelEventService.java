@@ -47,6 +47,7 @@ public class TravelEventService {
         event.setStartDate(request.startDate());
         event.setEndDate(request.endDate());
         event.setDescription(request.description());
+        event.setImageUrl(request.imageUrl());
         event.setExperience(experience);
 
         return toResponse(travelEventRepository.save(event));
@@ -67,6 +68,29 @@ public class TravelEventService {
             .orElseThrow(() ->
                 new ResourceNotFoundException("Travel event not found")
             );
+    }
+
+    public TravelEventResponse update(Long id, CreateTravelEventRequest request) {
+        if (request.startDate().isAfter(request.endDate())) {
+            throw new IllegalArgumentException("Start date cannot be after end date");
+        }
+
+        TravelEvent event = travelEventRepository
+            .findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("Travel event not found"));
+        Experience experience = experienceRepository
+            .findById(request.experienceId())
+            .orElseThrow(() -> new ResourceNotFoundException("Experience not found"));
+
+        event.setName(request.name());
+        event.setLocation(request.location());
+        event.setStartDate(request.startDate());
+        event.setEndDate(request.endDate());
+        event.setDescription(request.description());
+        event.setImageUrl(request.imageUrl());
+        event.setExperience(experience);
+
+        return toResponse(travelEventRepository.save(event));
     }
 
     @Transactional
@@ -90,6 +114,7 @@ public class TravelEventService {
             event.getStartDate(),
             event.getEndDate(),
             event.getDescription(),
+            event.getImageUrl(),
             event.getExperience().getId()
         );
     }

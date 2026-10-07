@@ -55,6 +55,7 @@ private String allowedOrigins;
 
                 .requestMatchers("/api/payments/webhook").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/experiences", "/api/experiences/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/travel-events", "/api/travel-events/**").permitAll()
                 .anyRequest().authenticated()
             )
             .oauth2ResourceServer(oauth2 ->

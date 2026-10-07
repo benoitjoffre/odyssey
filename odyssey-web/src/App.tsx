@@ -112,9 +112,11 @@ function App() {
           <Route path="quotes" element={<ComingSoonPage title="Propositions" />} />
           <Route path="experiences" element={<AgentExperiencesPage />} />
           <Route path="experiences/new" element={<AgentExperienceCreatePage />} />
+          <Route path="experiences/:id/edit" element={<AgentExperienceCreatePage />} />
           <Route path="destinations" element={<AgentDestinationsPage />} />
           <Route path="events" element={<AgentEventsPage />} />
           <Route path="events/new" element={<AgentEventCreatePage />} />
+          <Route path="events/:id/edit" element={<AgentEventCreatePage />} />
         </Route>
 
         <Route

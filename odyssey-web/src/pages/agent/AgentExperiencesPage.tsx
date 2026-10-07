@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowRight, CalendarDays, Inbox, LoaderCircle, MapPin, Plus, RefreshCw, Sparkles, Trash2 } from "lucide-react";
+import { ArrowRight, CalendarDays, Inbox, LoaderCircle, MapPin, Pencil, Plus, RefreshCw, Sparkles, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { deleteExperience, getExperiences } from "../../api/experiences";
 import { EmptyState, ErrorState, LoadingState } from "../../components/ui/State";
@@ -97,6 +97,9 @@ export function AgentExperiencesPage() {
               </div>
               <Link className="card-link" to="/agent/events/new" state={{ experienceId: experience.id }}>
                 Programmer un événement <ArrowRight size={17} />
+              </Link>
+              <Link className="secondary-button" to={`/agent/experiences/${experience.id}/edit`}>
+                <Pencil size={16} /> Modifier
               </Link>
               <button
                 type="button"

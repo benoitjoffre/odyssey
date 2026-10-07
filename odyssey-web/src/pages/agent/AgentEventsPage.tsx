@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { CalendarDays, Inbox, LoaderCircle, MapPin, Plus, RefreshCw, Sparkles, Trash2 } from "lucide-react";
+import { CalendarDays, Inbox, LoaderCircle, MapPin, Pencil, Plus, RefreshCw, Sparkles, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { getExperiences } from "../../api/experiences";
 import { deleteTravelEvent, getTravelEvents } from "../../api/travelEvents";
@@ -101,6 +101,9 @@ export function AgentEventsPage() {
                 <MapPin size={17} />
                 <span>{travelEvent.location}</span>
               </div>
+              <Link className="secondary-button" to={`/agent/events/${travelEvent.id}/edit`}>
+                <Pencil size={16} /> Modifier
+              </Link>
               <button type="button" className="secondary-button" disabled={deletingId !== null} onClick={() => void handleDeleteEvent(travelEvent)}>
                 {deletingId === travelEvent.id ? <LoaderCircle className="rotating" size={16} /> : <Trash2 size={16} />}
                 {deletingId === travelEvent.id ? "Suppression…" : "Supprimer"}
