@@ -1,6 +1,7 @@
 package com.odyssey.api.outbox;
 
 import java.util.List;
+import java.time.Instant;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -33,7 +34,7 @@ public interface OutboxEventRepository
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query(
         "update OutboxEvent e " +
-        "set e.status = :newStatus " +
+        "set e.status = :newStatus, e.processingStartedAt = CURRENT_TIMESTAMP " +
         "where e.id = :id and e.status = :expectedStatus"
     )
     int updateStatusIfCurrent(
@@ -41,4 +42,10 @@ public interface OutboxEventRepository
         @Param("expectedStatus") OutboxStatus expectedStatus,
         @Param("newStatus") OutboxStatus newStatus
     );
+
+    @Transactional
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("update OutboxEvent e set e.status = 'PENDING' where e.status = 'PROCESSING' "
+        + "and (e.processingStartedAt < :cutoff or (e.processingStartedAt is null and e.createdAt < :cutoff))")
+    int recoverExpired(@Param("cutoff") Instant cutoff);
 }

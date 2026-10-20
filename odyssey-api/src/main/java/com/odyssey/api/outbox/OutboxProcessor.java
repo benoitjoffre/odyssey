@@ -8,6 +8,9 @@ import com.odyssey.api.event.QuoteRejectedEvent;
 import com.odyssey.api.event.QuoteSentEvent;
 import com.odyssey.api.event.TravelerOnboardingCompletedEvent;
 import com.odyssey.api.event.TripQuotesSentEvent;
+import com.odyssey.api.event.BookingConfirmedEvent;
+import com.odyssey.api.event.ProviderPaymentRequiredEvent;
+import com.odyssey.api.event.EmailJobQueue;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,6 +21,8 @@ import org.springframework.stereotype.Service;
 import tools.jackson.databind.ObjectMapper;
 
 import java.util.List;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Map;
 import java.util.function.Function;
 
@@ -46,15 +51,18 @@ public class OutboxProcessor {
 
     private final OutboxEventRepository outboxEventRepository;
     private final ApplicationEventPublisher applicationEventPublisher;
+    private final EmailJobQueue emailJobQueue;
     private final Map<String, Function<String, Object>> eventReaders;
 
     public OutboxProcessor(
         OutboxEventRepository outboxEventRepository,
         ApplicationEventPublisher applicationEventPublisher,
-        ObjectMapper objectMapper
+        ObjectMapper objectMapper,
+        EmailJobQueue emailJobQueue
     ) {
         this.outboxEventRepository = outboxEventRepository;
         this.applicationEventPublisher = applicationEventPublisher;
+        this.emailJobQueue = emailJobQueue;
 
         this.eventReaders = Map.of(
             "BOOKING_REQUESTED", payload ->
@@ -72,13 +80,21 @@ public class OutboxProcessor {
             "PAYMENT_SUCCEEDED", payload ->
                 objectMapper.readValue(payload, PaymentSucceededEvent.class),
             "TRAVELER_ONBOARDING_COMPLETED", payload ->
-                objectMapper.readValue(payload, TravelerOnboardingCompletedEvent.class)
+                objectMapper.readValue(payload, TravelerOnboardingCompletedEvent.class),
+            "BOOKING_CONFIRMED", payload ->
+                objectMapper.readValue(payload, BookingConfirmedEvent.class),
+            "PROVIDER_PAYMENT_REQUIRED", payload ->
+                objectMapper.readValue(payload, ProviderPaymentRequiredEvent.class)
         );
     }
 
     @Scheduled(fixedDelay = 5000)
     public void processPendingEvents() {
 
+        int recovered = outboxEventRepository.recoverExpired(Instant.now().minus(Duration.ofMinutes(10)));
+        if (recovered > 0) {
+            logger.warn("Recovered {} expired outbox processing leases", recovered);
+        }
         List<OutboxEvent> pendingEvents =
             outboxEventRepository.findByStatus(OutboxStatus.PENDING);
 
@@ -110,6 +126,7 @@ public class OutboxProcessor {
                 event.getPayload()
             );
 
+            emailJobQueue.enqueue(event.getId(), event.getEventType(), event.getPayload());
             applicationEventPublisher.publishEvent(domainEvent);
 
             outboxEventRepository.updateStatusIfCurrent(

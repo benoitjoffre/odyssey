@@ -67,7 +67,7 @@ class TravelerServiceTest {
             "+33600000001",
             "fr"
         );
-        when(travelerRepository.findByAuth0Subject(AUTH0_SUBJECT))
+        when(travelerRepository.findForOnboarding(AUTH0_SUBJECT))
             .thenReturn(Optional.of(traveler));
         when(travelerRepository.save(traveler)).thenReturn(traveler);
         when(objectMapper.writeValueAsString(any(TravelerOnboardingCompletedEvent.class)))
@@ -101,6 +101,19 @@ class TravelerServiceTest {
     }
 
     @Test
+    void repeatingOnboardingDoesNotPublishAnotherWelcomeEvent() {
+        Traveler traveler = new Traveler("Alice", "Martin", "traveler@example.com");
+        traveler.setOnboardingCompleted(true);
+        when(travelerRepository.findForOnboarding(AUTH0_SUBJECT)).thenReturn(Optional.of(traveler));
+        when(travelerRepository.save(traveler)).thenReturn(traveler);
+
+        travelerService.completeOnboarding(AUTH0_SUBJECT,
+            new TravelerOnboardingRequest("Alice", "Martin", "+33600000000", null, "fr"));
+
+        verify(outboxEventRepository, never()).save(any());
+    }
+
+    @Test
     void completeOnboardingThrowsWhenTravelerDoesNotExist() {
         TravelerOnboardingRequest request = new TravelerOnboardingRequest(
             "Alice",
@@ -109,7 +122,7 @@ class TravelerServiceTest {
             null,
             "fr"
         );
-        when(travelerRepository.findByAuth0Subject(AUTH0_SUBJECT))
+        when(travelerRepository.findForOnboarding(AUTH0_SUBJECT))
             .thenReturn(Optional.empty());
 
         assertThrows(

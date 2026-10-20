@@ -27,7 +27,7 @@ export function LoginPage() {
 
   const returnTo = useMemo(() => {
     const raw = searchParams.get("returnTo");
-    if (!raw || !raw.startsWith("/")) return "/";
+    if (!raw || !raw.startsWith("/") || raw.startsWith("//") || raw.includes("\\")) return "/";
     return raw;
   }, [searchParams]);
 
@@ -50,7 +50,7 @@ export function LoginPage() {
       return <Navigate to="/onboarding" replace />;
     }
 
-    return <Navigate to={getDashboardPathFromRoles(roles)} replace />;
+    return <Navigate to={returnTo === "/" ? getDashboardPathFromRoles(roles) : returnTo} replace />;
   }
 
   async function handleLogin() {

@@ -59,10 +59,12 @@ public class TravelerService {
 
     @Transactional
     public Traveler completeOnboarding(
-    String auth0Subject,
-    TravelerOnboardingRequest request
-) {
-        Traveler traveler = findTravelerByAuth0Subject(auth0Subject);
+        String auth0Subject,
+        TravelerOnboardingRequest request
+    ) {
+        Traveler traveler = travelerRepository.findForOnboarding(auth0Subject)
+            .orElseThrow(() -> new IllegalArgumentException("Traveler not found"));
+        boolean firstCompletion = !traveler.isOnboardingCompleted();
         traveler.setFirstName(request.firstName());
         traveler.setLastName(request.lastName());
         traveler.setPhoneNumber(request.phoneNumber());
@@ -70,16 +72,15 @@ public class TravelerService {
         traveler.setPreferredLanguage(request.preferredLanguage());
         traveler.setOnboardingCompleted(true);
 
-        // Publish an outbox event indicating that the traveler has completed onboarding
-        TravelerOnboardingCompletedEvent event = new TravelerOnboardingCompletedEvent(traveler.getId());
-        OutboxEvent outboxEvent = new OutboxEvent();
-        outboxEvent.setEventType("TRAVELER_ONBOARDING_COMPLETED");
-        outboxEvent.setPayload(objectMapper.writeValueAsString(event));
-        outboxEvent.setStatus(OutboxStatus.PENDING);
-        outboxEvent.setCreatedAt(Instant.now());
-
-        // Save the outbox event to the repository
-        outboxEventRepository.save(outboxEvent);
+        if (firstCompletion) {
+            TravelerOnboardingCompletedEvent event = new TravelerOnboardingCompletedEvent(traveler.getId());
+            OutboxEvent outboxEvent = new OutboxEvent();
+            outboxEvent.setEventType("TRAVELER_ONBOARDING_COMPLETED");
+            outboxEvent.setPayload(objectMapper.writeValueAsString(event));
+            outboxEvent.setStatus(OutboxStatus.PENDING);
+            outboxEvent.setCreatedAt(Instant.now());
+            outboxEventRepository.save(outboxEvent);
+        }
 
         return travelerRepository.save(traveler);
     }

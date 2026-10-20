@@ -7,9 +7,12 @@ import org.springframework.stereotype.Service;
 
 import com.resend.Resend;
 import com.resend.core.exception.ResendException;
+import com.resend.core.net.RequestOptions;
 import com.resend.services.emails.model.CreateEmailOptions;
 
 import java.util.Objects;
+import java.net.URI;
+import java.util.Locale;
 
 @Service 
 public class ResendAdapter implements EmailService {
@@ -20,33 +23,44 @@ public class ResendAdapter implements EmailService {
     private final Resend resend;
     private final String fromAddress;
     private final boolean enabled;
+    private final String replyTo;
 
     public ResendAdapter(
         @Value("${resend.api-key:}") String apiKey,
-        @Value("${resend.from:Odyssey <benoit.joffre911@gmail.com>}")
-        String fromAddress
+        @Value("${resend.from:Odyssey <noreply@gocuback.com>}") String fromAddress,
+        @Value("${resend.reply-to:}") String replyTo,
+        @Value("${app.email.enabled:false}") boolean deliveryEnabled,
+        @Value("${app.frontend.base-url:http://localhost:5173}") String frontendBaseUrl
     ) {
         this.fromAddress = fromAddress;
-        this.enabled = apiKey != null && !apiKey.isBlank();
+        this.replyTo = replyTo;
+        this.enabled = deliveryEnabled && apiKey != null && !apiKey.isBlank();
+        URI frontend = URI.create(frontendBaseUrl);
+        String host = frontend.getHost() == null ? "" : frontend.getHost().toLowerCase(Locale.ROOT);
+        if (deliveryEnabled && (!enabled || fromAddress.isBlank()
+            || !"https".equals(frontend.getScheme()) || host.isBlank()
+            || host.equals("localhost") || host.endsWith(".localhost") || host.startsWith("127.")
+            || host.equals("[::1]") || host.equals("0.0.0.0"))) {
+            throw new IllegalStateException("Email delivery requires RESEND_API_KEY, RESEND_FROM and a public HTTPS FRONTEND_BASE_URL");
+        }
         this.resend = enabled ? new Resend(apiKey) : null;
 
         if (!enabled) {
             logger.warn(
-                "Resend adapter is disabled because resend.api-key is empty"
+                "Resend delivery is disabled; no network sends are allowed"
             );
         }
     }
 
     @Override
-    public void sendEmail(EmailMessage message) {
+    public String sendEmail(EmailMessage message, String idempotencyKey) {
         Objects.requireNonNull(message, "Email message cannot be null");
 
         if (!enabled) {
-            logger.info(
-                "Skipping email delivery to {} because Resend is disabled",
-                message.to()
-            );
-            return;
+            throw new IllegalStateException("Email delivery is disabled or the Resend API key is missing");
+        }
+        if (idempotencyKey == null || idempotencyKey.isBlank()) {
+            throw new IllegalArgumentException("Email delivery requires an idempotency key");
         }
 
         CreateEmailOptions.Builder builder = CreateEmailOptions.builder()
@@ -58,11 +72,19 @@ public class ResendAdapter implements EmailService {
         if (message.textBody() != null && !message.textBody().isBlank()) {
             builder.text(message.textBody());
         }
+        if (!replyTo.isBlank()) {
+            builder.replyTo(replyTo);
+        }
 
         CreateEmailOptions params = builder.build();
 
         try {
-            resend.emails().send(params);
+            var response = resend.emails().send(params,
+                RequestOptions.builder().setIdempotencyKey(idempotencyKey).build());
+            if (response == null || response.getId() == null || response.getId().isBlank()) {
+                throw new IllegalStateException("Resend did not return an email identifier");
+            }
+            return response.getId();
         } catch (ResendException exception) {
             throw new EmailDeliveryException(
                 "Failed to deliver email through Resend",

@@ -8,11 +8,17 @@ import com.odyssey.api.quote.Quote;
 import com.odyssey.api.quote.QuoteRepository;
 import com.odyssey.api.quote.QuoteStatus;
 
-import org.jspecify.annotations.Nullable;
+import com.odyssey.api.event.BookingConfirmedEvent;
+import com.odyssey.api.event.ProviderPaymentRequiredEvent;
+import com.odyssey.api.outbox.OutboxEvent;
+import com.odyssey.api.outbox.OutboxEventRepository;
+import com.odyssey.api.outbox.OutboxStatus;
+import tools.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.Objects;
 
 @Service
 public class BookingService {
@@ -21,17 +27,23 @@ public class BookingService {
     private final QuoteRepository quoteRepository;
     private final FakeBookingProvider bookingProvider;
     private final AgentRepository agentRepository;
+    private final OutboxEventRepository outboxEventRepository;
+    private final ObjectMapper objectMapper;
 
     public BookingService(
         BookingRepository bookingRepository,
         QuoteRepository quoteRepository,
         FakeBookingProvider bookingProvider,
-        AgentRepository agentRepository
+        AgentRepository agentRepository,
+        OutboxEventRepository outboxEventRepository,
+        ObjectMapper objectMapper
     ) {
         this.bookingRepository = bookingRepository;
         this.quoteRepository = quoteRepository;
         this.bookingProvider = bookingProvider;
         this.agentRepository = agentRepository;
+        this.outboxEventRepository = outboxEventRepository;
+        this.objectMapper = objectMapper;
     }
 
     @Transactional
@@ -160,6 +172,9 @@ public class BookingService {
             );
         }
 
+        boolean paymentInstructionsChanged =
+            !Objects.equals(booking.getProviderPaymentUrl(), providerPaymentUrl)
+                || booking.getProviderPaymentStatus() != providerPaymentStatus;
         booking.setProviderReference(providerReference);
         booking.setProviderPaymentUrl(providerPaymentUrl);
         booking.setProviderPaymentStatus(
@@ -170,6 +185,12 @@ public class BookingService {
 
         Booking savedBooking = bookingRepository.save(booking);
 
+        if (paymentInstructionsChanged && providerPaymentUrl != null && !providerPaymentUrl.isBlank()
+            && providerPaymentStatus == ProviderPaymentStatus.PAYMENT_REQUIRED) {
+            var trip = bookingRequest.getNeed().getTrip();
+            saveEvent("PROVIDER_PAYMENT_REQUIRED", new ProviderPaymentRequiredEvent(
+                savedBooking.getId(), trip.getTraveler().getId(), trip.getId(), trip.getTitle()));
+        }
         return toResponse(savedBooking);
     }
 
@@ -228,7 +249,20 @@ public class BookingService {
         Booking savedBooking =
             bookingRepository.save(booking);
 
+        var trip = bookingRequest.getNeed().getTrip();
+        saveEvent("BOOKING_CONFIRMED", new BookingConfirmedEvent(
+            savedBooking.getId(), trip.getTraveler().getId(), trip.getId(), trip.getTitle(),
+            savedBooking.getProviderReference()));
         return toResponse(savedBooking);
+    }
+
+    private void saveEvent(String type, Object event) {
+        OutboxEvent outbox = new OutboxEvent();
+        outbox.setEventType(type);
+        outbox.setPayload(objectMapper.writeValueAsString(event));
+        outbox.setStatus(OutboxStatus.PENDING);
+        outbox.setCreatedAt(Instant.now());
+        outboxEventRepository.save(outbox);
     }
 
     private Agent getCurrentAgent(String auth0Subject) {

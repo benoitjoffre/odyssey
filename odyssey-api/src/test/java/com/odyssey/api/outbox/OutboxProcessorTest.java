@@ -1,6 +1,7 @@
 package com.odyssey.api.outbox;
 
 import com.odyssey.api.event.BookingRequestedEvent;
+import com.odyssey.api.event.EmailJobQueue;
 import com.odyssey.api.event.QuoteRejectedEvent;
 import com.odyssey.api.event.TravelerOnboardingCompletedEvent;
 import com.odyssey.api.event.TripQuotesSentEvent;
@@ -27,16 +28,19 @@ class OutboxProcessorTest {
 
     private OutboxEventRepository outboxEventRepository;
     private ApplicationEventPublisher applicationEventPublisher;
+    private EmailJobQueue emailJobQueue;
     private OutboxProcessor outboxProcessor;
 
     @BeforeEach
     void setUp() {
         outboxEventRepository = mock(OutboxEventRepository.class);
         applicationEventPublisher = mock(ApplicationEventPublisher.class);
+        emailJobQueue = mock(EmailJobQueue.class);
         outboxProcessor = new OutboxProcessor(
             outboxEventRepository,
             applicationEventPublisher,
-            new ObjectMapper()
+            new ObjectMapper(),
+            emailJobQueue
         );
     }
 
@@ -93,6 +97,7 @@ class OutboxProcessorTest {
         verify(applicationEventPublisher).publishEvent(
             new BookingRequestedEvent(10L, 20L, 30L)
         );
+        verify(emailJobQueue).enqueue(eventId, event.getEventType(), event.getPayload());
         verify(outboxEventRepository).updateStatusIfCurrent(
             eq(eventId), eq(OutboxStatus.PROCESSING), eq(OutboxStatus.PROCESSED)
         );

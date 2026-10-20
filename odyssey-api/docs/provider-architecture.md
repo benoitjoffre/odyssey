@@ -433,19 +433,85 @@ Paiement Odyssey :
 - `QUOTE_ACCEPTED`
 - `QUOTE_REJECTED`
 - `PAYMENT_SUCCEEDED`
+- `TRAVELER_ONBOARDING_COMPLETED`
+- `BOOKING_CONFIRMED`
+- `PROVIDER_PAYMENT_REQUIRED`
 
 Pipeline :
 
 - écriture en transaction métier,
 - polling `OutboxProcessor` toutes les 5s,
 - claim atomique `PENDING -> PROCESSING`,
+- création idempotente des tâches mail dans `email_jobs`, séparées par audience,
 - publication Spring `ApplicationEventPublisher`,
 - `PROCESSED` sinon retry (retour `PENDING`).
 
 Points notables :
 
-- Aucun événement outbox dédié à `Booking created` ou `Booking confirmed` n'a été trouvé.
+- `BOOKING_CONFIRMED` est créé dans la transaction de confirmation et conserve la référence fournisseur.
+- `PROVIDER_PAYMENT_REQUIRED` est créé lorsque le statut passe à `PAYMENT_REQUIRED` avec une URL non vide, ou lorsque cette URL change pendant ce statut. Un enregistrement identique ne renvoie pas de mail.
+- La complétion d'onboarding est verrouillée en base et ne crée le mail de bienvenue qu'au premier passage.
 - Le paiement fournisseur n'est pas piloté par webhook fournisseur.
+
+### Mails transactionnels Odyssey
+
+Les anciens listeners mail préparent les messages via `EmailNotificationPlanner` ; ils ne sont plus abonnés aux événements Spring. Les notifications dans le site conservent leurs listeners existants. Un agent indisponible ou un fournisseur mail en échec ne bloque donc pas le mail voyageur.
+
+`EmailJobQueue` persiste d'abord une tâche de préparation par événement outbox et audience. La préparation crée ensuite une tâche `DELIVERY` par destinataire, avec le HTML et le texte figés. Toutes ces créations et la fin de préparation sont atomiques. Rejouer le même événement ne recrée pas de mail.
+
+Les mails couvrent :
+
+- voyageur : bienvenue, demande reçue, conseiller affecté, proposition individuelle ou lot de propositions, frais Odyssey payés, réservation confirmée, instructions de paiement fournisseur ;
+- agent : nouvelle demande, proposition acceptée ou refusée, frais Odyssey payés (une fois par agent du voyage).
+
+Sans agent affecté, la première disponibilité est conservée. Lors d'une reprise après affectation, l'agent déjà affecté est prioritaire. Aucun regroupement temporel automatique des demandes par besoin n'est ajouté.
+
+Le rendu commun reprend le bleu `#0866a5`, le fond `#f7f9f8`, les cartes blanches et le logo du site, publié à `/email/odyssey-bird.png`. Les mails voyageurs sont traduits en FR/EN/ES, avec français par défaut, HTML `lang` cohérent, version texte, aperçu de boîte de réception et lien de secours. Les liens voyageurs ciblent leur voyage ; les agents ciblent la demande ou la liste des demandes. Les frais Odyssey ne sont jamais présentés comme un règlement fournisseur.
+
+#### Activation et configuration
+
+| Variable | Rôle |
+|---|---|
+| `EMAIL_ENABLED` | `false` par défaut : les tâches restent en attente et aucun envoi réseau n'est permis. Mettre explicitement `true` après vérification de la configuration et des tâches en attente. |
+| `RESEND_API_KEY` | Clé Resend requise pour activer les envois. |
+| `RESEND_FROM` | Identité expéditeur configurable existante ; utiliser une adresse d'un domaine vérifié dans Resend. |
+| `RESEND_REPLY_TO` | Adresse de réponse facultative ; aucun contact fictif n'est ajouté. |
+| `FRONTEND_BASE_URL` | URL publique HTTPS du site, sans paramètres ni fragment. Sert aux boutons et au logo. |
+
+L'application refuse de démarrer si les envois sont activés sans clé, sans expéditeur, ou avec une URL frontend non HTTPS/localhost. Désactiver les envois ne marque jamais les tâches comme envoyées. L'activation ultérieure reprend les tâches en attente : contrôler ce stock avant toute activation dans un environnement partagé ou après une longue interruption.
+
+Le domaine d'envoi, SPF/DKIM/DMARC et les modèles de vérification/réinitialisation Auth0 doivent être vérifiés séparément dans leurs consoles. Ils ne sont pas modifiés par cette implémentation.
+
+#### Reprises et exploitation
+
+- `EmailJobProcessor` traite jusqu'à 100 tâches prêtes par passage, toutes les 5 secondes.
+- Claims atomiques et jeton de traitement : un ancien worker ne peut pas clôturer le travail d'un nouveau worker.
+- Une tâche bloquée en traitement depuis plus de 10 minutes est récupérée. Les événements outbox disposent également d'une récupération après 10 minutes.
+- Maximum 8 tentatives par tâche, avec délais de 30 s, 60 s, 120 s, etc., plafonnés à 1 h.
+- La clé Resend d'idempotence est stable par tâche de livraison et le contenu ne change pas entre les tentatives.
+- Après 23 h depuis la première tentative de livraison, une tâche incertaine passe en `FAILED` pour vérification manuelle, afin de ne pas dépasser aveuglément la fenêtre d'idempotence de Resend.
+- `COMPLETED` pour une livraison signifie **acceptée par Resend**, pas arrivée dans la boîte du destinataire. L'identifiant fournisseur est conservé dans `provider_id`. Aucun webhook Resend de rebond/livraison n'est ajouté.
+- Surveiller les logs `EMAIL_JOB_FAILED`, `EMAIL_DELIVERY_REQUIRES_REVIEW` et `EMAIL_QUEUE_LEASE_EXPIRED` avec l'outil d'alertes de l'hébergement. Aucun mail d'alerte récursif n'est envoyé par la file elle-même.
+
+Exemples de diagnostic en lecture seule :
+
+```sql
+SELECT status, type, count(*) FROM email_jobs GROUP BY status, type;
+SELECT id, type, attempts, last_error, provider_id
+FROM email_jobs WHERE status = 'FAILED' ORDER BY id;
+```
+
+Avant toute reprise manuelle, corriger la cause et vérifier l'identifiant/les traces Resend pour éviter un doublon. Ne pas supprimer des tâches ou réinitialiser leur première tentative sans cette vérification. Les payloads contiennent les destinataires et le contenu des mails : limiter l'accès à cette table. Toute purge des lignes de déduplication doit être coordonnée avec celle des événements outbox pour qu'un ancien événement ne puisse pas recréer un mail.
+
+#### Validation
+
+Tests ciblés sans envoi réel :
+
+```sh
+./mvnw -Dtest=OdysseyEmailRendererTest,ClientEmailEventListenerTest,EmailJobProcessorTest,ResendAdapterTest,OutboxProcessorTest,BookingServiceTest,TravelerServiceTest test
+```
+
+`EmailDeliveryFlowIntegrationTest`, `BookingRequestOutboxFlowIntegrationTest` et `OutboxEventClaimConcurrencyTest` utilisent PostgreSQL. Les lancer sur une base de test dédiée via `DATABASE_URL`, `DATABASE_USERNAME`, `DATABASE_PASSWORD`, avec `EMAIL_ENABLED=false` et sans clé Resend. Le nouveau test de livraison simule le transport et vérifie la persistance, les reprises, les claims et l'absence de doublons. Les tests de rendu génèrent des aperçus dans `target/email-previews/` ; les essais en navigateur ne remplacent pas une validation finale Gmail/Outlook/Apple Mail.
 
 ## 14. Diagramme architecture Mermaid
 
@@ -699,7 +765,7 @@ Même avec adapters, ce mode manuel doit rester un chemin standard de fallback.
 1. Faut-il aligner le frontend agent sur la règle backend actuelle (booking créable avant paiement Odyssey) ?
 2. Souhaite-t-on conserver `BookingRequestStatus.QUOTED/CONFIRMED` ou clarifier leur usage ?
 3. Quel niveau de preuve exiger pour passer `PAID_TO_PROVIDER` (document, API, webhook, double validation) ?
-4. Faut-il ajouter des événements outbox dédiés à `Booking created/confirmed` ?
+4. Faut-il ajouter un événement `Booking created` en complément de `BOOKING_CONFIRMED`, désormais implémenté ?
 5. Quelle stratégie d'idempotence côté fournisseur sera retenue pour une future intégration API ?
 6. Faut-il introduire un statut « en vérification paiement fournisseur » avant `PAID_TO_PROVIDER` ?
 

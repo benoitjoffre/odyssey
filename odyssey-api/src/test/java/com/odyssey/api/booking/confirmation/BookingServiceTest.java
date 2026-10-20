@@ -10,6 +10,13 @@ import com.odyssey.api.quote.Quote;
 import com.odyssey.api.quote.QuoteRepository;
 import com.odyssey.api.quote.QuoteStatus;
 import com.odyssey.api.trip.Trip;
+import com.odyssey.api.traveler.Traveler;
+import com.odyssey.api.outbox.OutboxEventRepository;
+import com.odyssey.api.outbox.OutboxEvent;
+import com.odyssey.api.event.BookingConfirmedEvent;
+import com.odyssey.api.event.ProviderPaymentRequiredEvent;
+import org.mockito.ArgumentCaptor;
+import tools.jackson.databind.ObjectMapper;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -40,6 +47,7 @@ class BookingServiceTest {
 	@Mock private QuoteRepository quoteRepository;
 	@Mock private FakeBookingProvider bookingProvider;
 	@Mock private AgentRepository agentRepository;
+	@Mock private OutboxEventRepository outboxEventRepository;
 
 	private BookingService bookingService;
 
@@ -49,7 +57,9 @@ class BookingServiceTest {
 			bookingRepository,
 			quoteRepository,
 			bookingProvider,
-			agentRepository
+			agentRepository,
+			outboxEventRepository,
+			new ObjectMapper()
 		);
 	}
 
@@ -149,6 +159,34 @@ class BookingServiceTest {
 		assertEquals("PNR-123", response.providerReference());
 		assertEquals("https://provider.example.com/pay/PNR-123", response.providerPaymentUrl());
 		assertEquals(ProviderPaymentStatus.PAYMENT_REQUIRED, response.providerPaymentStatus());
+		var event = ArgumentCaptor.forClass(OutboxEvent.class);
+		verify(outboxEventRepository).save(event.capture());
+		assertEquals("PROVIDER_PAYMENT_REQUIRED", event.getValue().getEventType());
+		var payload = new ObjectMapper().readValue(event.getValue().getPayload(), ProviderPaymentRequiredEvent.class);
+		assertEquals(11L, payload.travelerId());
+		assertEquals(10L, payload.tripId());
+	}
+
+	@Test
+	void unchangedProviderInstructionsDoNotSendAnotherEmail() {
+		Booking booking = pendingBookingAssignedTo(AGENT_ID);
+		booking.setProviderPaymentUrl("https://provider.example.com/pay/PNR-123");
+		booking.setProviderPaymentStatus(ProviderPaymentStatus.PAYMENT_REQUIRED);
+		when(bookingRepository.findById(BOOKING_ID)).thenReturn(Optional.of(booking));
+		when(bookingRepository.save(booking)).thenReturn(booking);
+		bookingService.updateProviderDetails(BOOKING_ID, AGENT_ID, "PNR-123",
+			"https://provider.example.com/pay/PNR-123", ProviderPaymentStatus.PAYMENT_REQUIRED);
+		verify(outboxEventRepository, never()).save(any());
+	}
+
+	@Test
+	void providerMarkedPaidDoesNotSendPaymentInstructions() {
+		Booking booking = pendingBookingAssignedTo(AGENT_ID);
+		when(bookingRepository.findById(BOOKING_ID)).thenReturn(Optional.of(booking));
+		when(bookingRepository.save(booking)).thenReturn(booking);
+		bookingService.updateProviderDetails(BOOKING_ID, AGENT_ID, "PNR-123",
+			"https://provider.example.com/pay/PNR-123", ProviderPaymentStatus.PAID_TO_PROVIDER);
+		verify(outboxEventRepository, never()).save(any());
 	}
 
 	@Test
@@ -197,11 +235,23 @@ class BookingServiceTest {
 			BookingRequestStatus.COMPLETED,
 			booking.getQuote().getBookingRequest().getStatus()
 		);
+		var event = ArgumentCaptor.forClass(OutboxEvent.class);
+		verify(outboxEventRepository).save(event.capture());
+		assertEquals("BOOKING_CONFIRMED", event.getValue().getEventType());
+		var payload = new ObjectMapper().readValue(event.getValue().getPayload(), BookingConfirmedEvent.class);
+		assertEquals("PNR-123", payload.providerReference());
+		assertEquals(11L, payload.travelerId());
 	}
 
 	private Quote acceptedQuoteAssignedTo(Long agentId) {
 		Need need = new Need();
-		need.setTrip(new Trip());
+		Trip trip = new Trip();
+		ReflectionTestUtils.setField(trip, "id", 10L);
+		trip.setTitle("Lisbonne");
+		Traveler traveler = new Traveler("Alice", "Martin", "alice@example.com");
+		traveler.setId(11L);
+		trip.setTraveler(traveler);
+		need.setTrip(trip);
 
 		BookingRequest bookingRequest = new BookingRequest();
 		ReflectionTestUtils.setField(bookingRequest, "id", 9L);

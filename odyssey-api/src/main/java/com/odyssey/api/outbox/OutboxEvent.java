@@ -21,6 +21,7 @@ public class OutboxEvent {
     private OutboxStatus status;
 
     private Instant createdAt;
+    private Instant processingStartedAt;
 
     public OutboxEvent() {
     }

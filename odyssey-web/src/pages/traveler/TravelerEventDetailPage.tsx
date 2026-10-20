@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { ArrowLeft, CalendarDays, Leaf, MapPin, RefreshCw, Sparkles, UsersRound } from "lucide-react";
+import { ArrowLeft, ArrowRight, CalendarDays, Compass, Info, Leaf, LockKeyhole, MapPin, RefreshCw, Sparkles, UsersRound } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ApiError } from "../../api/client";
 import { getTravelEvent } from "../../api/travelEvents";
@@ -11,6 +11,42 @@ import { FormField } from "../../components/ui/FormField";
 import { ErrorState, LoadingState } from "../../components/ui/State";
 import { formatDateCompact, formatDateRange, getTravelEventImage } from "../../helpers/travelerTripPresentation";
 import type { TravelEvent } from "../../types/travelEvent";
+import "./TravelerEventDetailPage.css";
+
+function EventHighlights({ preparing = false }: { preparing?: boolean }) {
+  const highlights = preparing
+    ? [
+        { icon: CalendarDays, title: "Un événement inoubliable", description: "Vivez un moment unique au cœur de la culture locale." },
+        { icon: UsersRound, title: "Un séjour sur mesure", description: "Organisez votre voyage autour de l’événement, à votre rythme." },
+        { icon: Compass, title: "L’accompagnement Odyssey", description: "Nos conseillers vous aident à créer un séjour complet et serein." },
+      ]
+    : [
+        { icon: CalendarDays, title: "Un temps fort du voyage", description: "Découvrez un événement sélectionné pour enrichir votre séjour." },
+        { icon: UsersRound, title: "Une expérience à vivre", description: "Ajoutez cet événement à votre projet de voyage." },
+        { icon: Leaf, title: "Odyssey vous accompagne", description: "Organisez ensuite les autres étapes de votre séjour." },
+      ];
+
+  return (
+    <Card
+      padding="none"
+      className={`traveler-event-highlights${preparing ? " traveler-stay-highlights" : ""}`}
+      role="region"
+      aria-label="Votre expérience avec Odyssey"
+    >
+      {highlights.map(({ icon: Icon, title, description }) => (
+        <article className="traveler-event-highlight" key={title}>
+          <span className="traveler-event-highlight__icon" aria-hidden="true">
+            <Icon size={20} />
+          </span>
+          <div>
+            <h2>{title}</h2>
+            <p>{description}</p>
+          </div>
+        </article>
+      ))}
+    </Card>
+  );
+}
 
 function parseEventDate(value: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
@@ -174,35 +210,7 @@ export function TravelerEventDetailPage() {
             </Card>
           </article>
 
-          <Card padding="none" className="traveler-event-highlights" role="region" aria-label="Votre expérience avec Odyssey">
-            <article className="traveler-event-highlight">
-              <span className="traveler-event-highlight__icon" aria-hidden="true">
-                <CalendarDays size={20} />
-              </span>
-              <div>
-                <h2>Un temps fort du voyage</h2>
-                <p>Découvrez un événement sélectionné pour enrichir votre séjour.</p>
-              </div>
-            </article>
-            <article className="traveler-event-highlight">
-              <span className="traveler-event-highlight__icon" aria-hidden="true">
-                <UsersRound size={20} />
-              </span>
-              <div>
-                <h2>Une expérience à vivre</h2>
-                <p>Ajoutez cet événement à votre projet de voyage.</p>
-              </div>
-            </article>
-            <article className="traveler-event-highlight">
-              <span className="traveler-event-highlight__icon" aria-hidden="true">
-                <Leaf size={20} />
-              </span>
-              <div>
-                <h2>Odyssey vous accompagne</h2>
-                <p>Organisez ensuite les autres étapes de votre séjour.</p>
-              </div>
-            </article>
-          </Card>
+          <EventHighlights />
 
           <section className="traveler-event-editorial" aria-label="À propos de l’événement">
             <div className="traveler-event-editorial__copy">
@@ -218,64 +226,104 @@ export function TravelerEventDetailPage() {
                 </p>
               </div>
               <Button variant="outline" className="traveler-event-follow-up__cta" onClick={handleStartPreparing}>
-                Je veux y aller 
+                Je veux y aller
               </Button>
             </Card>
           </section>
         </>
       ) : (
-        <section className="traveler-stay-preparation" aria-labelledby="stay-preparation-title">
-          <span className="eyebrow">Autour de l’événement</span>
-          <h1 id="stay-preparation-title">Préparons votre séjour</h1>
-          <div className="traveler-preparation-event">
-            <h2>{event.name}</h2>
-            <span>
-              <MapPin size={16} /> {event.location}
-            </span>
-            <span>
-              <CalendarDays size={16} /> Événement : {formatDateRange(event.startDate, event.endDate)}
-            </span>
-          </div>
-          <form className="traveler-stay-form" onSubmit={(formEvent) => void handleSubmit(formEvent)} noValidate>
-            <FormField label="Date d’arrivée" required>
-              <input
-                type="date"
-                value={startDate}
-                onChange={(changeEvent) => {
-                  setStartDate(changeEvent.target.value);
-                  setValidationError(null);
-                }}
-                disabled={submitting}
-                required
-              />
-            </FormField>
-            <FormField label="Date de départ" required>
-              <input
-                type="date"
-                value={endDate}
-                onChange={(changeEvent) => {
-                  setEndDate(changeEvent.target.value);
-                  setValidationError(null);
-                }}
-                disabled={submitting}
-                required
-              />
-            </FormField>
-            {validationError && (
-              <p className="traveler-form-error" role="alert">
-                {validationError}
+        <>
+          <section className="traveler-stay-preparation" aria-labelledby="stay-preparation-title">
+            <div className="traveler-stay-intro">
+              <span className="eyebrow">Autour de l’événement</span>
+              <h1 id="stay-preparation-title">Transformons cette envie en voyage.</h1>
+              <p>
+                Choisissez les dates de votre séjour autour de l’événement. Vous pourrez ensuite organiser votre transport, votre hébergement et vos
+                autres besoins avec Odyssey.
               </p>
-            )}
-            {submitError && (
-              <p className="traveler-form-error" role="alert">
-                {submitError}
-              </p>
-            )}
-            <Button type="submit" className="traveler-create-trip" loading={submitting} disabled={submitting}>
-              <Sparkles size={18} aria-hidden="true" /> Créer mon voyage
-            </Button>
-          </form>
-        </section>
+            </div>
+
+            <Card padding="none" className="traveler-stay-card">
+              <div className="traveler-stay-media">
+                <img src={eventImage ?? undefined} alt={`L’événement ${event.name}`} />
+                <span className="traveler-stay-location">
+                  <MapPin size={16} aria-hidden="true" /> {event.location}
+                </span>
+              </div>
+              <div className="traveler-stay-content">
+                <div className="traveler-preparation-event">
+                  <span className="eyebrow">L’événement sélectionné</span>
+                  <h2>{event.name}</h2>
+                  <span>
+                    <MapPin size={17} aria-hidden="true" /> {event.location}
+                  </span>
+                  <span>
+                    <CalendarDays size={17} aria-hidden="true" /> {formatDateRange(event.startDate, event.endDate)}
+                  </span>
+                </div>
+
+                <form className="traveler-stay-form" onSubmit={(formEvent) => void handleSubmit(formEvent)} noValidate>
+                  <h3>Vos dates de séjour</h3>
+                  <div className="traveler-stay-dates">
+                    <FormField label="Date d’arrivée" required>
+                      <input
+                        type="date"
+                        value={startDate}
+                        onChange={(changeEvent) => {
+                          setStartDate(changeEvent.target.value);
+                          setValidationError(null);
+                        }}
+                        disabled={submitting}
+                        required
+                        aria-invalid={Boolean(validationError) || undefined}
+                        aria-describedby={`stay-dates-help${validationError ? " stay-dates-error" : ""}`}
+                      />
+                    </FormField>
+                    <FormField label="Date de départ" required>
+                      <input
+                        type="date"
+                        value={endDate}
+                        onChange={(changeEvent) => {
+                          setEndDate(changeEvent.target.value);
+                          setValidationError(null);
+                        }}
+                        disabled={submitting}
+                        required
+                        aria-invalid={Boolean(validationError) || undefined}
+                        aria-describedby={`stay-dates-help${validationError ? " stay-dates-error" : ""}`}
+                      />
+                    </FormField>
+                  </div>
+                  <p className="traveler-stay-info" id="stay-dates-help">
+                    <Info size={20} aria-hidden="true" />
+                    <span>Les dates de l’événement sont préremplies. Vous pouvez les ajuster selon votre séjour.</span>
+                  </p>
+                  {validationError && (
+                    <p className="traveler-form-error" id="stay-dates-error" role="alert">
+                      {validationError}
+                    </p>
+                  )}
+                  {submitError && (
+                    <p className="traveler-form-error" role="alert">
+                      {submitError}
+                    </p>
+                  )}
+                  <Button type="submit" size="lg" fullWidth className="traveler-create-trip" loading={submitting} disabled={submitting}>
+                    Créer mon voyage
+                  </Button>
+                  <p className="traveler-stay-next">
+                    <LockKeyhole size={18} aria-hidden="true" />
+                    <span>
+                      Vous pourrez ensuite ajouter votre vol, votre hébergement, vos transferts et d’autres expériences avec l’accompagnement
+                      d’Odyssey.
+                    </span>
+                  </p>
+                </form>
+              </div>
+            </Card>
+          </section>
+          <EventHighlights preparing />
+        </>
       )}
     </div>
   );

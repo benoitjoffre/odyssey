@@ -1,0 +1,298 @@
+.traveler-stay-preparation {
+  display: grid;
+  min-width: 0;
+  gap: 26px;
+  padding-top: 20px;
+}
+
+.traveler-stay-intro {
+  max-width: 650px;
+  padding-inline: 8px;
+}
+
+.traveler-stay-intro .eyebrow,
+.traveler-preparation-event .eyebrow {
+  color: var(--odyssey-blue);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+.traveler-stay-intro h1 {
+  max-width: 590px;
+  margin: 12px 0;
+  color: #101b4b;
+  font-size: clamp(38px, 3.6vw, 52px);
+  font-weight: 800;
+  line-height: 1.08;
+  letter-spacing: -0.035em;
+  overflow-wrap: anywhere;
+}
+
+.traveler-stay-intro p {
+  max-width: 580px;
+  margin: 0;
+  color: #5a6f89;
+  font-size: 17px;
+  line-height: 1.65;
+}
+
+.ui-card.traveler-stay-card {
+  display: grid;
+  grid-template-columns: minmax(0, 48fr) minmax(0, 52fr);
+  min-height: 490px;
+  overflow: hidden;
+  border: 1px solid rgba(8, 102, 165, 0.06);
+  border-radius: 24px;
+  box-shadow: 0 10px 30px rgba(29, 69, 65, 0.06);
+}
+
+.traveler-stay-media {
+  position: relative;
+  min-width: 0;
+  min-height: 490px;
+}
+
+.traveler-stay-media img {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.traveler-stay-location {
+  position: absolute;
+  bottom: 22px;
+  left: 22px;
+  right: 22px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 11px 16px;
+  color: #ffffff;
+  background: rgba(12, 24, 38, 0.82);
+  border-radius: 999px;
+  backdrop-filter: blur(8px);
+  font-size: 13px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.traveler-stay-content {
+  min-width: 0;
+  padding: clamp(26px, 3vw, 46px);
+}
+
+.traveler-preparation-event {
+  display: grid;
+  gap: 10px;
+  padding-bottom: 26px;
+  border-bottom: 1px solid #e1e8ef;
+  color: #254b6a;
+  font-size: 14px;
+}
+
+.traveler-preparation-event h2 {
+  margin: 0 0 4px;
+  color: #101b4b;
+  font-size: clamp(24px, 2.2vw, 32px);
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+  overflow-wrap: anywhere;
+}
+
+.traveler-preparation-event > span:not(.eyebrow) {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  overflow-wrap: anywhere;
+}
+
+.traveler-stay-form {
+  display: grid;
+  gap: 16px;
+  margin-top: 26px;
+}
+
+.traveler-stay-form h3 {
+  margin: 0;
+  color: #101b4b;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.traveler-stay-dates {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.traveler-stay-dates .ui-form-field,
+.traveler-stay-dates input {
+  min-width: 0;
+}
+
+.traveler-stay-dates .ui-form-field__label {
+  color: #254b6a;
+  font-size: 13px;
+}
+
+.traveler-stay-dates input {
+  color: #254b6a;
+  background: #fafcfe;
+  border-color: #dbe5ed;
+  border-radius: var(--radius-md);
+}
+
+.traveler-stay-info,
+.traveler-stay-next {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.traveler-stay-info {
+  padding: 14px 16px;
+  color: #245681;
+  background: #f0f7ff;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+}
+
+.traveler-stay-info svg {
+  color: var(--odyssey-blue);
+}
+
+.traveler-stay-next {
+  color: #5a6f89;
+  font-size: 12px;
+}
+
+.traveler-stay-preparation svg {
+  flex-shrink: 0;
+}
+
+.traveler-stay-form .traveler-form-error {
+  margin: 0;
+  color: #a34034;
+  font-size: 13px;
+}
+
+.traveler-create-trip .ui-button__label {
+  gap: 10px;
+}
+
+.traveler-create-trip {
+  box-shadow: 0 6px 16px rgba(8, 102, 165, 0.14);
+}
+
+@media (max-width: 1000px) {
+  .ui-card.traveler-stay-card {
+    grid-template-columns: minmax(0, 42fr) minmax(0, 58fr);
+  }
+
+  .traveler-stay-content {
+    padding: 26px;
+  }
+}
+
+@media (max-width: 767px) {
+  .traveler-stay-preparation {
+    gap: 0;
+    padding-top: 0;
+    overflow: hidden;
+    background: #ffffff;
+    border: 1px solid rgba(8, 102, 165, 0.06);
+    border-radius: 22px;
+    box-shadow: var(--shadow-card);
+  }
+
+  .ui-card.traveler-stay-card {
+    display: contents;
+  }
+
+  .traveler-stay-media {
+    grid-row: 1;
+    min-height: 0;
+    height: clamp(220px, 62vw, 370px);
+  }
+
+  .traveler-stay-location {
+    bottom: 20px;
+    left: 16px;
+    right: 16px;
+  }
+
+  .traveler-stay-intro {
+    grid-row: 2;
+    padding: 26px 22px 0;
+  }
+
+  .traveler-stay-intro h1 {
+    font-size: clamp(32px, 9vw, 44px);
+  }
+
+  .traveler-stay-intro p {
+    font-size: 14px;
+  }
+
+  .traveler-stay-content {
+    grid-row: 3;
+    padding: 22px;
+  }
+
+  .traveler-preparation-event {
+    padding: 18px;
+    background: #f0f7ff;
+    border: 0;
+    border-radius: 12px;
+    font-size: 13px;
+  }
+
+  .traveler-preparation-event .eyebrow {
+    display: none;
+  }
+
+  .traveler-preparation-event h2 {
+    font-size: 21px;
+  }
+
+  .traveler-stay-dates {
+    gap: 10px;
+  }
+
+  .traveler-stay-dates input {
+    padding-inline: 8px;
+    font-size: 13px;
+  }
+
+  .ui-card.traveler-stay-highlights {
+    display: none;
+  }
+}
+
+@media (max-width: 374px) {
+  .traveler-stay-intro {
+    padding-inline: 16px;
+  }
+
+  .traveler-stay-content {
+    padding-inline: 16px;
+  }
+
+  .traveler-stay-dates {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .traveler-stay-info {
+    padding: 12px;
+  }
+}

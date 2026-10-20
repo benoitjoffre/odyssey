@@ -1,6 +1,6 @@
 package com.odyssey.api.event;
 
-import static org.mockito.Mockito.verify;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.when;
 
 import java.util.Optional;
@@ -12,6 +12,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.odyssey.api.agent.AgentRepository;
+import com.odyssey.api.booking.BookingRequestRepository;
 import com.odyssey.api.quote.QuoteRepository;
 import com.odyssey.api.traveler.Traveler;
 import com.odyssey.api.traveler.TravelerRepository;
@@ -31,9 +32,8 @@ class ClientEmailEventListenerTest {
 
     @Mock
     private TripRepository tripRepository;
-
     @Mock
-    private EmailService emailService;
+    private BookingRequestRepository bookingRequestRepository;
 
     @Mock
     private OdysseyEmailRenderer emailRenderer;
@@ -47,8 +47,8 @@ class ClientEmailEventListenerTest {
             agentRepository,
             quoteRepository,
             tripRepository,
-            emailService,
-            emailRenderer
+            emailRenderer,
+            bookingRequestRepository
         );
     }
 
@@ -70,10 +70,10 @@ class ClientEmailEventListenerTest {
             "Alice"
         )).thenReturn(message);
 
-        listener.onTravelerOnboardingCompleted(
+        EmailMessage prepared = listener.onTravelerOnboardingCompleted(
             new TravelerOnboardingCompletedEvent(42L)
         );
 
-        verify(emailService).sendEmail(message);
+        assertEquals(message, prepared);
     }
 }

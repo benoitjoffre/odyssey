@@ -1,14 +1,9 @@
 package com.odyssey.api.event;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
-
-import com.odyssey.api.agent.Agent;
 import com.odyssey.api.agent.AgentRepository;
+import com.odyssey.api.booking.BookingRequestRepository;
 import com.odyssey.api.exception.ResourceNotFoundException;
-import com.odyssey.api.quote.Quote;
 import com.odyssey.api.quote.QuoteRepository;
 import com.odyssey.api.traveler.Traveler;
 import com.odyssey.api.traveler.TravelerRepository;
@@ -16,222 +11,100 @@ import com.odyssey.api.trip.Trip;
 import com.odyssey.api.trip.TripRepository;
 
 /**
- * Sends (fake) email notifications to the traveler at each step of their
- * booking request: request received, agent assigned, quote available.
- *
- * <p>Replaces the previous {@code @KafkaListener}-based consumer (group
- * {@code client-emails}): the reactions are unchanged, only the transport
- * (Spring application events instead of Kafka) differs.</p>
+ * Prepares traveler messages inside the durable email queue, independently
+ * from in-app notification listeners.
  */
 @Component
 public class ClientEmailEventListener {
-
-    private static final Logger logger =
-        LoggerFactory.getLogger(ClientEmailEventListener.class);
 
     private final TravelerRepository travelerRepository;
     private final AgentRepository agentRepository;
     private final QuoteRepository quoteRepository;
     private final TripRepository tripRepository;
-    private final EmailService emailService;
-    private final OdysseyEmailRenderer emailRenderer;
+    private final OdysseyEmailRenderer renderer;
+    private final BookingRequestRepository bookingRequestRepository;
 
-    public ClientEmailEventListener(
-        TravelerRepository travelerRepository,
-        AgentRepository agentRepository,
-        QuoteRepository quoteRepository,
-        TripRepository tripRepository,
-        EmailService emailService,
-        OdysseyEmailRenderer emailRenderer
-    ) {
+    public ClientEmailEventListener(TravelerRepository travelerRepository, AgentRepository agentRepository,
+        QuoteRepository quoteRepository, TripRepository tripRepository, OdysseyEmailRenderer renderer,
+        BookingRequestRepository bookingRequestRepository) {
         this.travelerRepository = travelerRepository;
         this.agentRepository = agentRepository;
         this.quoteRepository = quoteRepository;
         this.tripRepository = tripRepository;
-        this.emailService = emailService;
-        this.emailRenderer = emailRenderer;
+        this.renderer = renderer;
+        this.bookingRequestRepository = bookingRequestRepository;
     }
 
-    @EventListener
-    public void onBookingRequested(BookingRequestedEvent event) {
-        try {
-            handleBookingRequested(event);
-        } catch (Exception exception) {
-            logger.error(
-                "Failed to send client email for booking request {}",
-                event.bookingRequestId(),
-                exception
-            );
-        }
+    public EmailMessage onBookingRequested(BookingRequestedEvent event) {
+        Traveler traveler = traveler(event.travelerId());
+        Trip trip = requestTrip(event.bookingRequestId());
+        return renderer.travelerBookingRequested(traveler.getEmail(), traveler.getPreferredLanguage(),
+            traveler.getFirstName(), event.bookingRequestId(), trip.getId(), trip.getTitle());
     }
 
-    @EventListener
-    public void onBookingAssigned(BookingAssignedEvent event) {
-        try {
-            handleBookingAssigned(event);
-        } catch (Exception exception) {
-            logger.error(
-                "Failed to send client email for booking assignment {}",
-                event.bookingRequestId(),
-                exception
-            );
-        }
+    public EmailMessage onBookingAssigned(BookingAssignedEvent event) {
+        Traveler traveler = traveler(event.travelerId());
+        var agent = agentRepository.findById(event.agentId())
+            .orElseThrow(() -> new ResourceNotFoundException("Agent not found"));
+        Trip trip = requestTrip(event.bookingRequestId());
+        return renderer.travelerBookingAssigned(traveler.getEmail(), traveler.getPreferredLanguage(),
+            traveler.getFirstName(), event.bookingRequestId(), agent.getFirstName(), trip.getId(), trip.getTitle());
     }
 
-    @EventListener
-    public void onQuoteSent(QuoteSentEvent event) {
-        try {
-            handleQuoteSent(event);
-        } catch (Exception exception) {
-            logger.error(
-                "Failed to send client email for quote {}",
-                event.quoteId(),
-                exception
-            );
-        }
+    public EmailMessage onQuoteSent(QuoteSentEvent event) {
+        Traveler traveler = traveler(event.travelerId());
+        var quote = quoteRepository.findById(event.quoteId())
+            .orElseThrow(() -> new ResourceNotFoundException("Quote not found"));
+        Trip trip = quote.getBookingRequest().getNeed().getTrip();
+        return renderer.travelerQuoteSent(traveler.getEmail(), traveler.getPreferredLanguage(),
+            traveler.getFirstName(), event.bookingRequestId(), quote.getTotalAmount(),
+            quote.getCurrency(), quote.getDescription(), trip.getId(), trip.getTitle());
     }
 
-    @EventListener
-    public void onTripQuotesSent(TripQuotesSentEvent event) {
-        try {
-            handleTripQuotesSent(event);
-        } catch (Exception exception) {
-            logger.error(
-                "Failed to send client email for trip {}",
-                event.tripId(),
-                exception
-            );
-        }
+    public EmailMessage onTripQuotesSent(TripQuotesSentEvent event) {
+        Traveler traveler = traveler(event.travelerId());
+        Trip trip = trip(event.tripId());
+        return renderer.travelerTripQuotesSent(traveler.getEmail(), traveler.getPreferredLanguage(),
+            traveler.getFirstName(), trip.getTitle(), event.quoteIds().size(), trip.getId());
     }
 
-    private void handleBookingRequested(BookingRequestedEvent event) {
-
-        Traveler traveler = travelerRepository
-            .findById(event.travelerId())
-            .orElseThrow(() ->
-                new ResourceNotFoundException("Traveler not found")
-            );
-
-        emailService.sendEmail(
-            emailRenderer.travelerBookingRequested(
-                traveler.getEmail(),
-                traveler.getPreferredLanguage(),
-                traveler.getFirstName(),
-                event.bookingRequestId()
-            )
-        );
-
-        logger.info(
-            "Traveler email queued for booking request {}",
-            event.bookingRequestId()
-        );
+    public EmailMessage onTravelerOnboardingCompleted(TravelerOnboardingCompletedEvent event) {
+        Traveler traveler = traveler(event.travelerId());
+        return renderer.travelerOnboardingCompleted(traveler.getEmail(), traveler.getPreferredLanguage(),
+            traveler.getFirstName());
     }
 
-    private void handleBookingAssigned(BookingAssignedEvent event) {
-
-        Traveler traveler = travelerRepository
-            .findById(event.travelerId())
-            .orElseThrow(() ->
-                new ResourceNotFoundException("Traveler not found")
-            );
-
-        Agent agent = agentRepository
-            .findById(event.agentId())
-            .orElseThrow(() ->
-                new ResourceNotFoundException("Agent not found")
-            );
-
-        emailService.sendEmail(
-            emailRenderer.travelerBookingAssigned(
-                traveler.getEmail(),
-                traveler.getPreferredLanguage(),
-                traveler.getFirstName(),
-                event.bookingRequestId(),
-                agent.getFirstName()
-            )
-        );
-
-        logger.info(
-            "Traveler email queued for booking assignment {}",
-            event.bookingRequestId()
-        );
+    public EmailMessage onPaymentSucceeded(PaymentSucceededEvent event) {
+        Traveler traveler = traveler(event.travelerId());
+        Trip trip = trip(event.tripId());
+        return renderer.travelerPaymentSucceeded(traveler.getEmail(), traveler.getPreferredLanguage(),
+            traveler.getFirstName(), trip.getId(), trip.getTitle(), event.assistanceFee(), event.currency());
     }
 
-    private void handleQuoteSent(QuoteSentEvent event) {
-
-        Traveler traveler = travelerRepository
-            .findById(event.travelerId())
-            .orElseThrow();
-
-        Quote quote = quoteRepository
-            .findById(event.quoteId())
-            .orElseThrow();
-
-        emailService.sendEmail(
-            emailRenderer.travelerQuoteSent(
-                traveler.getEmail(),
-                traveler.getPreferredLanguage(),
-                traveler.getFirstName(),
-                event.bookingRequestId(),
-                quote.getTotalAmount(),
-                quote.getCurrency(),
-                quote.getDescription()
-            )
-        );
-
-        logger.info("Traveler email queued for quote {}", event.quoteId());
+    public EmailMessage onBookingConfirmed(BookingConfirmedEvent event) {
+        Traveler traveler = traveler(event.travelerId());
+        return renderer.travelerBookingConfirmed(traveler.getEmail(), traveler.getPreferredLanguage(),
+            traveler.getFirstName(), event.tripId(), event.tripTitle(), event.providerReference());
     }
 
-    private void handleTripQuotesSent(TripQuotesSentEvent event) {
-        Traveler traveler = travelerRepository
-            .findById(event.travelerId())
+    public EmailMessage onProviderPaymentRequired(ProviderPaymentRequiredEvent event) {
+        Traveler traveler = traveler(event.travelerId());
+        return renderer.travelerProviderPaymentRequired(traveler.getEmail(), traveler.getPreferredLanguage(),
+            traveler.getFirstName(), event.tripId(), event.tripTitle());
+    }
+
+    private Traveler traveler(Long id) {
+        return travelerRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("Traveler not found"));
-        Trip trip = tripRepository
-            .findById(event.tripId())
+    }
+
+    private Trip trip(Long id) {
+        return tripRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("Trip not found"));
-
-        logger.info(
-            "Traveler email queued for trip {} after {} quote(s) were sent",
-            event.tripId(),
-            event.quoteIds().size()
-        );
-        emailService.sendEmail(
-            emailRenderer.travelerTripQuotesSent(
-                traveler.getEmail(),
-                traveler.getPreferredLanguage(),
-                traveler.getFirstName(),
-                trip.getTitle(),
-                event.quoteIds().size(),
-                trip.getId()
-            )
-        );
-
-        logger.info(
-            "Traveler email sent for trip {} with {} quote(s)",
-            trip.getId(),
-            event.quoteIds().size()
-        );
     }
 
-    @EventListener
-    public void onTravelerOnboardingCompleted(
-        TravelerOnboardingCompletedEvent event
-    ) {
-        Traveler traveler = travelerRepository
-            .findById(event.travelerId())
-            .orElseThrow(() -> new ResourceNotFoundException("Traveler not found"));
-
-        emailService.sendEmail(
-            emailRenderer.travelerOnboardingCompleted(
-                traveler.getEmail(),
-                traveler.getPreferredLanguage(),
-                traveler.getFirstName()
-            )
-        );
-
-        logger.info(
-            "Traveler email sent for onboarding completion {}",
-            event.travelerId()
-        );
+    private Trip requestTrip(Long id) {
+        return bookingRequestRepository.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("Booking request not found")).getNeed().getTrip();
     }
 }
