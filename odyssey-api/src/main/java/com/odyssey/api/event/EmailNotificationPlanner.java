@@ -31,8 +31,10 @@ public class EmailNotificationPlanner {
                 List.of(client.onTravelerOnboardingCompleted(mapper.readValue(payload, TravelerOnboardingCompletedEvent.class)));
             case "TRAVELER:PAYMENT_SUCCEEDED" ->
                 List.of(client.onPaymentSucceeded(mapper.readValue(payload, PaymentSucceededEvent.class)));
-            case "TRAVELER:BOOKING_CONFIRMED" ->
-                List.of(client.onBookingConfirmed(mapper.readValue(payload, BookingConfirmedEvent.class)));
+            // Legacy per-booking jobs queued before the trip-level rule: never send a partial confirmation.
+            case "TRAVELER:BOOKING_CONFIRMED" -> List.of();
+            case "TRAVELER:TRIP_BOOKINGS_CONFIRMED" ->
+                List.of(client.onTripBookingsConfirmed(mapper.readValue(payload, TripBookingsConfirmedEvent.class)));
             case "TRAVELER:PROVIDER_PAYMENT_REQUIRED" ->
                 List.of(client.onProviderPaymentRequired(mapper.readValue(payload, ProviderPaymentRequiredEvent.class)));
             case "AGENT:BOOKING_REQUESTED" ->

@@ -81,10 +81,10 @@ public class ClientEmailEventListener {
             traveler.getFirstName(), trip.getId(), trip.getTitle(), event.assistanceFee(), event.currency());
     }
 
-    public EmailMessage onBookingConfirmed(BookingConfirmedEvent event) {
+    public EmailMessage onTripBookingsConfirmed(TripBookingsConfirmedEvent event) {
         Traveler traveler = traveler(event.travelerId());
-        return renderer.travelerBookingConfirmed(traveler.getEmail(), traveler.getPreferredLanguage(),
-            traveler.getFirstName(), event.tripId(), event.tripTitle(), event.providerReference());
+        return renderer.travelerTripBookingsConfirmed(traveler.getEmail(), traveler.getPreferredLanguage(),
+            traveler.getFirstName(), event.tripId(), event.tripTitle(), event.bookingCount());
     }
 
     public EmailMessage onProviderPaymentRequired(ProviderPaymentRequiredEvent event) {

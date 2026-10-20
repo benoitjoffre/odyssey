@@ -3,6 +3,7 @@ package com.odyssey.api.booking.confirmation;
 import com.odyssey.api.agent.Agent;
 import com.odyssey.api.agent.AgentRepository;
 import com.odyssey.api.booking.BookingRequest;
+import com.odyssey.api.booking.BookingRequestRepository;
 import com.odyssey.api.booking.BookingRequestStatus;
 import com.odyssey.api.exception.ResourceNotFoundException;
 import com.odyssey.api.need.Need;
@@ -10,11 +11,12 @@ import com.odyssey.api.quote.Quote;
 import com.odyssey.api.quote.QuoteRepository;
 import com.odyssey.api.quote.QuoteStatus;
 import com.odyssey.api.trip.Trip;
+import com.odyssey.api.trip.TripRepository;
 import com.odyssey.api.traveler.Traveler;
 import com.odyssey.api.outbox.OutboxEventRepository;
 import com.odyssey.api.outbox.OutboxEvent;
-import com.odyssey.api.event.BookingConfirmedEvent;
 import com.odyssey.api.event.ProviderPaymentRequiredEvent;
+import com.odyssey.api.event.TripBookingsConfirmedEvent;
 import org.mockito.ArgumentCaptor;
 import tools.jackson.databind.ObjectMapper;
 
@@ -26,12 +28,14 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -48,6 +52,8 @@ class BookingServiceTest {
 	@Mock private FakeBookingProvider bookingProvider;
 	@Mock private AgentRepository agentRepository;
 	@Mock private OutboxEventRepository outboxEventRepository;
+	@Mock private BookingRequestRepository bookingRequestRepository;
+	@Mock private TripRepository tripRepository;
 
 	private BookingService bookingService;
 
@@ -59,7 +65,9 @@ class BookingServiceTest {
 			bookingProvider,
 			agentRepository,
 			outboxEventRepository,
-			new ObjectMapper()
+			new ObjectMapper(),
+			bookingRequestRepository,
+			tripRepository
 		);
 	}
 
@@ -211,6 +219,7 @@ class BookingServiceTest {
 	void confirmBookingRejectsMissingProviderReference() {
 		Booking booking = pendingBookingAssignedTo(AGENT_ID);
 		when(bookingRepository.findById(BOOKING_ID)).thenReturn(Optional.of(booking));
+		lockTrip(booking);
 
 		assertThrows(
 			IllegalStateException.class,
@@ -220,27 +229,99 @@ class BookingServiceTest {
 	}
 
 	@Test
-	void confirmBookingCompletesBookingRequest() {
+	void confirmingLastActiveBookingSendsOneTripConfirmation() {
 		Booking booking = pendingBookingAssignedTo(AGENT_ID);
 		booking.setProviderReference("PNR-123");
+		BookingRequest request = booking.getQuote().getBookingRequest();
+		Booking otherConfirmed = otherBooking(BookingStatus.CONFIRMED);
+		BookingRequest cancelled = new BookingRequest();
+		ReflectionTestUtils.setField(cancelled, "id", 30L);
+		cancelled.setStatus(BookingRequestStatus.CANCELLED);
 		when(bookingRepository.findById(BOOKING_ID)).thenReturn(Optional.of(booking));
+		lockTrip(booking);
 		when(bookingProvider.confirmBooking(booking)).thenReturn("CONF-ABC");
 		when(bookingRepository.save(booking)).thenReturn(booking);
+		when(bookingRequestRepository.findByNeedTripId(10L))
+			.thenReturn(List.of(request, otherConfirmed.getQuote().getBookingRequest(), cancelled));
+		when(bookingRepository.findByQuoteBookingRequestId(9L)).thenReturn(Optional.of(booking));
+		when(bookingRepository.findByQuoteBookingRequestId(20L)).thenReturn(Optional.of(otherConfirmed));
 
 		BookingResponse response = bookingService.confirmBooking(BOOKING_ID, AGENT_ID);
 
 		assertEquals(BookingStatus.CONFIRMED, response.status());
 		assertEquals("CONF-ABC", response.providerConfirmationId());
-		assertEquals(
-			BookingRequestStatus.COMPLETED,
-			booking.getQuote().getBookingRequest().getStatus()
-		);
-		var event = ArgumentCaptor.forClass(OutboxEvent.class);
-		verify(outboxEventRepository).save(event.capture());
-		assertEquals("BOOKING_CONFIRMED", event.getValue().getEventType());
-		var payload = new ObjectMapper().readValue(event.getValue().getPayload(), BookingConfirmedEvent.class);
-		assertEquals("PNR-123", payload.providerReference());
+		assertEquals(BookingRequestStatus.COMPLETED, request.getStatus());
+		var events = ArgumentCaptor.forClass(OutboxEvent.class);
+		verify(outboxEventRepository, times(2)).save(events.capture());
+		assertEquals("BOOKING_CONFIRMED", events.getAllValues().get(0).getEventType());
+		assertEquals("TRIP_BOOKINGS_CONFIRMED", events.getAllValues().get(1).getEventType());
+		var payload = new ObjectMapper().readValue(events.getAllValues().get(1).getPayload(),
+			TripBookingsConfirmedEvent.class);
+		assertEquals(10L, payload.tripId());
 		assertEquals(11L, payload.travelerId());
+		assertEquals(2, payload.bookingCount());
+	}
+
+	@Test
+	void partialConfirmationDoesNotSendTripConfirmation() {
+		Booking booking = pendingBookingAssignedTo(AGENT_ID);
+		booking.setProviderReference("PNR-123");
+		Booking otherPending = otherBooking(BookingStatus.PENDING);
+		BookingRequest notBooked = new BookingRequest();
+		ReflectionTestUtils.setField(notBooked, "id", 40L);
+		notBooked.setStatus(BookingRequestStatus.IN_PROGRESS);
+		when(bookingRepository.findById(BOOKING_ID)).thenReturn(Optional.of(booking));
+		lockTrip(booking);
+		when(bookingProvider.confirmBooking(booking)).thenReturn("CONF-ABC");
+		when(bookingRepository.save(booking)).thenReturn(booking);
+		when(bookingRequestRepository.findByNeedTripId(10L)).thenReturn(List.of(
+			booking.getQuote().getBookingRequest(), otherPending.getQuote().getBookingRequest(), notBooked));
+		when(bookingRepository.findByQuoteBookingRequestId(9L)).thenReturn(Optional.of(booking));
+		when(bookingRepository.findByQuoteBookingRequestId(20L)).thenReturn(Optional.of(otherPending));
+
+		bookingService.confirmBooking(BOOKING_ID, AGENT_ID);
+
+		var events = ArgumentCaptor.forClass(OutboxEvent.class);
+		verify(outboxEventRepository).save(events.capture());
+		assertEquals("BOOKING_CONFIRMED", events.getValue().getEventType());
+	}
+
+	@Test
+	void requestWithoutBookingBlocksTripConfirmation() {
+		Booking booking = pendingBookingAssignedTo(AGENT_ID);
+		booking.setProviderReference("PNR-123");
+		BookingRequest notBooked = new BookingRequest();
+		ReflectionTestUtils.setField(notBooked, "id", 40L);
+		notBooked.setStatus(BookingRequestStatus.REQUESTED);
+		when(bookingRepository.findById(BOOKING_ID)).thenReturn(Optional.of(booking));
+		lockTrip(booking);
+		when(bookingProvider.confirmBooking(booking)).thenReturn("CONF-ABC");
+		when(bookingRepository.save(booking)).thenReturn(booking);
+		when(bookingRequestRepository.findByNeedTripId(10L))
+			.thenReturn(List.of(notBooked, booking.getQuote().getBookingRequest()));
+		when(bookingRepository.findByQuoteBookingRequestId(40L)).thenReturn(Optional.empty());
+
+		bookingService.confirmBooking(BOOKING_ID, AGENT_ID);
+
+		verify(outboxEventRepository, times(1)).save(any());
+	}
+
+	private void lockTrip(Booking booking) {
+		Trip trip = booking.getQuote().getBookingRequest().getNeed().getTrip();
+		when(tripRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(trip));
+	}
+
+	private Booking otherBooking(BookingStatus status) {
+		BookingRequest request = new BookingRequest();
+		ReflectionTestUtils.setField(request, "id", 20L);
+		request.setStatus(status == BookingStatus.CONFIRMED
+			? BookingRequestStatus.COMPLETED : BookingRequestStatus.IN_PROGRESS);
+		Quote quote = new Quote();
+		quote.setBookingRequest(request);
+		Booking booking = new Booking();
+		booking.setQuote(quote);
+		booking.setStatus(status);
+		return booking;
 	}
 
 	private Quote acceptedQuoteAssignedTo(Long agentId) {

@@ -1,6 +1,6 @@
 export type BookingStatus = "PENDING" | "CONFIRMED" | "FAILED" | "CANCELLED";
 
-export type ProviderPaymentStatus = "NOT_REQUIRED_YET" | "PAYMENT_REQUIRED" | "PAID_TO_PROVIDER" | "UNKNOWN";
+export type ProviderPaymentStatus = "NOT_REQUIRED_YET" | "PAYMENT_REQUIRED" | "PAID_TO_PROVIDER";
 
 export interface Booking {
   id: number;

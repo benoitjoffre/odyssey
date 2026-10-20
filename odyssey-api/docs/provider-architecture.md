@@ -45,7 +45,7 @@ Objets principaux dans le workflow fournisseur/paiement :
 - `BookingRequest` (`REQUESTED`, `IN_PROGRESS`, `QUOTED`, `CONFIRMED`, `CANCELLED`, `COMPLETED`)
 - `Quote` (`DRAFT`, `SENT`, `ACCEPTED`, `REJECTED`, `EXPIRED`)
 - `Booking` (`PENDING`, `CONFIRMED`, `FAILED`, `CANCELLED`)
-- `ProviderPaymentStatus` (`NOT_REQUIRED_YET`, `PAYMENT_REQUIRED`, `PAID_TO_PROVIDER`, `UNKNOWN`)
+- `ProviderPaymentStatus` (`NOT_REQUIRED_YET`, `PAYMENT_REQUIRED`, `PAID_TO_PROVIDER`)
 - `Payment` (`PENDING`, `PAID`, `FAILED`) pour les frais Odyssey
 
 Fichiers :
@@ -297,12 +297,13 @@ Important :
 - `NOT_REQUIRED_YET`
 - `PAYMENT_REQUIRED`
 - `PAID_TO_PROVIDER`
-- `UNKNOWN`
+
+L'ancien statut `UNKNOWN` a été retiré : il faisait doublon avec `NOT_REQUIRED_YET` et masquait l'état réel au voyageur. Les lignes existantes en base sont relues comme `NOT_REQUIRED_YET` par `ProviderPaymentStatusConverter` ; une requête API envoyant `UNKNOWN` est rejetée.
 
 Transitions :
 
 - À la création booking : forcé à `NOT_REQUIRED_YET`.
-- Ensuite : défini par `updateProviderDetails(...)` sans garde stricte de transition.
+- Ensuite : défini par `updateProviderDetails(...)` sans garde stricte de transition ; un statut absent vaut `NOT_REQUIRED_YET`.
 
 Conclusion : il s'agit d'un statut déclaratif saisi par l'agent, pas d'un automate validé techniquement par des preuves externes.
 
@@ -435,6 +436,7 @@ Paiement Odyssey :
 - `PAYMENT_SUCCEEDED`
 - `TRAVELER_ONBOARDING_COMPLETED`
 - `BOOKING_CONFIRMED`
+- `TRIP_BOOKINGS_CONFIRMED`
 - `PROVIDER_PAYMENT_REQUIRED`
 
 Pipeline :
@@ -448,7 +450,8 @@ Pipeline :
 
 Points notables :
 
-- `BOOKING_CONFIRMED` est créé dans la transaction de confirmation et conserve la référence fournisseur.
+- `BOOKING_CONFIRMED` est créé à chaque confirmation de réservation et conserve la référence fournisseur. C'est un événement de domaine : il ne génère **aucun mail**.
+- `TRIP_BOOKINGS_CONFIRMED` est créé dans la même transaction uniquement lorsque toutes les demandes actives (non `CANCELLED`) du voyage ont une réservation `CONFIRMED`. La confirmation verrouille le voyage (`findByIdForUpdate`) pour que deux confirmations simultanées voient l'état final.
 - `PROVIDER_PAYMENT_REQUIRED` est créé lorsque le statut passe à `PAYMENT_REQUIRED` avec une URL non vide, ou lorsque cette URL change pendant ce statut. Un enregistrement identique ne renvoie pas de mail.
 - La complétion d'onboarding est verrouillée en base et ne crée le mail de bienvenue qu'au premier passage.
 - Le paiement fournisseur n'est pas piloté par webhook fournisseur.
@@ -461,10 +464,12 @@ Les anciens listeners mail préparent les messages via `EmailNotificationPlanner
 
 Les mails couvrent :
 
-- voyageur : bienvenue, demande reçue, conseiller affecté, proposition individuelle ou lot de propositions, frais Odyssey payés, réservation confirmée, instructions de paiement fournisseur ;
+- voyageur : bienvenue, demande reçue, conseiller affecté, proposition individuelle ou lot de propositions, frais Odyssey payés, voyage entièrement réservé, instructions de paiement fournisseur ;
 - agent : nouvelle demande, proposition acceptée ou refusée, frais Odyssey payés (une fois par agent du voyage).
 
 Sans agent affecté, la première disponibilité est conservée. Lors d'une reprise après affectation, l'agent déjà affecté est prioritaire. Aucun regroupement temporel automatique des demandes par besoin n'est ajouté.
+
+Le mail « Votre voyage est réservé » n'est envoyé **qu'une fois tous les services actifs du voyage confirmés**, avec le nombre de réservations. Une confirmation partielle n'envoie rien ; le suivi reste visible sur le site. Les demandes annulées sont ignorées, une demande active sans réservation bloque l'envoi. Si un nouveau service est ajouté puis confirmé, un nouveau mail récapitulatif est envoyé. Les tâches `TRAVELER:BOOKING_CONFIRMED` déjà en file avant ce changement sont terminées sans envoi.
 
 La confirmation de prise en charge voyageur est limitée à **un seul mail par voyage**, à la première prise en charge préparée. Les affectations suivantes, y compris à un autre conseiller ou pour un besoin ajouté plus tard, ne créent pas de nouveau mail. Une clé de livraison par voyage et un verrou transactionnel protègent également les préparations simultanées et les reprises après échec. Chaque demande conserve son suivi sur le site ; le mail annonce le début de l'accompagnement sans affirmer que toutes les demandes sont prises en charge. Cette règle s'applique aux préparations, y compris déjà en attente ; les livraisons générées avant ce changement ne sont pas réécrites.
 

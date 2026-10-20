@@ -11,6 +11,8 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import com.odyssey.api.agent.*;
 import com.odyssey.api.booking.*;
+import com.odyssey.api.booking.confirmation.*;
+import com.odyssey.api.quote.*;
 import com.odyssey.api.need.*;
 import com.odyssey.api.outbox.*;
 import com.odyssey.api.traveler.*;
@@ -42,6 +44,10 @@ class EmailDeliveryFlowIntegrationTest {
     @Autowired private BookingRequestRepository requestRepository;
     @Autowired private ObjectMapper mapper;
     @Autowired private JdbcTemplate jdbc;
+    @Autowired private BookingService bookingService;
+    @Autowired private BookingRepository bookingRepository;
+    @Autowired private QuoteRepository quoteRepository;
+    @Autowired private jakarta.persistence.EntityManager entityManager;
     @MockitoBean private EmailService sender;
     @MockitoBean private JwtDecoder jwtDecoder;
     private EmailJobProcessor processor;
@@ -274,8 +280,10 @@ class EmailDeliveryFlowIntegrationTest {
         trip = trips.saveAndFlush(trip);
         Agent agent = agent();
         BookingRequest request = request(trip, agent, NeedType.FLIGHT);
-        queue.enqueue(201L, "BOOKING_CONFIRMED", mapper.writeValueAsString(
+        queue.enqueue(200L, "BOOKING_CONFIRMED", mapper.writeValueAsString(
             new BookingConfirmedEvent(1L, traveler.getId(), trip.getId(), "Lisbonne", "PNR-123")));
+        queue.enqueue(201L, "TRIP_BOOKINGS_CONFIRMED", mapper.writeValueAsString(
+            new TripBookingsConfirmedEvent(trip.getId(), traveler.getId(), "Lisbonne", 2)));
         queue.enqueue(202L, "PROVIDER_PAYMENT_REQUIRED", mapper.writeValueAsString(
             new ProviderPaymentRequiredEvent(1L, traveler.getId(), trip.getId(), "Lisbonne")));
         queue.enqueue(203L, "QUOTE_REJECTED", mapper.writeValueAsString(
@@ -285,10 +293,85 @@ class EmailDeliveryFlowIntegrationTest {
         processor.processPending();
         List<EmailMessage> messages = deliveryJobs().stream()
             .map(job -> mapper.readValue(job.getPayload(), EmailMessage.class)).toList();
-        assertTrue(messages.stream().anyMatch(message -> message.textBody().contains("PNR-123")));
+        assertTrue(messages.stream().anyMatch(message -> message.textBody().contains("les 2 réservations")));
+        assertTrue(messages.stream().noneMatch(message -> message.textBody().contains("PNR-123")));
         assertTrue(messages.stream().anyMatch(message -> message.textBody().contains("distinct des frais")));
         assertTrue(messages.stream().anyMatch(message -> message.subject().contains("refusée")));
         assertTrue(deliveryJobs().stream().allMatch(job -> job.getProviderId() != null));
+    }
+
+    @Test
+    void travelerIsEmailedOnceOnlyWhenEveryActiveServiceOfTheTripIsBooked() {
+        Traveler traveler = traveler();
+        Trip trip = new Trip();
+        trip.setTraveler(traveler);
+        trip.setTitle("Lisbonne");
+        trip.setStatus(TripStatus.CONFIRMED);
+        trip = trips.saveAndFlush(trip);
+        Agent agent = agent();
+        Booking flight = pendingBooking(request(trip, agent, NeedType.FLIGHT), "PNR-FLIGHT");
+        Booking hotel = pendingBooking(request(trip, agent, NeedType.ACCOMMODATION), "PNR-HOTEL");
+        BookingRequest cancelled = request(trip, agent, NeedType.TRANSFER);
+        cancelled.setStatus(BookingRequestStatus.CANCELLED);
+        requestRepository.saveAndFlush(cancelled);
+
+        bookingService.confirmBooking(flight.getId(), agent.getId());
+        outbox.processPendingEvents();
+        processor.processPending();
+        processor.processPending();
+        assertTrue(deliveryJobs().isEmpty());
+        verifyNoInteractions(sender);
+
+        bookingService.confirmBooking(hotel.getId(), agent.getId());
+        outbox.processPendingEvents();
+        processor.processPending();
+        processor.processPending();
+        assertEquals(1, deliveryJobs().size());
+        EmailMessage message = mapper.readValue(deliveryJobs().getFirst().getPayload(), EmailMessage.class);
+        assertEquals(traveler.getEmail(), message.to());
+        assertTrue(message.subject().contains("Votre voyage est réservé"));
+        assertTrue(message.textBody().contains("les 2 réservations"));
+        assertEquals(1, events.findAll().stream()
+            .filter(event -> event.getEventType().equals("TRIP_BOOKINGS_CONFIRMED")).count());
+        verify(sender, times(1)).sendEmail(any(), anyString());
+    }
+
+    @Test
+    void legacyUnknownProviderPaymentStatusIsReadAsNotDeterminedYet() {
+        Traveler traveler = traveler();
+        Trip trip = new Trip();
+        trip.setTraveler(traveler);
+        trip.setTitle("Lisbonne");
+        trip.setStatus(TripStatus.CONFIRMED);
+        trip = trips.saveAndFlush(trip);
+        Booking booking = pendingBooking(request(trip, agent(), NeedType.FLIGHT), "PNR-LEGACY");
+        // Simulate a pre-existing database whose constraint still allows the removed value.
+        jdbc.execute("alter table bookings drop constraint if exists bookings_provider_payment_status_check");
+        jdbc.update("update bookings set provider_payment_status = 'UNKNOWN' where id = ?", booking.getId());
+        entityManager.clear();
+
+        assertEquals(ProviderPaymentStatus.NOT_REQUIRED_YET,
+            bookingRepository.findById(booking.getId()).orElseThrow().getProviderPaymentStatus());
+    }
+
+    private Booking pendingBooking(BookingRequest request, String providerReference) {
+        Quote quote = new Quote();
+        quote.setBookingRequest(request);
+        quote.setProvider("FAKE");
+        quote.setExternalOfferId(UUID.randomUUID().toString());
+        quote.setProviderPrice(new BigDecimal("100"));
+        quote.setTotalAmount(new BigDecimal("100"));
+        quote.setCurrency("EUR");
+        quote.setStatus(QuoteStatus.ACCEPTED);
+        quote.setCreatedAt(Instant.now());
+        quote = quoteRepository.saveAndFlush(quote);
+        Booking booking = new Booking();
+        booking.setQuote(quote);
+        booking.setStatus(BookingStatus.PENDING);
+        booking.setCreatedAt(Instant.now());
+        booking.setProviderReference(providerReference);
+        booking.setProviderPaymentStatus(ProviderPaymentStatus.NOT_REQUIRED_YET);
+        return bookingRepository.saveAndFlush(booking);
     }
 
     private Traveler traveler() {

@@ -46,7 +46,7 @@ class OdysseyEmailRendererTest {
             renderer.travelerTripQuotesSent("a@example.com", language, "Alice", "Lisbonne", 2, 42L),
             renderer.travelerPaymentSucceeded("a@example.com", language, "Alice", 42L,
                 "Lisbonne", new BigDecimal("25"), "EUR"),
-            renderer.travelerBookingConfirmed("a@example.com", language, "Alice", 42L, "Lisbonne", "PNR-123"),
+            renderer.travelerTripBookingsConfirmed("a@example.com", language, "Alice", 42L, "Lisbonne", 3),
             renderer.travelerProviderPaymentRequired("a@example.com", language, "Alice", 42L, "Lisbonne")
         );
         for (EmailMessage message : messages) {
@@ -71,8 +71,8 @@ class OdysseyEmailRendererTest {
 
     @Test
     void escapesDynamicHtmlButKeepsPlainTextReadable() {
-        EmailMessage message = renderer.travelerBookingConfirmed("a@example.com", "fr", "<Alice>",
-            42L, "Cuba & soleil", "\"><script>alert(1)</script>");
+        EmailMessage message = renderer.travelerTripBookingsConfirmed("a@example.com", "fr", "<Alice>",
+            42L, "Cuba & soleil\"><script>alert(1)</script>", 1);
         assertFalse(message.htmlBody().contains("<script>"));
         assertTrue(message.htmlBody().contains("&lt;Alice&gt;"));
         assertTrue(message.htmlBody().contains("Cuba &amp; soleil"));
@@ -93,6 +93,12 @@ class OdysseyEmailRendererTest {
             .textBody().contains("1 proposition est"));
         assertThrows(IllegalArgumentException.class,
             () -> renderer.travelerTripQuotesSent("a@example.com", "fr", "Alice", "Lisbonne", 0, 42L));
+        assertTrue(renderer.travelerTripBookingsConfirmed("a@example.com", "fr", "Alice", 42L, "Lisbonne", 1)
+            .textBody().contains("la réservation de votre voyage"));
+        assertTrue(renderer.travelerTripBookingsConfirmed("a@example.com", "fr", "Alice", 42L, "Lisbonne", 3)
+            .textBody().contains("les 3 réservations"));
+        assertThrows(IllegalArgumentException.class,
+            () -> renderer.travelerTripBookingsConfirmed("a@example.com", "fr", "Alice", 42L, "Lisbonne", 0));
     }
 
     @Test

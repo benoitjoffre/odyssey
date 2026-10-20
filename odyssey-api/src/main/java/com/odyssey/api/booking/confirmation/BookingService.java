@@ -2,14 +2,17 @@ package com.odyssey.api.booking.confirmation;
 
 import com.odyssey.api.agent.Agent;
 import com.odyssey.api.agent.AgentRepository;
+import com.odyssey.api.booking.BookingRequestRepository;
 import com.odyssey.api.booking.BookingRequestStatus;
 import com.odyssey.api.exception.ResourceNotFoundException;
+import com.odyssey.api.trip.TripRepository;
 import com.odyssey.api.quote.Quote;
 import com.odyssey.api.quote.QuoteRepository;
 import com.odyssey.api.quote.QuoteStatus;
 
 import com.odyssey.api.event.BookingConfirmedEvent;
 import com.odyssey.api.event.ProviderPaymentRequiredEvent;
+import com.odyssey.api.event.TripBookingsConfirmedEvent;
 import com.odyssey.api.outbox.OutboxEvent;
 import com.odyssey.api.outbox.OutboxEventRepository;
 import com.odyssey.api.outbox.OutboxStatus;
@@ -29,6 +32,8 @@ public class BookingService {
     private final AgentRepository agentRepository;
     private final OutboxEventRepository outboxEventRepository;
     private final ObjectMapper objectMapper;
+    private final BookingRequestRepository bookingRequestRepository;
+    private final TripRepository tripRepository;
 
     public BookingService(
         BookingRepository bookingRepository,
@@ -36,7 +41,9 @@ public class BookingService {
         FakeBookingProvider bookingProvider,
         AgentRepository agentRepository,
         OutboxEventRepository outboxEventRepository,
-        ObjectMapper objectMapper
+        ObjectMapper objectMapper,
+        BookingRequestRepository bookingRequestRepository,
+        TripRepository tripRepository
     ) {
         this.bookingRepository = bookingRepository;
         this.quoteRepository = quoteRepository;
@@ -44,6 +51,8 @@ public class BookingService {
         this.agentRepository = agentRepository;
         this.outboxEventRepository = outboxEventRepository;
         this.objectMapper = objectMapper;
+        this.bookingRequestRepository = bookingRequestRepository;
+        this.tripRepository = tripRepository;
     }
 
     @Transactional
@@ -180,7 +189,7 @@ public class BookingService {
         booking.setProviderPaymentStatus(
             providerPaymentStatus != null
                 ? providerPaymentStatus
-                : ProviderPaymentStatus.UNKNOWN
+                : ProviderPaymentStatus.NOT_REQUIRED_YET
         );
 
         Booking savedBooking = bookingRepository.save(booking);
@@ -227,6 +236,11 @@ public class BookingService {
             );
         }
 
+        var trip = bookingRequest.getNeed().getTrip();
+        // Serialize confirmations of one trip so the "all bookings confirmed" check sees every concurrent update.
+        tripRepository.findByIdForUpdate(trip.getId())
+            .orElseThrow(() -> new ResourceNotFoundException("Trip not found"));
+
         if (!booking.canBeConfirmed()) {
             throw new IllegalStateException(
                 "Booking cannot be confirmed"
@@ -249,11 +263,34 @@ public class BookingService {
         Booking savedBooking =
             bookingRepository.save(booking);
 
-        var trip = bookingRequest.getNeed().getTrip();
         saveEvent("BOOKING_CONFIRMED", new BookingConfirmedEvent(
             savedBooking.getId(), trip.getTraveler().getId(), trip.getId(), trip.getTitle(),
             savedBooking.getProviderReference()));
+        int confirmedBookings = countConfirmedBookingsIfTripComplete(trip.getId());
+        if (confirmedBookings > 0) {
+            saveEvent("TRIP_BOOKINGS_CONFIRMED", new TripBookingsConfirmedEvent(
+                trip.getId(), trip.getTraveler().getId(), trip.getTitle(), confirmedBookings));
+        }
         return toResponse(savedBooking);
+    }
+
+    /**
+     * Returns the number of confirmed bookings when every active (non-cancelled)
+     * booking request of the trip has a confirmed booking, or 0 otherwise.
+     */
+    private int countConfirmedBookingsIfTripComplete(Long tripId) {
+        var activeRequests = bookingRequestRepository.findByNeedTripId(tripId).stream()
+            .filter(request -> request.getStatus() != BookingRequestStatus.CANCELLED)
+            .toList();
+        for (var request : activeRequests) {
+            boolean confirmed = bookingRepository.findByQuoteBookingRequestId(request.getId())
+                .map(candidate -> candidate.getStatus() == BookingStatus.CONFIRMED)
+                .orElse(false);
+            if (!confirmed) {
+                return 0;
+            }
+        }
+        return activeRequests.size();
     }
 
     private void saveEvent(String type, Object event) {

@@ -13,7 +13,5 @@ export function getSupplierPaymentLabel(status: ProviderPaymentStatus): string {
       return "Réglé au fournisseur";
     case "NOT_REQUIRED_YET":
       return "Modalités de paiement à venir";
-    case "UNKNOWN":
-      return "Informations de paiement en attente";
   }
 }

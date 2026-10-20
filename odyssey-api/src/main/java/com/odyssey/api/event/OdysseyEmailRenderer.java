@@ -140,19 +140,26 @@ public class OdysseyEmailRenderer {
             lang.pick("Suivre mon voyage", "View my trip", "Ver mi viaje"), "/traveler/trips/" + tripId, tripTitle);
     }
 
-    public EmailMessage travelerBookingConfirmed(String to, String language, String firstName,
-        Long tripId, String tripTitle, String providerReference) {
+    public EmailMessage travelerTripBookingsConfirmed(String to, String language, String firstName,
+        Long tripId, String tripTitle, int bookingCount) {
+        if (bookingCount < 1) {
+            throw new IllegalArgumentException("A trip confirmation email requires at least one booking");
+        }
         Language lang = Language.resolve(language);
-        String title = lang.pick("Réservation confirmée", "Booking confirmed", "Reserva confirmada");
+        String title = lang.pick("Votre voyage est réservé", "Your trip is booked", "Tu viaje está reservado");
+        String bookings = bookingCount == 1
+            ? lang.pick("la réservation", "the booking", "la reserva")
+            : lang.pick("les " + bookingCount + " réservations", "all " + bookingCount + " bookings",
+                "las " + bookingCount + " reservas");
         return message(to, lang, firstName, title, title + " · " + safe(tripTitle),
-            lang.pick("Votre conseiller a confirmé une réservation pour votre voyage. Référence fournisseur : ",
-                "Your advisor has confirmed a booking for your trip. Supplier reference: ",
-                "Tu asesor ha confirmado una reserva para tu viaje. Referencia del proveedor: ")
-                + safe(providerReference) + lang.pick(
-                    ". Consultez votre voyage pour les détails et les éventuelles étapes restantes.",
-                    ". Check your trip for details and any remaining steps.",
-                    ". Consulta tu viaje para ver los detalles y los próximos pasos."),
-            lang.pick("Voir ma réservation", "View my booking", "Ver mi reserva"), "/traveler/trips/" + tripId, tripTitle);
+            lang.pick("Votre conseiller a confirmé ", "Your advisor has confirmed ", "Tu asesor ha confirmado ")
+                + bookings
+                + lang.pick(" de votre voyage « ", " for your trip “", " de tu viaje « ") + safe(tripTitle)
+                + lang.pick(
+                    " ». Retrouvez les références et les éventuelles étapes restantes, comme un paiement fournisseur, dans votre espace.",
+                    "”. Find the references and any remaining steps, such as a supplier payment, in your account.",
+                    " ». Encuentra las referencias y los posibles pasos pendientes, como un pago al proveedor, en tu espacio."),
+            lang.pick("Voir mon voyage", "View my trip", "Ver mi viaje"), "/traveler/trips/" + tripId, tripTitle);
     }
 
     public EmailMessage travelerProviderPaymentRequired(String to, String language, String firstName,

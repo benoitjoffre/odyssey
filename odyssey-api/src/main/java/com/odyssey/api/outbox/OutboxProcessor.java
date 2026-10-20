@@ -9,6 +9,7 @@ import com.odyssey.api.event.QuoteSentEvent;
 import com.odyssey.api.event.TravelerOnboardingCompletedEvent;
 import com.odyssey.api.event.TripQuotesSentEvent;
 import com.odyssey.api.event.BookingConfirmedEvent;
+import com.odyssey.api.event.TripBookingsConfirmedEvent;
 import com.odyssey.api.event.ProviderPaymentRequiredEvent;
 import com.odyssey.api.event.EmailJobQueue;
 
@@ -64,27 +65,18 @@ public class OutboxProcessor {
         this.applicationEventPublisher = applicationEventPublisher;
         this.emailJobQueue = emailJobQueue;
 
-        this.eventReaders = Map.of(
-            "BOOKING_REQUESTED", payload ->
-                objectMapper.readValue(payload, BookingRequestedEvent.class),
-            "BOOKING_ASSIGNED", payload ->
-                objectMapper.readValue(payload, BookingAssignedEvent.class),
-            "QUOTE_SENT", payload ->
-                objectMapper.readValue(payload, QuoteSentEvent.class),
-            "TRIP_QUOTES_SENT", payload ->
-                objectMapper.readValue(payload, TripQuotesSentEvent.class),
-            "QUOTE_ACCEPTED", payload ->
-                objectMapper.readValue(payload, QuoteAcceptedEvent.class),
-            "QUOTE_REJECTED", payload ->
-                objectMapper.readValue(payload, QuoteRejectedEvent.class),
-            "PAYMENT_SUCCEEDED", payload ->
-                objectMapper.readValue(payload, PaymentSucceededEvent.class),
-            "TRAVELER_ONBOARDING_COMPLETED", payload ->
-                objectMapper.readValue(payload, TravelerOnboardingCompletedEvent.class),
-            "BOOKING_CONFIRMED", payload ->
-                objectMapper.readValue(payload, BookingConfirmedEvent.class),
-            "PROVIDER_PAYMENT_REQUIRED", payload ->
-                objectMapper.readValue(payload, ProviderPaymentRequiredEvent.class)
+        this.eventReaders = Map.ofEntries(
+            Map.entry("BOOKING_REQUESTED", payload -> objectMapper.readValue(payload, BookingRequestedEvent.class)),
+            Map.entry("BOOKING_ASSIGNED", payload -> objectMapper.readValue(payload, BookingAssignedEvent.class)),
+            Map.entry("QUOTE_SENT", payload -> objectMapper.readValue(payload, QuoteSentEvent.class)),
+            Map.entry("TRIP_QUOTES_SENT", payload -> objectMapper.readValue(payload, TripQuotesSentEvent.class)),
+            Map.entry("QUOTE_ACCEPTED", payload -> objectMapper.readValue(payload, QuoteAcceptedEvent.class)),
+            Map.entry("QUOTE_REJECTED", payload -> objectMapper.readValue(payload, QuoteRejectedEvent.class)),
+            Map.entry("PAYMENT_SUCCEEDED", payload -> objectMapper.readValue(payload, PaymentSucceededEvent.class)),
+            Map.entry("TRAVELER_ONBOARDING_COMPLETED", payload -> objectMapper.readValue(payload, TravelerOnboardingCompletedEvent.class)),
+            Map.entry("BOOKING_CONFIRMED", payload -> objectMapper.readValue(payload, BookingConfirmedEvent.class)),
+            Map.entry("PROVIDER_PAYMENT_REQUIRED", payload -> objectMapper.readValue(payload, ProviderPaymentRequiredEvent.class)),
+            Map.entry("TRIP_BOOKINGS_CONFIRMED", payload -> objectMapper.readValue(payload, TripBookingsConfirmedEvent.class))
         );
     }
 

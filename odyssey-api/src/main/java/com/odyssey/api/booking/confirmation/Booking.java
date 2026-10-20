@@ -65,7 +65,7 @@ public class Booking {
      * Booking; only rows persisted before this change may read back as
      * {@code null}.</p>
      */
-    @Enumerated(EnumType.STRING)
+    @Convert(converter = ProviderPaymentStatusConverter.class)
     private ProviderPaymentStatus providerPaymentStatus;
 
     public Booking() {

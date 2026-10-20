@@ -107,7 +107,6 @@ const AgentBookingModal: React.FC<AgentBookingModalProps> = ({ booking, onClose,
                     <option value="NOT_REQUIRED_YET">Pas encore déterminé</option>
                     <option value="PAYMENT_REQUIRED">À payer par le voyageur</option>
                     <option value="PAID_TO_PROVIDER">Payé au fournisseur</option>
-                    <option value="UNKNOWN">Statut inconnu</option>
                   </select>
                 </dd>
               </div>
@@ -154,7 +153,6 @@ const AgentBookingModal: React.FC<AgentBookingModalProps> = ({ booking, onClose,
                 <option value="NOT_REQUIRED_YET">Pas encore déterminé</option>
                 <option value="PAYMENT_REQUIRED">À payer par le voyageur</option>
                 <option value="PAID_TO_PROVIDER">Payé au fournisseur</option>
-                <option value="UNKNOWN">Statut inconnu</option>
               </select>
             </label>
           </div>

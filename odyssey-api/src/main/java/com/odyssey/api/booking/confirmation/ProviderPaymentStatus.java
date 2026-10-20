@@ -16,8 +16,5 @@ public enum ProviderPaymentStatus {
     PAYMENT_REQUIRED,
 
     /** The Agent has manually recorded that the Provider has been paid. */
-    PAID_TO_PROVIDER,
-
-    /** Status could not be determined. */
-    UNKNOWN
+    PAID_TO_PROVIDER
 }

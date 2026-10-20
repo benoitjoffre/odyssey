@@ -32,7 +32,7 @@ public class EmailJobQueue {
         List<String> audiences = switch (eventType) {
             case "BOOKING_REQUESTED", "PAYMENT_SUCCEEDED" -> List.of("TRAVELER", "AGENT");
             case "BOOKING_ASSIGNED", "QUOTE_SENT", "TRIP_QUOTES_SENT", "TRAVELER_ONBOARDING_COMPLETED",
-                 "BOOKING_CONFIRMED", "PROVIDER_PAYMENT_REQUIRED" -> List.of("TRAVELER");
+                 "TRIP_BOOKINGS_CONFIRMED", "PROVIDER_PAYMENT_REQUIRED" -> List.of("TRAVELER");
             case "QUOTE_ACCEPTED", "QUOTE_REJECTED" -> List.of("AGENT");
             default -> List.of();
         };
