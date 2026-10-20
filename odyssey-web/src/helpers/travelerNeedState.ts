@@ -38,7 +38,8 @@ export type TravelerNeedUxState =
  *    must NOT be reported as fully settled
  * 4. Booking pending — refined by the quote's supplier payment status
  * 5. Quote accepted, no booking yet — agent is preparing supplier booking
- * 6. A quote was sent — refined by the quote's own status (sent/expired/rejected)
+ * 6. Latest visible quote status (sent/expired/rejected), independently of the
+ *    request status: sending a quote does not transition IN_PROGRESS to QUOTED
  * 7. Request claimed by an agent, still searching
  * 8. Request sent, not yet claimed
  * 9. Nothing sent yet
@@ -65,14 +66,15 @@ export function deriveTravelerNeedState(need: TripNeed, quote: TravelerQuote | n
     return "AGENT_FINALIZING";
   }
 
-  if (need.bookingRequestStatus === "CONFIRMED") {
+  if (quote?.status === "ACCEPTED" || need.bookingRequestStatus === "CONFIRMED") {
     return "PROPOSAL_ACCEPTED_AGENT_PROCESSING";
   }
 
+  if (quote?.status === "SENT") return "PROPOSAL_READY";
+  if (quote?.status === "EXPIRED") return "PROPOSAL_EXPIRED";
+  if (quote?.status === "REJECTED") return "PROPOSAL_REJECTED";
+
   if (need.bookingRequestStatus === "QUOTED") {
-    if (quote?.status === "SENT") return "PROPOSAL_READY";
-    if (quote?.status === "EXPIRED") return "PROPOSAL_EXPIRED";
-    if (quote?.status === "REJECTED") return "PROPOSAL_REJECTED";
     return "SEARCH_IN_PROGRESS";
   }
 

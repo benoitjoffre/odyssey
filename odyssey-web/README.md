@@ -1,5 +1,21 @@
 # React + TypeScript + Vite
 
+## Traveler trip states
+
+The service cards and the trip's next-action banner share the state derived in
+`src/helpers/travelerNeedState.ts`. A visible quote's status takes precedence over
+the request's searching status: the API can send a quote while its booking
+request remains `IN_PROGRESS`. Confirmed, pending, failed and cancelled bookings
+retain their priority. A sent proposal therefore displays the review actions
+instead of the waiting message, and any proposal ready for review takes priority
+in the trip banner.
+
+Run the state regression checks with Node.js supporting TypeScript stripping:
+
+```sh
+node --experimental-strip-types src/helpers/travelerTripState.test.ts
+```
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:

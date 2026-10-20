@@ -466,6 +466,8 @@ Les mails couvrent :
 
 Sans agent affecté, la première disponibilité est conservée. Lors d'une reprise après affectation, l'agent déjà affecté est prioritaire. Aucun regroupement temporel automatique des demandes par besoin n'est ajouté.
 
+La confirmation de prise en charge voyageur est limitée à **un seul mail par voyage**, à la première prise en charge préparée. Les affectations suivantes, y compris à un autre conseiller ou pour un besoin ajouté plus tard, ne créent pas de nouveau mail. Une clé de livraison par voyage et un verrou transactionnel protègent également les préparations simultanées et les reprises après échec. Chaque demande conserve son suivi sur le site ; le mail annonce le début de l'accompagnement sans affirmer que toutes les demandes sont prises en charge. Cette règle s'applique aux préparations, y compris déjà en attente ; les livraisons générées avant ce changement ne sont pas réécrites.
+
 Le rendu commun reprend le bleu `#0866a5`, le fond `#f7f9f8`, les cartes blanches et le logo du site, publié à `/email/odyssey-bird.png`. Les mails voyageurs sont traduits en FR/EN/ES, avec français par défaut, HTML `lang` cohérent, version texte, aperçu de boîte de réception et lien de secours. Les liens voyageurs ciblent leur voyage ; les agents ciblent la demande ou la liste des demandes. Les frais Odyssey ne sont jamais présentés comme un règlement fournisseur.
 
 #### Activation et configuration

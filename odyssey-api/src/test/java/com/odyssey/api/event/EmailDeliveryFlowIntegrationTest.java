@@ -196,6 +196,75 @@ class EmailDeliveryFlowIntegrationTest {
     }
 
     @Test
+    void threeAssignmentsForOneTripProduceOneEmailEvenAcrossAgentsAndRetries() {
+        Traveler traveler = traveler();
+        Trip trip = new Trip();
+        trip.setTraveler(traveler);
+        trip.setTitle("Lisbonne");
+        trip.setStatus(TripStatus.DRAFT);
+        trip = trips.saveAndFlush(trip);
+        Agent firstAgent = agent();
+        Agent secondAgent = agent();
+        BookingRequest first = request(trip, firstAgent, NeedType.FLIGHT);
+        BookingRequest second = request(trip, firstAgent, NeedType.ACCOMMODATION);
+        BookingRequest third = request(trip, secondAgent, NeedType.TRANSFER);
+        queue.enqueue(301L, "BOOKING_ASSIGNED", mapper.writeValueAsString(
+            new BookingAssignedEvent(first.getId(), traveler.getId(), firstAgent.getId())));
+        processor.processPending();
+        assertEquals(1, deliveryJobs().size());
+        when(sender.sendEmail(any(), anyString()))
+            .thenThrow(new EmailDeliveryException("Temporary provider failure", null))
+            .thenReturn("assignment-confirmation");
+        processor.processPending();
+        EmailJob delivery = deliveryJobs().getFirst();
+        assertEquals(EmailJob.Status.PENDING, delivery.getStatus());
+
+        queue.enqueue(302L, "BOOKING_ASSIGNED", mapper.writeValueAsString(
+            new BookingAssignedEvent(second.getId(), traveler.getId(), firstAgent.getId())));
+        queue.enqueue(303L, "BOOKING_ASSIGNED", mapper.writeValueAsString(
+            new BookingAssignedEvent(third.getId(), traveler.getId(), secondAgent.getId())));
+        processor.processPending();
+        assertEquals(1, deliveryJobs().size());
+        makeReady(delivery.getId());
+        processor.processPending();
+        BookingRequest later = request(trip, secondAgent, NeedType.CAR);
+        queue.enqueue(304L, "BOOKING_ASSIGNED", mapper.writeValueAsString(
+            new BookingAssignedEvent(later.getId(), traveler.getId(), secondAgent.getId())));
+        processor.processPending();
+        assertEquals(1, deliveryJobs().size());
+        assertEquals(EmailJob.Status.COMPLETED, jobs.findById(delivery.getId()).orElseThrow().getStatus());
+        verify(sender, times(2)).sendEmail(any(), eq(delivery.getDeduplicationKey()));
+        EmailMessage message = mapper.readValue(delivery.getPayload(), EmailMessage.class);
+        assertTrue(message.textBody().contains("commence à vous accompagner"));
+        assertFalse(message.textBody().contains("Demande #"));
+        assertTrue(message.textBody().contains("/traveler/trips/" + trip.getId()));
+        assertTrue(jobs.findAll().stream().filter(job -> job.getType().equals("TRAVELER:BOOKING_ASSIGNED"))
+            .allMatch(job -> job.getStatus() == EmailJob.Status.COMPLETED));
+        assertEquals(BookingRequestStatus.IN_PROGRESS, requestRepository.findById(third.getId()).orElseThrow().getStatus());
+    }
+
+    @Test
+    void anotherTripGetsItsOwnAssignmentConfirmation() {
+        Traveler traveler = traveler();
+        Agent agent = agent();
+        for (int i = 0; i < 2; i++) {
+            Trip trip = new Trip();
+            trip.setTraveler(traveler);
+            trip.setTitle("Voyage " + i);
+            trip.setStatus(TripStatus.DRAFT);
+            trip = trips.saveAndFlush(trip);
+            BookingRequest request = request(trip, agent, NeedType.FLIGHT);
+            queue.enqueue(400L + i, "BOOKING_ASSIGNED", mapper.writeValueAsString(
+                new BookingAssignedEvent(request.getId(), traveler.getId(), agent.getId())));
+        }
+        processor.processPending();
+        processor.processPending();
+        assertEquals(2, deliveryJobs().size());
+        assertTrue(deliveryJobs().stream().allMatch(job -> job.getStatus() == EmailJob.Status.COMPLETED));
+        verify(sender, times(2)).sendEmail(any(), anyString());
+    }
+
+    @Test
     void confirmationInstructionsAndRejectionUseTheirOwnDurableMessages() {
         Traveler traveler = traveler();
         Trip trip = new Trip();

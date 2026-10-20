@@ -5,6 +5,9 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.ObjectMapper;
+import com.odyssey.api.booking.BookingRequestRepository;
+import com.odyssey.api.exception.ResourceNotFoundException;
+import com.odyssey.api.trip.TripRepository;
 
 @Service
 public class EmailJobQueue {
@@ -12,11 +15,16 @@ public class EmailJobQueue {
     private final EmailJobRepository repository;
     private final EmailNotificationPlanner planner;
     private final ObjectMapper mapper;
+    private final BookingRequestRepository bookingRequestRepository;
+    private final TripRepository tripRepository;
 
-    public EmailJobQueue(EmailJobRepository repository, EmailNotificationPlanner planner, ObjectMapper mapper) {
+    public EmailJobQueue(EmailJobRepository repository, EmailNotificationPlanner planner, ObjectMapper mapper,
+        BookingRequestRepository bookingRequestRepository, TripRepository tripRepository) {
         this.repository = repository;
         this.planner = planner;
         this.mapper = mapper;
+        this.bookingRequestRepository = bookingRequestRepository;
+        this.tripRepository = tripRepository;
     }
 
     @Transactional
@@ -38,13 +46,25 @@ public class EmailJobQueue {
 
     @Transactional
     public void prepare(EmailJob job) {
-        List<EmailMessage> messages = planner.prepare(job.getType(), job.getPayload());
+        String deliveryKey = job.getDeduplicationKey() + "-delivery-";
+        if ("TRAVELER:BOOKING_ASSIGNED".equals(job.getType())) {
+            BookingAssignedEvent event = mapper.readValue(job.getPayload(), BookingAssignedEvent.class);
+            Long tripId = bookingRequestRepository.findById(event.bookingRequestId())
+                .orElseThrow(() -> new ResourceNotFoundException("Booking request not found"))
+                .getNeed().getTrip().getId();
+            // Serialize preparation for this trip so concurrent assignments share one durable delivery.
+            tripRepository.findByIdForUpdate(tripId)
+                .orElseThrow(() -> new ResourceNotFoundException("Trip not found"));
+            deliveryKey = "trip-" + tripId + "-traveler-assigned-delivery-";
+        }
+        List<EmailMessage> messages = repository.existsByDeduplicationKey(deliveryKey + "0")
+            ? List.of() : planner.prepare(job.getType(), job.getPayload());
         for (int i = 0; i < messages.size(); i++) {
             EmailMessage message = messages.get(i);
             if (message.to() == null || message.to().isBlank()) {
                 throw new IllegalArgumentException("Email recipient must not be blank");
             }
-            String key = job.getDeduplicationKey() + "-delivery-" + i;
+            String key = deliveryKey + i;
             if (!repository.existsByDeduplicationKey(key)) {
                 repository.save(new EmailJob(key, "DELIVERY", mapper.writeValueAsString(message)));
             }

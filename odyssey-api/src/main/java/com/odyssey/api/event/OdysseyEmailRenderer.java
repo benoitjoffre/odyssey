@@ -76,11 +76,11 @@ public class OdysseyEmailRenderer {
         String title = lang.pick("Votre conseiller vous accompagne", "Your advisor is here", "Tu asesor te acompaña");
         return message(to, lang, firstName, title, title + " · " + safe(tripTitle),
             safe(agentFirstName) + lang.pick(
-                " prend en charge votre demande. Vous recevrez un mail lorsque des propositions seront disponibles.",
-                " is handling your request. We will email you when offers are available.",
-                " está gestionando tu solicitud. Te avisaremos por correo cuando haya propuestas disponibles."),
+                " commence à vous accompagner dans l’organisation de votre voyage. Retrouvez le suivi de chaque demande dans votre espace. Vous recevrez un mail lorsque des propositions seront disponibles.",
+                " is starting to help you plan your trip. Track each request in your account. We will email you when offers are available.",
+                " empieza a ayudarte a organizar tu viaje. Consulta el seguimiento de cada solicitud en tu cuenta. Te avisaremos por correo cuando haya propuestas disponibles."),
             lang.pick("Suivre mon voyage", "View my trip", "Ver mi viaje"), "/traveler/trips/" + tripId,
-            safe(tripTitle) + " · " + lang.pick("Demande", "Request", "Solicitud") + " #" + requestId);
+            safe(tripTitle));
     }
 
     public EmailMessage travelerQuoteSent(String to, String language, String firstName, Long requestId,
