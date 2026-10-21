@@ -1,0 +1,50 @@
+.agent-users-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 16px;
+}
+
+.agent-users-filters .form-field {
+  flex: 1 1 220px;
+}
+
+.agent-users-table-wrapper {
+  max-width: 100%;
+  overflow-x: auto;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.agent-users-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.agent-users-table caption {
+  padding: 16px;
+  font-weight: 600;
+  text-align: left;
+}
+
+.agent-users-table th,
+.agent-users-table td {
+  padding: 14px 16px;
+  border-top: 1px solid var(--color-border);
+  overflow-wrap: anywhere;
+  min-width: 110px;
+}
+
+.agent-users-table th {
+  color: var(--color-text-muted);
+}
+
+.agent-users-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+}

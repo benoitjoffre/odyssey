@@ -6,6 +6,7 @@ import com.odyssey.api.booking.BookingRequest;
 import com.odyssey.api.booking.BookingRequestRepository;
 import com.odyssey.api.booking.BookingRequestStatus;
 import com.odyssey.api.booking.confirmation.BookingRepository;
+import com.odyssey.api.booking.confirmation.SupplierPaymentSimulationSettings;
 import com.odyssey.api.need.Need;
 import com.odyssey.api.outbox.OutboxEventRepository;
 import com.odyssey.api.exception.ResourceNotFoundException;
@@ -26,6 +27,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.mock.env.MockEnvironment;
 
 import tools.jackson.databind.ObjectMapper;
 
@@ -90,7 +92,8 @@ class QuoteServiceTest {
             paymentRepository,
             bookingRepository,
             tripRepository,
-            new ObjectMapper()
+            new ObjectMapper(),
+            new SupplierPaymentSimulationSettings(new MockEnvironment(), false)
         );
     }
 

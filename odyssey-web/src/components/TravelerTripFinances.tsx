@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { AlertTriangle, Check, Circle, Clock3, CreditCard, LoaderCircle } from "lucide-react";
-import { getSupplierPaymentLabel, SUPPLIER_PAYMENT_CTA_LABEL, SUPPLIER_PAYMENT_DISCLAIMER } from "../helpers/supplierPayment";
+import { getSupplierPaymentLabel } from "../helpers/supplierPayment";
+import { SupplierPaymentLink } from "./SupplierPaymentLink";
 import type { ProviderPaymentStatus } from "../types/booking";
 import type { PaymentStatus } from "../types/payment";
 
@@ -64,6 +65,45 @@ export function TravelerTripFinances({
 
       <div className="trip-finances-blocks">
         <div className="trip-finance-block">
+          <h3>Prestations de votre voyage</h3>
+          <p className="trip-finance-block-description">Ces montants sont réglés directement aux fournisseurs.</p>
+
+          {supplierServices.length === 0 ? (
+            <p className="trip-finance-status trip-finance-status--muted">Aucune offre fournisseur retenue pour le moment.</p>
+          ) : (
+            <ul className="trip-finance-supplier-list">
+              {supplierServices.map((service) => (
+                <li key={service.needId} className="trip-finance-supplier-item">
+                  <div className="trip-finance-supplier-item-header">
+                    <span aria-hidden="true">{service.icon}</span>
+                    <strong>{service.label}</strong>
+                    <span className="trip-finance-supplier-item-price">{formatPrice(service.providerPrice, service.currency)}</span>
+                  </div>
+                  <p className="trip-finance-supplier-item-status">{getSupplierPaymentLabel(service.providerPaymentStatus)}</p>
+                  {service.providerPaymentStatus === "PAYMENT_REQUIRED" && service.providerPaymentUrl && (
+                    <div className="trip-finance-supplier-cta">
+                      <SupplierPaymentLink className="primary-button" url={service.providerPaymentUrl} />
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {supplierServices.length > 1 && (
+            <p className="trip-finance-supplier-subtotal">
+              Sous-total fournisseurs :{" "}
+              {supplierCurrencies.map((currency, index) => (
+                <span key={currency}>
+                  {index > 0 ? " + " : ""}
+                  {formatPrice(supplierTotals.get(currency) ?? 0, currency)}
+                </span>
+              ))}
+            </p>
+          )}
+        </div>
+
+        <div className="trip-finance-block">
           <h3>Frais d'accompagnement Odyssey</h3>
           <p className="trip-finance-block-description">Ce montant couvre l'accompagnement et l'organisation de votre voyage.</p>
 
@@ -118,48 +158,6 @@ export function TravelerTripFinances({
           {checkoutError && (
             <p className="trip-financial-error" role="alert">
               {checkoutError}
-            </p>
-          )}
-        </div>
-
-        <div className="trip-finance-block">
-          <h3>Prestations de votre voyage</h3>
-          <p className="trip-finance-block-description">Ces montants sont réglés directement aux fournisseurs.</p>
-
-          {supplierServices.length === 0 ? (
-            <p className="trip-finance-status trip-finance-status--muted">Aucune offre fournisseur retenue pour le moment.</p>
-          ) : (
-            <ul className="trip-finance-supplier-list">
-              {supplierServices.map((service) => (
-                <li key={service.needId} className="trip-finance-supplier-item">
-                  <div className="trip-finance-supplier-item-header">
-                    <span aria-hidden="true">{service.icon}</span>
-                    <strong>{service.label}</strong>
-                    <span className="trip-finance-supplier-item-price">{formatPrice(service.providerPrice, service.currency)}</span>
-                  </div>
-                  <p className="trip-finance-supplier-item-status">{getSupplierPaymentLabel(service.providerPaymentStatus)}</p>
-                  {service.providerPaymentStatus === "PAYMENT_REQUIRED" && service.providerPaymentUrl && (
-                    <div className="trip-finance-supplier-cta">
-                      <a className="primary-button" href={service.providerPaymentUrl} target="_blank" rel="noopener noreferrer">
-                        <CreditCard size={16} aria-hidden="true" /> {SUPPLIER_PAYMENT_CTA_LABEL}
-                      </a>
-                      <p className="traveler-provider-payment-hint">{SUPPLIER_PAYMENT_DISCLAIMER}</p>
-                    </div>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
-
-          {supplierServices.length > 1 && (
-            <p className="trip-finance-supplier-subtotal">
-              Sous-total fournisseurs :{" "}
-              {supplierCurrencies.map((currency, index) => (
-                <span key={currency}>
-                  {index > 0 ? " + " : ""}
-                  {formatPrice(supplierTotals.get(currency) ?? 0, currency)}
-                </span>
-              ))}
             </p>
           )}
         </div>

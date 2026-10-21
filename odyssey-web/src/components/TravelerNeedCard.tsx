@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
-import { AlertCircle, AlertTriangle, Check, ChevronRight, Circle, Clock3, CreditCard, LoaderCircle, Minus, Send, X } from "lucide-react";
+import { AlertCircle, AlertTriangle, Check, ChevronRight, Circle, Clock3, LoaderCircle, Minus, Send, X } from "lucide-react";
 import { Badge, type BadgeVariant } from "./ui/Badge";
-import { SUPPLIER_PAYMENT_CTA_LABEL, SUPPLIER_PAYMENT_DISCLAIMER } from "../helpers/supplierPayment";
+import { SupplierPaymentLink } from "./SupplierPaymentLink";
 import type { TravelerNeedUxState } from "../helpers/travelerNeedState";
 import { getNeedStatusLabel, getNeedVisualAsset, getNeedVisualLabel } from "../helpers/travelerNeedPresentation";
 import type { TripNeed } from "../types/trip";
@@ -231,10 +231,7 @@ export function TravelerNeedCard({
 
         {showsSupplierPaymentCta && quote?.providerPaymentUrl && (
           <div className="traveler-need-card__action-block">
-            <a className="primary-button traveler-need-card__action" href={quote.providerPaymentUrl} target="_blank" rel="noopener noreferrer">
-              <CreditCard size={18} /> {SUPPLIER_PAYMENT_CTA_LABEL}
-            </a>
-            <p className="traveler-provider-payment-hint">{SUPPLIER_PAYMENT_DISCLAIMER}</p>
+            <SupplierPaymentLink className="primary-button traveler-need-card__action" url={quote.providerPaymentUrl} />
           </div>
         )}
 

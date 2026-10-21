@@ -1,11 +1,12 @@
 import { useAuth0 } from "@auth0/auth0-react";
 import { useEffect } from "react";
-import { Bell, CalendarRange, FileText, LayoutDashboard, MapPin, Plane, Sparkles, UserRound } from "lucide-react";
+import { Bell, CalendarRange, FileText, LayoutDashboard, MapPin, Plane, Sparkles, UserRound, Users } from "lucide-react";
 import { NavLink, Outlet } from "react-router-dom";
 
 const navigation = [
   { label: "Dashboard", to: "/agent", icon: LayoutDashboard, end: true },
   { label: "Demandes", to: "/agent/booking-requests", icon: Bell },
+  { label: "Utilisateurs", to: "/agent/users", icon: Users },
   { label: "Propositions", to: "/agent/quotes", icon: FileText },
   { label: "Expériences", to: "/agent/experiences", icon: Sparkles },
   { label: "Destinations", to: "/agent/destinations", icon: MapPin },

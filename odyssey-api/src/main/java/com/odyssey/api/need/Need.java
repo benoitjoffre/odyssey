@@ -82,4 +82,12 @@ public class Need {
     public TransferCriteria getTransferCriteria() {
         return transferCriteria;
     }
+
+    public FlightCriteria getFlightCriteria() {
+        return flightCriteria;
+    }
+
+    public AccommodationCriteria getAccommodationCriteria() {
+        return accommodationCriteria;
+    }
 }

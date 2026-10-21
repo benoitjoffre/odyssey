@@ -14,6 +14,7 @@ import { AgentEventsPage } from "./pages/agent/AgentEventsPage";
 import { AgentExperienceCreatePage } from "./pages/agent/AgentExperienceCreatePage";
 import { AgentExperiencesPage } from "./pages/agent/AgentExperiencesPage";
 import { AgentBookingRequestsPage } from "./pages/agent/AgentBookingRequestsPage";
+import { AgentUsersPage } from "./pages/agent/AgentUsersPage";
 import { BookingRequestPage } from "./pages/BookingRequestPage";
 import { ComingSoonPage } from "./pages/ComingSoonPage";
 import { HomePage } from "./pages/HomePage";
@@ -27,6 +28,7 @@ import { TravelerTripDetailPage } from "./pages/traveler/TravelerTripDetailPage"
 import { TravelerTripCreatePage } from "./pages/traveler/TravelerTripCreatePage";
 import { TravelerTripsPage } from "./pages/traveler/TravelerTripsPage";
 import { TravelerProfilePage } from "./pages/traveler/TravelerProfilePage";
+import { SupplierPaymentSimulationPage } from "./pages/traveler/SupplierPaymentSimulationPage";
 
 function getDashboardPathFromRoles(roles: string[]): string {
   if (roles.includes("AGENT")) return "/agent";
@@ -108,6 +110,7 @@ function App() {
         >
           <Route index element={<AgentDashboardPage />} />
           <Route path="booking-requests" element={<AgentBookingRequestsPage />} />
+          <Route path="users" element={<AgentUsersPage />} />
           <Route path="booking-requests/:id" element={<BookingRequestPage />} />
           <Route path="quotes" element={<ComingSoonPage title="Propositions" />} />
           <Route path="experiences" element={<AgentExperiencesPage />} />
@@ -144,6 +147,7 @@ function App() {
           <Route path="trips/:tripId" element={<TravelerTripDetailPage />} />
           <Route path="quotes" element={<TravelerQuotesPage />} />
           <Route path="profile" element={<TravelerProfilePage />} />
+          <Route path="supplier-payment-simulation/:bookingId" element={<SupplierPaymentSimulationPage />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

@@ -8,6 +8,7 @@ import com.odyssey.api.booking.BookingRequestStatus;
 import com.odyssey.api.booking.confirmation.Booking;
 import com.odyssey.api.booking.confirmation.BookingRepository;
 import com.odyssey.api.booking.confirmation.ProviderPaymentStatus;
+import com.odyssey.api.booking.confirmation.SupplierPaymentSimulationSettings;
 import com.odyssey.api.event.QuoteSentEvent;
 import com.odyssey.api.exception.ResourceNotFoundException;
 import com.odyssey.api.outbox.OutboxEvent;
@@ -46,6 +47,7 @@ public class QuoteService {
     private final BookingRepository bookingRepository;
     private final TripRepository tripRepository;
     private final ObjectMapper objectMapper;
+    private final SupplierPaymentSimulationSettings supplierPaymentSimulationSettings;
 
     public QuoteService(
             QuoteRepository quoteRepository,
@@ -56,7 +58,8 @@ public class QuoteService {
             PaymentRepository paymentRepository,
             BookingRepository bookingRepository,
             TripRepository tripRepository,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            SupplierPaymentSimulationSettings supplierPaymentSimulationSettings
     ) {
         this.quoteRepository = quoteRepository;
                 this.agentRepository = agentRepository;
@@ -67,6 +70,7 @@ public class QuoteService {
         this.bookingRepository = bookingRepository;
                 this.tripRepository = tripRepository;
         this.objectMapper = objectMapper;
+        this.supplierPaymentSimulationSettings = supplierPaymentSimulationSettings;
     }
 
         @Transactional
@@ -596,7 +600,7 @@ public class QuoteService {
                 quote.getCreatedAt(),
                 quote.getExpiresAt(),
                 paymentStatus,
-                booking != null ? booking.getProviderPaymentUrl() : null,
+                booking != null ? supplierPaymentSimulationSettings.paymentUrl(booking) : null,
                 booking != null ? booking.getProviderPaymentStatus() : ProviderPaymentStatus.NOT_REQUIRED_YET
         );
     }
