@@ -312,7 +312,7 @@ export function HomePage() {
                   <Link to="/">Contact</Link>
                 </li>
                 <li>
-                  <Link to="/">FAQ</Link>
+                  <Link to="/faq">FAQ</Link>
                 </li>
                 <li>
                   <Link to="/">Aide</Link>

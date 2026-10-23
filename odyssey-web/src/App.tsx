@@ -20,6 +20,7 @@ import { ComingSoonPage } from "./pages/ComingSoonPage";
 import { HomePage } from "./pages/HomePage";
 import { LoginPage } from "./pages/LoginPage";
 import { ExperienceDetailPage } from "./pages/ExperienceDetailPage";
+import { FAQPage } from "./pages/FAQPage";
 import { TravelerDiscoverPage } from "./pages/traveler/TravelerDiscoverPage";
 import { TravelerEventDetailPage } from "./pages/traveler/TravelerEventDetailPage";
 import { TravelerOnboardingPage } from "./pages/traveler/TravelerOnboardingPage";
@@ -97,6 +98,7 @@ function App() {
       <ToastHost />
       <Routes>
         <Route path="/" element={<HomePage />} />
+        <Route path="/faq" element={<FAQPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/experiences/:id" element={<ExperienceDetailPage />} />
 
